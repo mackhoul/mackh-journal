@@ -682,7 +682,6 @@ body.compact .mbody .fgroup{margin-bottom:10px}
       <button class="picon" onclick="toggleTheme()" id="themeBtn" title="Toggle theme"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg></button>
       <button class="picon" onclick="openExportModal()" title="Export/Import"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></button>
       <button class="picon" onclick="openSettings()" title="Settings" id="settingsBtn"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-linecap="round"/></svg></button>
-      <button class="picon" onclick="toggleLang()" id="langBtn" title="Switch language" style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--orange);width:auto;padding:0 10px">RU</button>
     </div>
   </div>
 
@@ -5348,7 +5347,6 @@ loadSettings();
 initSwipeClose();
 updateThemeIcon();
 updateOnlineStatus();
-document.getElementById('langBtn').textContent = lang.toUpperCase();
 window.addEventListener('resize',()=>{if(homeCI){homeCI.destroy();homeCI=null;renderHomeChart();}});
 loadData().then(()=>{
   renderHome();
