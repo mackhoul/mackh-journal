@@ -628,6 +628,41 @@ body:not(.light) .insight-card:hover{filter:brightness(1.06)}
 .cal-legend{display:flex;gap:8px;font-size:10px;color:var(--text3);align-items:center}
 .cal-legend span{display:flex;align-items:center;gap:3px}
 .cal-legend-dot{width:6px;height:6px;border-radius:50%}
+
+/* ── SETTINGS MODAL ───────────────────────────────────── */
+.s-group{margin-bottom:22px}
+.s-group:last-child{margin-bottom:6px}
+.s-group-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;padding:0 2px}
+.s-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+.s-row:last-child{border-bottom:none}
+.s-row-info{flex:1;min-width:0}
+.s-row-lbl{font-size:13px;font-weight:500;color:var(--text);line-height:1.3}
+.s-row-sub{font-size:11px;color:var(--text3);margin-top:1px}
+/* Toggle switch */
+.s-toggle{position:relative;display:inline-block;width:40px;height:22px;flex-shrink:0}
+.s-toggle input{opacity:0;width:0;height:0;position:absolute}
+.s-toggle span{position:absolute;inset:0;border-radius:11px;background:var(--card2);border:1px solid var(--border2);cursor:pointer;transition:background .18s,border-color .18s}
+.s-toggle span:before{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--text3);top:2px;left:2px;transition:transform .18s,background .18s}
+.s-toggle input:checked~span{background:var(--orange);border-color:var(--orange)}
+.s-toggle input:checked~span:before{background:#fff;transform:translateX(18px)}
+/* Lang segment */
+.s-seg{display:flex;gap:3px}
+.s-seg button{padding:4px 12px;border-radius:7px;border:1px solid var(--border2);background:none;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;transition:all .15s}
+.s-seg button.active{background:var(--orange);border-color:var(--orange);color:#fff}
+/* Action buttons */
+.s-action-btn{width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border2);background:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;text-align:left;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.s-action-btn:last-child{margin-bottom:0}
+.s-action-btn:active{background:var(--card2)}
+.s-action-btn.danger{color:var(--red)}
+.s-action-btn svg{opacity:.6;flex-shrink:0}
+
+/* ── COMPACT MODE ─────────────────────────────────────── */
+body.compact .card-p{padding:12px 14px}
+body.compact .kpi{padding:10px 10px 8px}
+body.compact .shdr{padding:9px 16px 5px}
+body.compact .tc{padding:10px 12px 8px}
+body.compact .insight-card{padding:10px 12px}
+body.compact .mbody .fgroup{margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -646,6 +681,7 @@ body:not(.light) .insight-card:hover{filter:brightness(1.06)}
       <div id="syncDot" title="Статус синхронизации" style="width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s" onclick="showSyncDetails()"></div>
       <button class="picon" onclick="toggleTheme()" id="themeBtn" title="Toggle theme"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 7.66l-.71-.71M4.05 4.05l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg></button>
       <button class="picon" onclick="openExportModal()" title="Export/Import"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg></button>
+      <button class="picon" onclick="openSettings()" title="Settings" id="settingsBtn"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-linecap="round"/></svg></button>
       <button class="picon" onclick="toggleLang()" id="langBtn" title="Switch language" style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--orange);width:auto;padding:0 10px">RU</button>
     </div>
   </div>
@@ -1184,6 +1220,80 @@ body:not(.light) .insight-card:hover{filter:brightness(1.06)}
       <div class="fgroup"><label id="goalNameLabel" class="flabel">Название</label><input class="finput" id="goalName" placeholder="Например: Апрельский план"></div>
       <p class="fgroup" style="font-size:11px;color:var(--text3);line-height:1.6" id="goalHint"></p>
       <button class="btn-primary" id="goalBtnLabel" onclick="saveGoal()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Создать цель</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ─────────────────────────────────── -->
+<div class="overlay" id="settingsModal">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhdr">
+      <div class="mtitle" id="settingsModalTitle">Настройки</div>
+      <button class="mclose" onclick="closeModal('settingsModal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" style="padding:16px 16px 24px">
+
+      <!-- Block 1: General -->
+      <div class="s-group">
+        <div class="s-group-title" id="sGrpGeneral">Общие</div>
+        <div class="s-row">
+          <div class="s-row-info">
+            <div class="s-row-lbl" id="sLblLang">Язык</div>
+          </div>
+          <div class="s-seg" id="settLangSeg">
+            <button data-lang="ru" onclick="setLangFromSettings('ru')">RU</button>
+            <button data-lang="en" onclick="setLangFromSettings('en')">EN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Block 2: Analytics -->
+      <div class="s-group">
+        <div class="s-group-title" id="sGrpAnalytics">Аналитика</div>
+        <div class="s-row">
+          <div class="s-row-info">
+            <div class="s-row-lbl" id="sLblInsights">Показывать инсайты</div>
+          </div>
+          <label class="s-toggle"><input type="checkbox" id="stShowInsights" onchange="onSettingChange()"><span></span></label>
+        </div>
+        <div class="s-row">
+          <div class="s-row-info">
+            <div class="s-row-lbl" id="sLblQuick">Быстрые сделки в аналитике</div>
+            <div class="s-row-sub" id="sSubQuick">Включать ⚡ сделки в статистику</div>
+          </div>
+          <label class="s-toggle"><input type="checkbox" id="stQuickInAnalytics" onchange="onSettingChange()"><span></span></label>
+        </div>
+        <div class="s-row">
+          <div class="s-row-info">
+            <div class="s-row-lbl" id="sLblErrors">Анализ ошибок</div>
+            <div class="s-row-sub" id="sSubErrors">Блок в аналитике</div>
+          </div>
+          <label class="s-toggle"><input type="checkbox" id="stShowErrorAnalysis" onchange="onSettingChange()"><span></span></label>
+        </div>
+      </div>
+
+      <!-- Block 3: Interface -->
+      <div class="s-group">
+        <div class="s-group-title" id="sGrpInterface">Интерфейс</div>
+        <div class="s-row">
+          <div class="s-row-info">
+            <div class="s-row-lbl" id="sLblCompact">Компактный режим</div>
+            <div class="s-row-sub" id="sSubCompact">Меньше отступов и карточки</div>
+          </div>
+          <label class="s-toggle"><input type="checkbox" id="stCompactMode" onchange="onSettingChange()"><span></span></label>
+        </div>
+      </div>
+
+      <!-- Block 4: Data -->
+      <div class="s-group">
+        <div class="s-group-title" id="sGrpData">Данные</div>
+        <button class="s-action-btn danger" onclick="clearDismissedInsights()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <span id="sBtnResetInsights">Сбросить сохранённые инсайты</span>
+        </button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -2124,7 +2234,7 @@ function openInsightDetail(id){
 // ═══════════════════════════════════════════════════════
 function generateInsights(){
   const insights = [];
-  const t = trades;
+  const t = appSettings.quickInAnalytics ? trades : trades.filter(x=>!x.quickTrade);
   if(t.length < 3) return insights;
 
   const {wr:overallWR, pnl:overallPnl, total:overallTotal} = calcStats(t);
@@ -2754,7 +2864,7 @@ function toggleRRView(){
 }
 
 function renderAnalytics(){
-  const t = trades;
+  const t = appSettings.quickInAnalytics ? trades : trades.filter(x=>!x.quickTrade);
 
   // Set section titles
   const titleMap = {
@@ -4901,6 +5011,112 @@ function _setT(id, key, attr='textContent'){
 }
 
 // ═══════════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════════
+const SETTINGS_KEY = 'app_settings_v1';
+const SETTINGS_DEFAULTS = {
+  showInsights: true,
+  quickInAnalytics: true,
+  showErrorAnalysis: true,
+  compactMode: false,
+};
+let appSettings = {...SETTINGS_DEFAULTS};
+
+function loadSettings(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');
+    appSettings = {...SETTINGS_DEFAULTS, ...raw};
+  }catch{ appSettings = {...SETTINGS_DEFAULTS}; }
+  applySettings(false);
+}
+
+function saveSettings(){
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
+}
+
+function applySettings(rerender=true){
+  // compact mode
+  document.body.classList.toggle('compact', !!appSettings.compactMode);
+
+  // insights section visibility (home page)
+  const insightsShdr = document.getElementById('insightsTitle')?.closest('.shdr');
+  const insightsWrap = document.getElementById('insightsWrap');
+  if(insightsShdr) insightsShdr.style.display = appSettings.showInsights ? '' : 'none';
+  if(insightsWrap) insightsWrap.style.display  = appSettings.showInsights ? '' : 'none';
+
+  // error analysis section (analytics page)
+  const lossCard = document.getElementById('lossCard');
+  const lossShdr = document.getElementById('lossTitle')?.closest('.shdr');
+  if(lossCard) lossCard.style.display = appSettings.showErrorAnalysis ? '' : 'none';
+  if(lossShdr) lossShdr.style.display = appSettings.showErrorAnalysis ? '' : 'none';
+
+  if(rerender){
+    renderHome();
+    if(document.getElementById('page-analytics')?.classList.contains('active')) renderAnalytics();
+  }
+}
+
+function openSettings(){
+  // Sync toggle states
+  const st = appSettings;
+  document.getElementById('stShowInsights').checked     = st.showInsights;
+  document.getElementById('stQuickInAnalytics').checked = st.quickInAnalytics;
+  document.getElementById('stShowErrorAnalysis').checked= st.showErrorAnalysis;
+  document.getElementById('stCompactMode').checked      = st.compactMode;
+  // Sync lang segment
+  document.querySelectorAll('#settLangSeg button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  _syncSettingsLabels();
+  openModal('settingsModal');
+}
+
+function onSettingChange(){
+  appSettings.showInsights       = document.getElementById('stShowInsights').checked;
+  appSettings.quickInAnalytics   = document.getElementById('stQuickInAnalytics').checked;
+  appSettings.showErrorAnalysis  = document.getElementById('stShowErrorAnalysis').checked;
+  appSettings.compactMode        = document.getElementById('stCompactMode').checked;
+  saveSettings();
+  applySettings();
+}
+
+function setLangFromSettings(l){
+  lang = l;
+  localStorage.setItem('lang', lang);
+  applyLang();
+  // update active state in settings modal (don't call openSettings — keeps modal open)
+  document.querySelectorAll('#settLangSeg button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  // re-translate the settings labels in place
+  _syncSettingsLabels();
+}
+
+function _syncSettingsLabels(){
+  const ru = lang==='ru';
+  document.getElementById('settingsModalTitle').textContent = ru ? 'Настройки' : 'Settings';
+  document.getElementById('sGrpGeneral').textContent   = ru ? 'Общие'       : 'General';
+  document.getElementById('sLblLang').textContent      = ru ? 'Язык'        : 'Language';
+  document.getElementById('sGrpAnalytics').textContent = ru ? 'Аналитика'   : 'Analytics';
+  document.getElementById('sLblInsights').textContent  = ru ? 'Показывать инсайты' : 'Show insights';
+  document.getElementById('sLblQuick').textContent     = ru ? 'Быстрые сделки в аналитике' : 'Quick trades in analytics';
+  document.getElementById('sSubQuick').textContent     = ru ? 'Включать ⚡ сделки в статистику' : 'Include ⚡ trades in stats';
+  document.getElementById('sLblErrors').textContent    = ru ? 'Анализ ошибок' : 'Error analysis';
+  document.getElementById('sSubErrors').textContent    = ru ? 'Блок в аналитике' : 'Block in analytics';
+  document.getElementById('sGrpInterface').textContent = ru ? 'Интерфейс' : 'Interface';
+  document.getElementById('sLblCompact').textContent   = ru ? 'Компактный режим' : 'Compact mode';
+  document.getElementById('sSubCompact').textContent   = ru ? 'Меньше отступов' : 'Less spacing';
+  document.getElementById('sGrpData').textContent      = ru ? 'Данные' : 'Data';
+  document.getElementById('sBtnResetInsights').textContent = ru ? 'Сбросить сохранённые инсайты' : 'Reset saved insights';
+}
+
+function clearDismissedInsights(){
+  localStorage.removeItem('dismissed_insights_v1');
+  if(document.getElementById('page-home')?.classList.contains('active')) renderInsights(_insightsShowAll);
+  showToast(lang==='ru' ? '✓ Инсайты сброшены' : '✓ Insights reset');
+}
+
+// ═══════════════════════════════════════════════════════
 //  SWIPE-TO-CLOSE MODALS
 // ═══════════════════════════════════════════════════════
 function initSwipeClose(){
@@ -5128,6 +5344,7 @@ window.addEventListener('paste', e=>{
 });
 
 updateGoalHint();
+loadSettings();
 initSwipeClose();
 updateThemeIcon();
 updateOnlineStatus();
