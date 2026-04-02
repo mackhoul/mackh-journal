@@ -222,15 +222,15 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 @media(min-width:640px){body{background:#060810}#app{max-width:820px;margin:14px auto;min-height:calc(100vh - 28px);background:var(--bg2);border-radius:24px;border:1px solid rgba(123,97,255,.1);box-shadow:0 40px 100px rgba(0,0,0,.7);overflow:hidden}}
 
 /* PAGES */
-.page{display:none;padding-bottom:80px;animation:fadeUp .22s ease}
+.page{display:none;padding-bottom:calc(90px + env(safe-area-inset-bottom,0px));animation:fadeUp .22s ease}
 .page.active{display:block}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 
 /* NAV */
-.nav{position:fixed;bottom:0;left:0;right:0;background:rgba(11,15,26,.92);backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav{position:fixed;bottom:0;left:0;right:0;background:rgba(11,15,26,.96);backdrop-filter:blur(28px);border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
 @media(min-width:640px){.nav{left:50%;transform:translateX(-50%);width:820px;bottom:14px;border-radius:0 0 24px 24px}}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 7px;background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:9px;font-weight:600;color:var(--text3);transition:color .2s;letter-spacing:.04em;text-transform:uppercase}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:11px 2px 6px;background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:9px;font-weight:600;color:var(--text3);transition:color .2s;letter-spacing:.04em;text-transform:uppercase}
 .nb svg{width:19px;height:19px;stroke-width:1.6;transition:filter .2s}
 .nb.active{color:var(--orange)}
 .nb.active svg{filter:drop-shadow(0 0 5px var(--og))}
@@ -333,9 +333,26 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .disc-item-lbl{font-size:9px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.04em}
 
 /* INSIGHT CARD */
-.insight-card{margin:0 16px 10px;padding:13px 14px;border-radius:var(--r-sm);border:1px solid;position:relative;overflow:hidden;cursor:pointer}
-.insight-dismiss{position:absolute;top:8px;right:8px;background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;cursor:pointer;white-space:nowrap;line-height:1.4;transition:color .15s,background .15s}
+.insight-card{margin:0 16px 10px;padding:13px 14px;border-radius:var(--r-sm);border:1px solid;position:relative;overflow:hidden;cursor:pointer;transition:transform .12s,filter .12s}
+.insight-card:active{transform:scale(.984);filter:brightness(.95)}
+body:not(.light) .insight-card:hover{filter:brightness(1.06)}
+.insight-dismiss{position:absolute;top:8px;right:8px;background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;cursor:pointer;white-space:nowrap;line-height:1.4;transition:color .15s,background .15s;z-index:2}
 .insight-dismiss:hover{color:var(--text);background:var(--card3)}
+/* DISMISSED INSIGHTS */
+.insights-dismissed-toggle{display:flex;align-items:center;gap:6px;margin:0 16px 10px;padding:7px 10px;border-radius:10px;background:var(--card2);border:1px solid var(--border);cursor:pointer;font-size:11px;font-weight:600;color:var(--text3);transition:color .15s}
+.insights-dismissed-toggle:hover{color:var(--text2)}
+.insights-dismissed-toggle svg{width:13px;height:13px;flex-shrink:0;transition:transform .2s}
+.insights-dismissed-toggle.open svg{transform:rotate(180deg)}
+.insight-card.dismissed{opacity:.5;filter:saturate(.3);pointer-events:none}
+.insight-card.dismissed .insight-dismiss{display:none}
+/* INSIGHT DETAIL MODAL */
+.insight-detail-why{background:rgba(255,122,69,.06);border:1px solid rgba(255,122,69,.15);border-radius:10px;padding:11px 13px;margin-bottom:10px}
+.insight-detail-fix{background:rgba(0,217,126,.06);border:1px solid rgba(0,217,126,.15);border-radius:10px;padding:11px 13px;margin-bottom:10px}
+.insight-detail-block-title{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:7px}
+.insight-detail-text{font-size:12px;color:var(--text2);line-height:1.6}
+.insight-fix-item{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:12px;color:var(--text2);line-height:1.5}
+.insight-fix-check{width:16px;height:16px;border-radius:50%;background:rgba(0,217,126,.15);border:1px solid rgba(0,217,126,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.insight-fix-check svg{width:8px;height:8px;color:var(--green);stroke-width:3}
 .insight-card.type-good{background:rgba(0,217,126,.06);border-color:rgba(0,217,126,.2)}
 .insight-card.type-warn{background:rgba(255,122,69,.06);border-color:rgba(255,122,69,.2)}
 .insight-card.type-info{background:rgba(123,97,255,.06);border-color:rgba(123,97,255,.18)}
@@ -1172,6 +1189,24 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 
 <!-- EXPORT / IMPORT MODAL -->
+<!-- ── INSIGHT DETAIL MODAL ───────────────────────────── -->
+<div class="overlay" id="insightDetailModal">
+  <div class="modal" style="border-radius:22px 22px 0 0">
+    <div class="mhandle"></div>
+    <div class="mhdr" id="insightDetailHdr">
+      <div style="display:flex;align-items:center;gap:9px">
+        <div id="insightDetailIcon" style="width:32px;height:32px;border-radius:9px;background:var(--card2);display:flex;align-items:center;justify-content:center"></div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px" id="insightDetailBadge"></div>
+          <div class="mtitle" id="insightDetailTitle" style="font-size:15px"></div>
+        </div>
+      </div>
+      <button class="mclose" onclick="closeModal('insightDetailModal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" id="insightDetailBody" style="padding-bottom:20px"></div>
+  </div>
+</div>
+
 <div class="overlay" id="exportModal">
   <div class="modal" style="border-radius:22px 22px 0 0">
     <div class="mhandle"></div>
@@ -1365,6 +1400,9 @@ let chartRange = 'all';
 
 // Market filter
 let homeMarket = 'all', tradesMarket = 'all';
+let _currentInsights = [];   // cache for dismiss + detail
+let _insightsShowAll = false; // toggle state for "Все" button
+let _dismissedOpen  = false;  // toggle state for dismissed section
 
 // ═══════════════════════════════════════════════════════
 //  PENDING SYNC QUEUE — declared BEFORE loadData
@@ -1861,16 +1899,188 @@ function calcStreaks(){
 function getDismissedInsights(){
   try{ return JSON.parse(localStorage.getItem('dismissed_insights_v1')||'{}'); }catch{ return {}; }
 }
+// Saves full insight snapshot so we can re-display dismissed ones
 function dismissInsight(id, currentCount){
   const d = getDismissedInsights();
-  d[id] = { count: currentCount };
+  const ins = (window._currentInsights||[]).find(i=>i.id===id) || {};
+  d[id] = {
+    count: currentCount,
+    ts: Date.now(),
+    // snapshot for re-display
+    text: ins.text||'', meta: ins.meta||'', type: ins.type||'info',
+    icon: ins.icon||'', rec: ins.rec||'',
+  };
   localStorage.setItem('dismissed_insights_v1', JSON.stringify(d));
+  renderInsights(_insightsShowAll);  // refresh without the dismissed card
+}
+function undismissInsight(id){
+  const d = getDismissedInsights();
+  delete d[id];
+  localStorage.setItem('dismissed_insights_v1', JSON.stringify(d));
+  renderInsights(_insightsShowAll);
 }
 function isInsightDismissed(id, currentCount, threshold){
   if(!id) return false;
   const d = getDismissedInsights();
   if(!d[id]) return false;
   return (currentCount - d[id].count) < (threshold || 3);
+}
+
+// ═══════════════════════════════════════════════════════
+//  INSIGHT DETAIL — rich breakdown content
+// ═══════════════════════════════════════════════════════
+function getInsightDetail(ins){
+  const ru = lang==='ru';
+  const id = ins.id||'';
+
+  // Content map: key → {why, fix:[...]}
+  const map = {
+    offplan_wr:{
+      why: ru?'Ты входишь в сделки вне своего торгового плана — без подтверждения сетапа, на эмоциях или из FOMO. Такие сделки статистически убыточны, потому что у них нет edge.'
+             :'You\'re entering trades outside your trading plan — without setup confirmation, emotionally or from FOMO. These trades are statistically losing because they have no edge.',
+      fix: ru?['Проверяй план перед каждым входом: "Это мой сетап?"','Если ответ "не уверен" — не входи','Запиши план сессии до открытия платформы','После выполнения плана — закрой терминал']
+             :['Check your plan before every entry: "Is this my setup?"','If the answer is "not sure" — don\'t enter','Write your session plan before opening the platform','After completing the plan — close the terminal'],
+    },
+    mistake_broke_plan:{
+      why: ru?'Ты изменил SL, взял TP раньше времени, добавил к убыточной позиции или вошёл без сигнала. Каждое нарушение ломает статистику и создаёт привычку игнорировать правила.'
+             :'You moved your SL, took TP early, added to a losing position, or entered without a signal. Each violation breaks your statistics and creates a habit of ignoring rules.',
+      fix: ru?['Записывай план сделки до входа (entry, SL, TP)','Не прикасайся к SL после установки','Если хочется нарушить план — выйди из рынка','Веди журнал: отмечай каждое нарушение']
+             :['Write your trade plan before entry (entry, SL, TP)','Don\'t touch SL after placing it','If you want to break the plan — exit the market','Journal every rule violation'],
+    },
+    mistake_early_entry:{
+      why: ru?'Ты входишь до завершения формирования сигнала — свеча ещё не закрылась, структура не подтверждена. Это снижает вероятность успеха и ухудшает R:R.'
+             :'You enter before the signal is fully formed — the candle hasn\'t closed, structure isn\'t confirmed. This reduces win probability and worsens R:R.',
+      fix: ru?['Жди закрытия свечи — никогда не входи на незакрытой','Проверь старший ТФ перед входом','Используй лимитные ордера вместо рыночных','Если пропустил вход — пропусти сделку']
+             :['Wait for candle close — never enter on an open candle','Check higher TF before entry','Use limit orders instead of market orders','If you missed the entry — skip the trade'],
+    },
+    mistake_no_confirm:{
+      why: ru?'Ты входишь без полного набора подтверждений — MTF согласованность, ликвидность, структура. Неполный сигнал = повышенный риск.'
+             :'You enter without full confirmation — MTF alignment, liquidity, structure. Incomplete signal = elevated risk.',
+      fix: ru?['Составь чеклист подтверждений (3-5 пунктов)','Входи только при 100% соответствии чеклисту','"Хороший сетап" ≠ "подтверждённый сетап"','Записывай причину входа перед нажатием кнопки']
+             :['Build a confirmation checklist (3-5 items)','Only enter at 100% checklist match','"Good setup" ≠ "confirmed setup"','Write your entry reason before clicking the button'],
+    },
+    mistake_overtrade:{
+      why: ru?'Ты превышаешь оптимальное количество сделок за сессию. Чрезмерная торговля снижает качество решений, увеличивает комиссии и приводит к эмоциональным входам.'
+             :'You exceed the optimal number of trades per session. Overtrading reduces decision quality, increases commissions, and leads to emotional entries.',
+      fix: ru?['Установи лимит: не более 2-3 сделок в день','После 2 убытков подряд — обязательный стоп на день','Введи "правило первой сделки": если убыток — стоп','Качество важнее количества']
+             :['Set a limit: no more than 2-3 trades per day','After 2 consecutive losses — mandatory daily stop','Implement "first trade rule": if loss — stop for the day','Quality over quantity'],
+    },
+    low_winrate:{
+      why: ru?'Менее 40% сделок закрываются в плюс. Это может означать проблему с точкой входа, сетапом, управлением позицией или психологией.'
+             :'Less than 40% of trades close in profit. This may indicate an issue with entry timing, setup, position management, or psychology.',
+      fix: ru?['Разбери последние 10 убыточных сделок: найди общую причину','Не торгуй 2-3 дня — сделай паузу','Вернись к базовому сетапу, который работал раньше','Снизь размер позиции до минимума пока WR не улучшится']
+             :['Review last 10 losing trades: find the common cause','Don\'t trade for 2-3 days — take a break','Return to the basic setup that worked before','Reduce position size to minimum until WR improves'],
+    },
+    emotional:{
+      why: ru?'Эмоциональные сделки открываются под давлением: после убытка (revenge trading), из страха пропустить (FOMO), от скуки или азарта. Статистически они проигрывают.'
+             :'Emotional trades open under pressure: after a loss (revenge trading), from fear of missing out (FOMO), boredom, or excitement. Statistically, they lose.',
+      fix: ru?['Используй чеклист перед КАЖДЫМ входом — он тормозит импульс','После убытка: 30 минут перерыв, выйди из платформы','Закрой терминал если чувствуешь раздражение или азарт','Веди "эмоциональный дневник" — отмечай состояние перед сделкой']
+             :['Use a checklist before EVERY entry — it slows impulse','After a loss: 30 minute break, leave the platform','Close the terminal if feeling frustration or excitement','Keep an "emotional journal" — note your state before each trade'],
+    },
+    drawdown:{
+      why: ru?'Серия убытков или один крупный убыток создали значительную просадку капитала. Это нормальная часть трейдинга, но требует немедленного управления риском.'
+             :'A series of losses or one large loss created significant capital drawdown. This is a normal part of trading but requires immediate risk management.',
+      fix: ru?['Снизь риск на сделку до 0.5% пока не восстановишься','Не пытайся "отыграться" — это увеличит просадку','Установи максимальную дневную потерю (например 2%)','Сделай паузу и разбери причины каждого убытка']
+             :['Reduce per-trade risk to 0.5% until recovery','Don\'t try to "win it back" — this increases drawdown','Set a maximum daily loss (e.g. 2%)','Take a break and analyze the reason for each loss'],
+    },
+    dirty_trades:{
+      why: ru?'Более половины сделок нарушают хотя бы одно правило дисциплины: чеклист не пройден, вход не по плану или эмоциональный.'
+             :'More than half of trades violate at least one discipline rule: checklist not completed, entry off-plan, or emotional.',
+      fix: ru?['Заполняй чеклист перед каждым входом — это не опционально','Одно нарушение = выход из рынка на день','Качество > количество: лучше 2 чистых сделки, чем 10 грязных','Настрой напоминание: "Ты прошёл чеклист?"']
+             :['Complete the checklist before every entry — not optional','One violation = exit market for the day','Quality > quantity: better 2 clean trades than 10 dirty ones','Set a reminder: "Did you complete the checklist?"'],
+    },
+    clean_trades:{
+      why: ru?'Чистые сделки (по плану + чеклист + без эмоций) показывают значительно лучший результат. Это доказывает, что твой сетап работает — нужна только дисциплина.'
+             :'Clean trades (by plan + checklist + no emotions) show significantly better results. This proves your setup works — you just need discipline.',
+      fix: ru?['Продолжай в том же духе — система работает','Проанализируй что делаешь по-другому в чистых сделках','Постепенно увеличивай размер только в чистых сделках','Ставь цель: 80%+ чистых сделок в месяц']
+             :['Keep it up — the system works','Analyze what you do differently in clean trades','Gradually increase size only in clean trades','Set a goal: 80%+ clean trades per month'],
+    },
+  };
+
+  // Fallback for session/setup insights
+  let key = id;
+  if(id.startsWith('mistake_')) key = 'mistake_'+id.replace('mistake_','');
+  if(!map[key]){
+    if(id.startsWith('best_sess')) key='_best_sess';
+    else if(id.startsWith('worst_sess')) key='_worst_sess';
+    else if(id.startsWith('sess_loss')) key='_sess_loss';
+    else if(id==='best_setup') key='_best_setup';
+    else if(id.startsWith('worst_setup')) key='_worst_setup';
+  }
+  const fallbacks = {
+    _best_sess:{
+      why:ru?'Эта сессия совпадает с твоим торговым стилем, уровнем концентрации и волатильностью рынка.':'This session aligns with your trading style, concentration level, and market volatility.',
+      fix:ru?['Сосредоточь большую часть сделок на этой сессии','Анализируй почему именно она работает','Не торгуй в этой сессии если устал или расстроен','Настрой уведомления под это время']
+            :['Focus most trades on this session','Analyze why exactly it works','Don\'t trade in this session when tired or upset','Set notifications for this time'],
+    },
+    _worst_sess:{
+      why:ru?'В этой сессии твои результаты хуже среднего. Возможные причины: другая волатильность, усталость, несовместимость с твоим сетапом.':'Your results in this session are below average. Possible reasons: different volatility, fatigue, incompatibility with your setup.',
+      fix:ru?['Рассмотри пропуск этой сессии полностью','Снизь размер позиции вдвое в этой сессии','Веди наблюдение ещё 2 недели — нужна выборка','Анализируй причину убытков именно в это время']
+            :['Consider skipping this session entirely','Halve position size in this session','Observe for another 2 weeks — need a sample','Analyze the cause of losses at this time'],
+    },
+    _sess_loss:{
+      why:ru?'Большинство убытков концентрируются в одной сессии. Это паттерн, требующий внимания.':'Most losses are concentrated in one session. This pattern requires attention.',
+      fix:ru?['Сократи количество сделок в этой сессии','Повысь требования к подтверждению входа','Установи максимум 1-2 сделки в проблемной сессии','Разбери каждый убыток из этой сессии']
+            :['Reduce trades in this session','Increase entry confirmation requirements','Set maximum 1-2 trades in the problem session','Review each loss from this session'],
+    },
+    _best_setup:{
+      why:ru?'Этот сетап показывает наилучшие результаты в твоей статистике. Это твой основной edge.':'This setup shows the best results in your statistics. This is your main edge.',
+      fix:ru?['Фокусируйся именно на этом сетапе','Не отвлекайся на менее надёжные паттерны','Постепенно увеличивай размер в этом сетапе','Изучи его глубже — найди ещё лучшие условия']
+            :['Focus on this setup specifically','Don\'t get distracted by less reliable patterns','Gradually increase size in this setup','Study it deeper — find even better conditions'],
+    },
+    _worst_setup:{
+      why:ru?'Этот сетап показывает плохие результаты. Проблема может быть в исполнении, рыночных условиях или самом паттерне.':'This setup shows poor results. The issue may be in execution, market conditions, or the pattern itself.',
+      fix:ru?['Приостанови этот сетап на 1 месяц','Разбери последние 5 убыточных сделок по нему','Протестируй на истории — возможно он перестал работать','Снизь размер или исключи из торгового плана']
+            :['Pause this setup for 1 month','Review last 5 losing trades from it','Test on history — it may have stopped working','Reduce size or remove from trading plan'],
+    },
+  };
+
+  const content = map[key] || fallbacks[key] || {
+    why: ru?'Этот инсайт основан на твоей статистике. Изучи детали и прими меры.':'This insight is based on your statistics. Review the details and take action.',
+    fix: ru?['Проанализируй связанные сделки','Найди общую причину','Составь план улучшения','Проверь результат через 10 сделок']
+           :['Analyze related trades','Find the common cause','Create an improvement plan','Check results after 10 trades'],
+  };
+
+  const typeColor = ins.type==='good'?'var(--green)':ins.type==='alert'?'var(--red)':ins.type==='warn'?'var(--orange)':'var(--purple2)';
+  const typeLbl = ins.type==='good'?(ru?'Успех':'Success'):ins.type==='alert'?(ru?'Проблема':'Problem'):ins.type==='warn'?(ru?'Предупреждение':'Warning'):(ru?'Инфо':'Info');
+
+  return {content, typeColor, typeLbl};
+}
+
+function openInsightDetail(id){
+  const ins = (window._currentInsights||[]).find(i=>i.id===id);
+  if(!ins) return;
+  const {content, typeColor, typeLbl} = getInsightDetail(ins);
+  const ru = lang==='ru';
+
+  // Populate modal
+  document.getElementById('insightDetailIcon').style.color = typeColor;
+  document.getElementById('insightDetailIcon').innerHTML = ins.icon;
+  document.getElementById('insightDetailBadge').style.color = typeColor;
+  document.getElementById('insightDetailBadge').textContent = typeLbl;
+  document.getElementById('insightDetailTitle').textContent = ins.text;
+
+  document.getElementById('insightDetailBody').innerHTML = `
+    ${ins.meta?`<div style="font-size:11px;color:var(--text3);margin-bottom:12px;padding:0 1px">${escapeHtml(ins.meta)}</div>`:''}
+    <div class="insight-detail-why">
+      <div class="insight-detail-block-title">${ru?'💡 Почему это происходит':'💡 Why this happens'}</div>
+      <div class="insight-detail-text">${escapeHtml(content.why)}</div>
+    </div>
+    <div class="insight-detail-fix">
+      <div class="insight-detail-block-title">${ru?'🎯 Как исправить':'🎯 How to fix'}</div>
+      ${content.fix.map(f=>`
+        <div class="insight-fix-item">
+          <div class="insight-fix-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg></div>
+          <span>${escapeHtml(f)}</span>
+        </div>`).join('')}
+    </div>
+    ${ins.rec?`<div style="padding:9px 11px;border-radius:9px;background:var(--card2);border:1px solid var(--border);font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:4px"><span style="color:var(--orange);font-weight:700">${ru?'Совет:':'Tip:'}</span> ${escapeHtml(ins.rec)}</div>`:''}
+    ${ins.id?`<div style="display:flex;gap:8px;margin-top:14px">
+      <button onclick="dismissInsight('${ins.id}',${ins.dismissCount});closeModal('insightDetailModal')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border2);background:var(--card2);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer">${ru?'✓ Запомнил':'✓ Got it'}</button>
+      <button onclick="closeModal('insightDetailModal')" style="flex:1;padding:11px;border-radius:10px;border:none;background:var(--orange);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;color:#fff;cursor:pointer">${ru?'Закрыть':'Close'}</button>
+    </div>`:''}
+  `;
+  openModal('insightDetailModal');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2220,25 +2430,80 @@ function renderHome(){
 }
 
 function renderInsights(showAll){
+  _insightsShowAll = !!showAll;
   const ins = generateInsights();
+  window._currentInsights = ins;  // cache for dismiss + detail lookup
+  const ru = lang==='ru';
   const wrap = document.getElementById('insightsWrap');
+
+  // Update "Все" button label
+  const seeAllBtn = document.getElementById('insightsSeeAll');
+  if(seeAllBtn){
+    seeAllBtn.textContent = _insightsShowAll && ins.length>3 ? (ru?'Свернуть':'Collapse') : T('insights_see_all');
+    seeAllBtn.onclick = ()=>renderInsights(!_insightsShowAll);
+  }
+
   if(!ins.length){
     wrap.innerHTML = `<div style="padding:8px 16px 4px"><div style="font-size:12px;color:var(--text3);line-height:1.65;padding:10px 12px;background:var(--card2);border-radius:10px;border:1px solid var(--border)">${T('insights_empty')}</div></div>`;
+    renderDismissedSection(wrap);
     return;
   }
-  const list = showAll ? ins : ins.slice(0,3);
-  wrap.innerHTML = list.map(i=>`
-    <div class="insight-card type-${i.type}">
-      ${i.id?`<button class="insight-dismiss" onclick="dismissInsight('${i.id}',${i.dismissCount});this.closest('.insight-card').style.transition='opacity .2s';this.closest('.insight-card').style.opacity='0';setTimeout(()=>this.closest('.insight-card').remove(),200)">${lang==='ru'?'Запомнил':'Got it'}</button>`:''}
-      <div style="display:flex;align-items:flex-start;gap:9px;${i.id?'padding-right:62px':''}">
-        <div style="width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);color:${i.type==='good'?'var(--green)':i.type==='alert'?'var(--red)':i.type==='warn'?'var(--orange)':'var(--purple2)'}">${i.icon}</div>
+
+  const list = _insightsShowAll ? ins : ins.slice(0,3);
+  const iconColor = i => i.type==='good'?'var(--green)':i.type==='alert'?'var(--red)':i.type==='warn'?'var(--orange)':'var(--purple2)';
+
+  let html = list.map(i=>`
+    <div class="insight-card type-${i.type}" onclick="openInsightDetail('${i.id}')">
+      ${i.id?`<button class="insight-dismiss" onclick="event.stopPropagation();dismissInsight('${i.id}',${i.dismissCount})">${ru?'Запомнил':'Got it'}</button>`:''}
+      <div style="display:flex;align-items:flex-start;gap:9px;${i.id?'padding-right:66px':''}">
+        <div style="width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);color:${iconColor(i)}">${i.icon}</div>
         <div style="flex:1;min-width:0">
           <div class="insight-text">${i.text}</div>
           ${i.meta?`<div class="insight-meta">${i.meta}</div>`:''}
-          ${i.rec?`<div style="margin-top:7px;padding:6px 9px;border-radius:7px;background:var(--card2);border:1px solid var(--border);font-size:11px;color:var(--text2);line-height:1.5"><span style="color:var(--orange);font-weight:700">${lang==='ru'?'Совет:':'Tip:'}</span> ${i.rec}</div>`:''}
+          ${i.rec?`<div style="margin-top:7px;padding:6px 9px;border-radius:7px;background:var(--card2);border:1px solid var(--border);font-size:11px;color:var(--text2);line-height:1.5"><span style="color:var(--orange);font-weight:700">${ru?'Совет:':'Tip:'}</span> ${i.rec}</div>`:''}
         </div>
       </div>
     </div>`).join('');
+
+  // "Show more" hint when not expanded and there are hidden ones
+  if(!_insightsShowAll && ins.length > 3){
+    html += `<div style="text-align:center;padding:2px 0 6px">
+      <button onclick="renderInsights(true)" style="font-size:11px;font-weight:600;color:var(--orange);background:none;border:none;font-family:'Outfit',sans-serif;cursor:pointer;padding:4px 12px">
+        ${ru?`Ещё ${ins.length-3} инсайтов ↓`:`${ins.length-3} more insights ↓`}
+      </button></div>`;
+  }
+
+  wrap.innerHTML = html;
+  renderDismissedSection(wrap);
+}
+
+function renderDismissedSection(wrap){
+  const ru = lang==='ru';
+  const dismissed = getDismissedInsights();
+  const entries = Object.entries(dismissed).filter(([,v])=>v.text);  // only those with stored data
+  if(!entries.length) return;
+
+  const toggleHtml = `<div class="insights-dismissed-toggle ${_dismissedOpen?'open':''}" onclick="_dismissedOpen=!_dismissedOpen;renderInsights(_insightsShowAll)">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <span>${ru?`Запомнено: ${entries.length}`:`Dismissed: ${entries.length}`}</span>
+    <svg style="margin-left:auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="6 9 12 15 18 9"/></svg>
+  </div>`;
+
+  const cardsHtml = _dismissedOpen ? entries.map(([id,v])=>`
+    <div class="insight-card type-${v.type} dismissed" style="opacity:.45;cursor:default">
+      <div style="display:flex;align-items:flex-start;gap:9px;padding-right:70px">
+        <div style="width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--card2);color:var(--text3)">${v.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div class="insight-text" style="color:var(--text2)">${escapeHtml(v.text)}</div>
+          ${v.meta?`<div class="insight-meta">${escapeHtml(v.meta)}</div>`:''}
+        </div>
+      </div>
+      <button onclick="undismissInsight('${id}')" style="position:absolute;top:8px;right:8px;background:var(--card2);border:1px solid var(--border);color:var(--text3);font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;cursor:pointer">${ru?'Вернуть':'Restore'}</button>
+    </div>`).join('') : '';
+
+  const div = document.createElement('div');
+  div.innerHTML = toggleHtml + cardsHtml;
+  wrap.appendChild(div);
 }
 
 function renderGoalsBanner(){
