@@ -657,12 +657,29 @@ body:not(.light) .insight-card:hover{filter:brightness(1.06)}
 .s-action-btn svg{opacity:.6;flex-shrink:0}
 
 /* ── COMPACT MODE ─────────────────────────────────────── */
-body.compact .card-p{padding:12px 14px}
-body.compact .kpi{padding:10px 10px 8px}
-body.compact .shdr{padding:9px 16px 5px}
-body.compact .tc{padding:10px 12px 8px}
-body.compact .insight-card{padding:10px 12px}
-body.compact .mbody .fgroup{margin-bottom:10px}
+/* Section headers */
+body.compact .shdr{padding:8px 16px 4px}
+/* KPI grid */
+body.compact .kpi-grid{gap:5px;padding-bottom:6px}
+body.compact .kpi{padding:9px 10px 7px}
+body.compact .kpi-val{font-size:18px!important}
+/* Cards */
+body.compact .card-p{padding:10px 12px}
+/* Trade cards */
+body.compact .tc{margin-bottom:5px}
+body.compact .tc-hdr{padding:8px 10px}
+body.compact .tc-thumb{width:32px;height:32px;border-radius:8px}
+body.compact .tc-quality{padding:0 10px 5px}
+body.compact .tc-tags{padding:0 10px 5px}
+body.compact .tc-flags{padding:0 10px 5px}
+body.compact .trade-group-header{padding:5px 16px 2px;font-size:9px}
+/* Insight cards */
+body.compact .insight-card{padding:9px 11px;margin-bottom:6px}
+/* Page bottom */
+body.compact.page{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+/* Section spacing */
+body.compact .streak-banner{padding:9px 12px;margin-bottom:6px}
+body.compact .disc-card{padding:10px 14px 12px}
 </style>
 </head>
 <body>
