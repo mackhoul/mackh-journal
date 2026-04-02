@@ -4,8 +4,30 @@ const crypto  = require('crypto'); // built-in Node.js module
 const fetch   = require('node-fetch');
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+
+// ── CORS — only allow the known front-end origins ────────
+// Uses exact match or path-prefix match to prevent subdomain spoofing
+// (e.g. "mackhoul.github.io.evil.com" must NOT pass as "mackhoul.github.io")
+function isOriginAllowed(origin) {
+  if (!origin) return true; // no origin = same-origin / mobile shell / Render health
+  if (origin === 'null') return true; // Telegram Mini App
+  if (origin === 'https://mackhoul.github.io') return true;
+  // Allow subpaths of the Pages host (origin never includes path, but be safe)
+  if (origin.startsWith('https://mackhoul.github.io/')) return true;
+  // Allow localhost on any port for local dev
+  if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return true;
+  if (/^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) return true;
+  return false;
+}
+app.use(cors({
+  origin: (origin, cb) => {
+    if (isOriginAllowed(origin)) return cb(null, true);
+    console.warn('[CORS] blocked origin:', origin);
+    cb(new Error('CORS: origin not allowed'));
+  }
+}));
+
+app.use(express.json({ limit: '10mb' })); // 10 MB is plenty for a photo
 
 // ── Environment ─────────────────────────────────────────
 const BOT_TOKEN            = process.env.BOT_TOKEN;
@@ -17,11 +39,23 @@ if (!SUPABASE_URL)         console.error('❌ SUPABASE_URL is not set');
 if (!SUPABASE_SERVICE_KEY) console.error('❌ SUPABASE_SERVICE_ROLE_KEY is not set');
 
 // ── Telegram auth ────────────────────────────────────────
+const AUTH_MAX_AGE_SEC = 24 * 60 * 60; // 24 hours — Telegram's recommended window
+
 function validateTelegramAuth(initData) {
   try {
     const params = new URLSearchParams(initData);
     const hash   = params.get('hash');
     if (!hash) return false;
+
+    // ── Expiry check ──────────────────────────────────
+    const authDate = parseInt(params.get('auth_date') || '0', 10);
+    if (!authDate) return false;
+    const ageSec = Math.floor(Date.now() / 1000) - authDate;
+    if (ageSec > AUTH_MAX_AGE_SEC) {
+      console.warn('[AUTH] initData expired — age:', ageSec, 's');
+      return false;
+    }
+
     params.delete('hash');
     const dataCheckString = Array.from(params.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -29,7 +63,8 @@ function validateTelegramAuth(initData) {
       .join('\n');
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
     const computed  = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-    return computed === hash;
+    // Constant-time comparison to prevent timing attacks
+    return crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(hash, 'hex'));
   } catch (e) {
     console.error('[AUTH] validateTelegramAuth error:', e.message);
     return false;
@@ -142,7 +177,7 @@ app.get('/trades', auth, async (req, res) => {
     res.json(trades);
   } catch (e) {
     console.error('[API] GET /trades error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Failed to load trades' });
   }
 });
 
@@ -179,19 +214,21 @@ app.post('/trades', auth, async (req, res) => {
     res.json({ ok: true, img_url: imgUrl, img_failed: imgFailed });
   } catch (e) {
     console.error('[API] POST /trades error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Failed to save trade' });
   }
 });
 
 // DELETE /trades/:id — delete a trade
 app.delete('/trades/:id', auth, async (req, res) => {
+  // Validate id — must be a numeric timestamp string (our client uses Date.now())
+  if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: 'Invalid trade id' });
   try {
     await supabase('DELETE', `trades?id=eq.${req.params.id}&user_id=eq.${req.userId}`);
     console.log(`[API] DELETE /trades/${req.params.id} for user ${req.userId}`);
     res.json({ ok: true });
   } catch (e) {
     console.error('[API] DELETE /trades error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Failed to delete trade' });
   }
 });
 
@@ -206,7 +243,7 @@ app.get('/settings', auth, async (req, res) => {
     });
   } catch (e) {
     console.error('[API] GET /settings error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Failed to load settings' });
   }
 });
 
@@ -214,17 +251,25 @@ app.get('/settings', auth, async (req, res) => {
 app.post('/settings', auth, async (req, res) => {
   try {
     const { base_capital, goals } = req.body;
+    // Validate base_capital is a safe finite number
+    const capital = parseFloat(base_capital);
+    if (base_capital !== undefined && !isFinite(capital)) {
+      return res.status(400).json({ error: 'Invalid base_capital' });
+    }
+    if (!Array.isArray(goals) && goals !== undefined) {
+      return res.status(400).json({ error: 'Invalid goals format' });
+    }
     await supabase('POST', 'users?on_conflict=user_id', {
       user_id:      req.userId,
-      base_capital: base_capital || 0,
-      goals:        goals || [],
+      base_capital: isFinite(capital) ? capital : 0,
+      goals:        Array.isArray(goals) ? goals : [],
       updated_at:   new Date().toISOString(),
     });
     console.log(`[API] POST /settings saved for user ${req.userId}`);
     res.json({ ok: true });
   } catch (e) {
     console.error('[API] POST /settings error:', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Failed to save settings' });
   }
 });
 
