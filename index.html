@@ -1531,6 +1531,26 @@ async function syncPendingQueue(){
 // ═══════════════════════════════════════════════════════
 //  API
 // ═══════════════════════════════════════════════════════
+// ── 401 session-expired banner ───────────────────────────
+let _401shown = false;
+function show401Banner(){
+  if(_401shown) return;
+  _401shown = true;
+  let bar = document.getElementById('authErrorBar');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'authErrorBar';
+    bar.style.cssText = [
+      'position:fixed','top:0','left:0','right:0','z-index:9999',
+      'background:#d32f2f','color:#fff','font-size:13px','font-weight:600',
+      'text-align:center','padding:10px 16px',
+      'box-shadow:0 2px 8px rgba(0,0,0,.4)',
+    ].join(';');
+    bar.textContent = '⚠️ Сессия истекла — перезапусти приложение';
+    document.body.prepend(bar);
+  }
+}
+
 async function api(method, path, body){
   try{
     const controller = new AbortController();
@@ -1546,6 +1566,7 @@ async function api(method, path, body){
       const errText = await res.text();
       console.error(`[API] ${method} ${path} → HTTP ${res.status}:`, errText);
       api._lastStatus = res.status;
+      if(res.status === 401) show401Banner();
       throw new Error(errText);
     }
     api._lastStatus = 200;
@@ -1897,7 +1918,17 @@ function calcStreaks(){
 //  INSIGHTS DISMISS HELPERS
 // ═══════════════════════════════════════════════════════
 function getDismissedInsights(){
-  try{ return JSON.parse(localStorage.getItem('dismissed_insights_v1')||'{}'); }catch{ return {}; }
+  try{
+    const raw = JSON.parse(localStorage.getItem('dismissed_insights_v1')||'{}');
+    // TTL: drop entries older than 90 days so dismissed insights eventually resurface
+    const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    let changed = false;
+    for(const k of Object.keys(raw)){
+      if((raw[k].ts||0) < cutoff){ delete raw[k]; changed = true; }
+    }
+    if(changed) localStorage.setItem('dismissed_insights_v1', JSON.stringify(raw));
+    return raw;
+  }catch{ return {}; }
 }
 // Saves full insight snapshot so we can re-display dismissed ones
 function dismissInsight(id, currentCount){
@@ -3570,12 +3601,12 @@ function processImgFile(file){
   reader.onload=e=>{
     const img=new Image();
     img.onload=()=>{
-      const MAX=1000; let w=img.naturalWidth,h=img.naturalHeight;
+      const MAX=1200; let w=img.naturalWidth,h=img.naturalHeight;
       if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
       const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
       canvas.getContext('2d').drawImage(img,0,0,w,h);
-      // Always convert to JPEG 0.5 to save storage space
-      currentImg=canvas.toDataURL('image/jpeg',0.5);
+      // JPEG quality 0.7: good visual quality, ~3× smaller than lossless
+      currentImg=canvas.toDataURL('image/jpeg',0.7);
       document.getElementById('imgPreviewSrc').src=currentImg;
       document.getElementById('imgPreview').style.display='block';
       document.getElementById('imgUploadArea').style.display='none';
@@ -3800,7 +3831,7 @@ function saveQuickTrade(){
     if(!isNaN(n)) rrVal = '1:'+fmtRR(n);
   }
   const trade={
-    id:Date.now().toString(),
+    id:Date.now().toString()+Math.floor(Math.random()*900+100).toString(),
     pair:document.getElementById('qPair').value.trim()||'—',
     asset:document.getElementById('qPair').value.trim()||'—',
     market:'forex',
@@ -3952,7 +3983,7 @@ function saveTrade(){
     if(idx>=0){tradeData.id=editingId; trades[idx]=tradeData; syncTrade(tradeData);}
     showToast('✓ '+T('toast_updated'));
   } else {
-    tradeData.id=Date.now().toString();
+    tradeData.id=Date.now().toString()+Math.floor(Math.random()*900+100).toString();
     trades.push(tradeData);
     syncTrade(tradeData);
     showToast('✓ '+T('toast_saved'));
