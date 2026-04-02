@@ -2192,7 +2192,11 @@ function generateInsights(){
 
   // ── 2. SETUP ANALYSIS ──────────────────────────────
   const setupGroups = {};
-  t.forEach(x=>{if(x.setup)(setupGroups[x.setup]=setupGroups[x.setup]||[]).push(x);});
+  const _quickLbl = isRu ? '⚡ Быстрая' : '⚡ Quick';
+  t.forEach(x=>{
+    const k = x.setup || (x.quickTrade ? _quickLbl : null);
+    if(k)(setupGroups[k]=setupGroups[k]||[]).push(x);
+  });
   const setupStats = Object.entries(setupGroups)
     .map(([name,list])=>({name,...calcStats(list), losses:list.filter(x=>x.result==='loss').length}))
     .filter(s=>s.total>=3);
