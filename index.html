@@ -1946,6 +1946,13 @@ function computeCapital(){
   return baseCapital + pnl;
 }
 
+// Maps internal setup key → display name for current language
+function setupDisplayName(name){
+  if(!name) return name;
+  if(lang==='ru' && name==='Range') return 'Боковик';
+  return name;
+}
+
 function getFiltered(market, dateVal, setupVal){
   return trades.filter(t=>{
     if(market && market!=='all' && t.market!==market) return false;
@@ -2123,6 +2130,18 @@ function getInsightDetail(ins){
              :['Entry without a planned setup = no edge, just luck','FOMO and emotions cancel out your statistical advantage','Every off-plan trade trains your brain to ignore the system','Even a profitable off-plan trade is harmful long-term'],
       fix: ru?['Проверяй план перед каждым входом: "Это мой сетап?"','Если ответ "не уверен" — не входи','Запиши план сессии до открытия платформы','После выполнения плана — закрой терминал']
              :['Check your plan before every entry: "Is this my setup?"','If the answer is "not sure" — don\'t enter','Write your session plan before opening the platform','After completing the plan — close the terminal'],
+    },
+    range_wr:{
+      why: ru?['Боковик — сложная среда: много ложных пробоев и шума','Вход в середине ренджа = нет чёткого SL и TP','Без чётких уровней H/L зоны edge исчезает','Часто боковик торгуется как тренд — главная ошибка']
+             :['Range is a complex environment: many false breakouts and noise','Entering mid-range = no clear SL and TP','Without clear H/L zone boundaries edge disappears','Range is often traded like a trend — the main mistake'],
+      fix: ru?['Входи только от границ ренджа (High/Low), не из середины','Жди реакцию на уровне — отбой или ложный пробой с закрытием внутрь','TP — противоположная граница ренджа, SL — за границей зоны','Если рендж узкий (< 50 pips) — пропускай, нет места для R:R']
+             :['Enter only from range boundaries (High/Low), not mid-range','Wait for reaction at the level — rejection or false breakout closing inward','TP = opposite range boundary, SL = beyond zone boundary','If range is narrow (< 50 pips) — skip, no room for R:R'],
+    },
+    range_wr_good:{
+      why: ru?['Ты правильно читаешь границы ренджа и входишь от уровней','Терпение — ждёшь реакцию, не входишь в середину','Чёткое управление: TP на противоположной границе','Это ценный навык — боковик бывает 70% времени на рынке']
+             :['You correctly read range boundaries and enter from levels','Patience — waiting for reaction, not entering mid-range','Clear management: TP at opposite boundary','This is a valuable skill — range is 70% of market time'],
+      fix: ru?['Продолжай торговать только от чётких H/L зон','На сильных уровнях добавляй объём — твоя статистика это позволяет','Изучи ложные пробои ренджа как точку входа (liquidity sweep)','Следи за объёмом на границах — он подтверждает реакцию']
+             :['Keep trading only from clear H/L zones','At strong levels add size — your stats support it','Study range false breakouts as entry points (liquidity sweep)','Watch volume at boundaries — it confirms the reaction'],
     },
     mistake_broke_plan:{
       why: ru?['Изменение SL или ранний TP разрушают R:R всей системы','Каждое нарушение делает следующее нарушение легче','Добавка к убытку — самая дорогая ошибка в трейдинге','Статистика работает только если правила соблюдаются всегда']
@@ -2391,6 +2410,31 @@ function generateInsights(){
           `Off-plan = нет edge. Нет сетапа из плана — нет входа, даже если "очевидно"`,
           `Off-plan = no edge. No setup from the plan — no trade, even if it "looks obvious"`,
           {id:'offplan_wr', count:offplan.length}
+        );
+      }
+    }
+
+    // Range / Боковик specifically
+    const range = setupGroups['Range'];
+    if(range && range.length>=2){
+      const {wr:rWR, avgRR:rRR} = calcStats(range);
+      if(rWR!==null && rWR<45){
+        ins('warn','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>',
+          `Боковик убыточен (WR ${rWR.toFixed(0)}%)`,
+          `Range setup losing (WR ${rWR.toFixed(0)}%)`,
+          `${range.length} сделок`, `${range.length} trades`,
+          `Боковик = торгуй только от чётких уровней H/L ренджа. Нет чёткой границы — нет сделки`,
+          `Range = trade only from clear range H/L levels. No clear boundary — no trade`,
+          {id:'range_wr', count:range.length}
+        );
+      } else if(rWR!==null && rWR>=55){
+        ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>',
+          `Боковик работает (WR ${rWR.toFixed(0)}%)`,
+          `Range setup working (WR ${rWR.toFixed(0)}%)`,
+          `${range.length} сделок`, `${range.length} trades`,
+          `Хорошее чтение ренджа. Продолжай торговать от границ, добавляй объём в сильных зонах`,
+          `Strong range reading. Keep trading from boundaries, add size at strong zones`,
+          {id:'range_wr_good', count:range.length}
         );
       }
     }
@@ -2830,7 +2874,7 @@ function renderTrades(){
   const setups = [...new Set(trades.map(t=>t.setup).filter(Boolean))];
   const sel = document.getElementById('filterSetup');
   const cur = sel.value;
-  sel.innerHTML = `<option value="">${T('filter_setups')}</option>` + setups.map(s=>`<option value="${s}">${s}</option>`).join('');
+  sel.innerHTML = `<option value="">${T('filter_setups')}</option>` + setups.map(s=>`<option value="${s}">${escapeHtml(setupDisplayName(s))}</option>`).join('');
   sel.value = cur;
 }
 
@@ -2989,7 +3033,7 @@ function renderAnalytics(){
   document.getElementById('setupsCard').innerHTML = setupList.length
     ? setupList.map(s=>`
         <div class="setup-row">
-          <div class="setup-name">${escapeHtml(s.name)}</div>
+          <div class="setup-name">${escapeHtml(setupDisplayName(s.name))}</div>
           <div class="setup-pills">
             <span class="s-pill ${s.wr>=50?'g':'r'}">${s.wr!==null?s.wr.toFixed(0)+'%':'—'} WR</span>
             <span class="s-pill ${s.pnl>=0?'g':'r'}">${s.pnl>=0?'+':''}$${s.pnl.toFixed(0)}</span>
@@ -3293,7 +3337,7 @@ function tcHTML(t){
   // ── Sub-row: setup · session · date ──────────────
   const subParts = [
     t.dir ? `<span style="color:${t.dir==='buy'?'var(--green)':'var(--red)'};font-weight:700">${t.dir==='buy'?'▲':'▼'} ${t.dir.toUpperCase()}</span>` : '',
-    t.setup ? `<span style="color:var(--orange);font-weight:600">${escapeHtml(t.setup)}</span>` : '',
+    t.setup ? `<span style="color:var(--orange);font-weight:600">${escapeHtml(setupDisplayName(t.setup))}</span>` : '',
     t.session ? `<span>${t.session}</span>` : '',
     t.quickTrade ? `<span style="color:var(--purple2);font-weight:700">⚡ ${lang==='ru'?'Быстрая':'Quick'}</span>` : '',
     ds ? `<span>${ds}</span>` : '',
@@ -3472,7 +3516,7 @@ function openDetail(id){
   document.getElementById('detailBody').innerHTML=`${imgBlock}
     <div class="irow">
       <span class="mkt-badge ${m.cls}">${m.label}</span>
-      ${t.setup?`<span style="font-size:10px;color:var(--orange);font-weight:600;background:rgba(255,122,69,.08);border:1px solid rgba(255,122,69,.18);padding:2px 8px;border-radius:20px">${escapeHtml(t.setup)}</span>`:''}
+      ${t.setup?`<span style="font-size:10px;color:var(--orange);font-weight:600;background:rgba(255,122,69,.08);border:1px solid rgba(255,122,69,.18);padding:2px 8px;border-radius:20px">${escapeHtml(setupDisplayName(t.setup))}</span>`:''}
       ${t.dir?`<span style="font-size:10px;font-weight:700;color:${t.dir==='buy'?'var(--green)':'var(--red)'}">▲ ${t.dir.toUpperCase()}</span>`:''}
       ${ds?`<span style="font-size:11px;color:var(--text3)">${ds}</span>`:''}
     </div>
@@ -5015,6 +5059,9 @@ function applyLang(){
   _setT('trendHint',      'trend_hint');
   _setT('rangeHint',      'range_hint');
   _setT('offplanHint',    'offplan_hint');
+  // Setup button labels (Range = Боковик in RU)
+  const btnRange = document.getElementById('btnSetupRange');
+  if(btnRange) btnRange.textContent = lang==='ru' ? '↔ Боковик' : '↔ Range';
 
   // Mistake chips
   const mistakeMap = {
