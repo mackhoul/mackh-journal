@@ -2252,7 +2252,7 @@ function openInsightDetail(id){
   document.getElementById('insightDetailBody').innerHTML = `
     ${ins.meta?`<div style="font-size:11px;color:var(--text3);margin-bottom:12px;padding:0 1px">${escapeHtml(ins.meta)}</div>`:''}
     <div class="insight-detail-why">
-      <div class="insight-detail-block-title">${ru?'💡 Почему это происходит':'💡 Why this happens'}</div>
+      <div class="insight-detail-block-title">${ins.type==='good'?(ru?'📊 Почему это работает':'📊 Why it works'):(ru?'💡 Почему это происходит':'💡 Why this happens')}</div>
       ${(Array.isArray(content.why)?content.why:[content.why]).map(w=>`
         <div class="insight-fix-item">
           <div class="insight-fix-check" style="color:var(--text3)">·</div>
@@ -2260,7 +2260,7 @@ function openInsightDetail(id){
         </div>`).join('')}
     </div>
     <div class="insight-detail-fix">
-      <div class="insight-detail-block-title">${ru?'🎯 Как исправить':'🎯 How to fix'}</div>
+      <div class="insight-detail-block-title">${ins.type==='good'?(ru?'💪 Как усилить':'💪 How to build on it'):(ru?'🎯 Как исправить':'🎯 How to fix')}</div>
       ${content.fix.map(f=>`
         <div class="insight-fix-item">
           <div class="insight-fix-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg></div>
