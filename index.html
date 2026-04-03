@@ -1692,7 +1692,7 @@ function show401Banner(){
 async function api(method, path, body){
   try{
     const controller = new AbortController();
-    const timeout = setTimeout(()=>controller.abort(), 15000); // 15s timeout
+    const timeout = setTimeout(()=>controller.abort(), 45000); // 45s timeout (covers Render cold start ~30-50s)
     const res = await fetch(SERVER+path,{
       method,
       headers:{'Content-Type':'application/json','x-telegram-init-data':INIT_DATA},
@@ -1780,8 +1780,8 @@ async function loadData(){
     // Server failed — local data already shown, nothing to do
   }
 
-  // Sync pending trades (wait a bit so server has time to wake up)
-  setTimeout(syncPendingQueue, 2000);
+  // Sync pending trades (5s delay gives Render cold start time to wake up)
+  setTimeout(syncPendingQueue, 5000);
 }
 
 function showSyncStatus(msg){
