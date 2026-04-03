@@ -362,7 +362,7 @@ body:not(.light) .insight-card:hover{filter:brightness(1.06)}
 .insight-text{font-size:13px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:4px}
 .insight-meta{font-size:11px;color:var(--text3)}
 
-/* GOAL CARD */
+/* GOAL CARD — banner (home page) */
 .goal-card{margin:0 16px 8px;padding:13px 14px;background:var(--card);border-radius:var(--r-sm);border:1px solid var(--border)}
 .goal-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .goal-name{font-size:13px;font-weight:600;color:var(--text)}
@@ -370,6 +370,21 @@ body:not(.light) .insight-card:hover{filter:brightness(1.06)}
 .goal-bar-wrap{height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;margin-bottom:6px}
 .goal-bar{height:100%;border-radius:3px;transition:width .6s ease}
 .goal-detail{font-size:10px;color:var(--text3)}
+/* GOAL CARD — deep (progress page) */
+.goal-deep{margin:0 16px 10px;padding:15px;background:var(--card);border-radius:var(--r-sm);border:1px solid var(--border);position:relative}
+.goal-deep-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-right:24px}
+.goal-deep-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.goal-deep-title{font-size:14px;font-weight:700;color:var(--text);flex:1;min-width:0}
+.goal-deep-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.goal-deep-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.goal-deep-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden}
+body.light .goal-deep-bar-wrap{background:rgba(0,0,0,.06)}
+.goal-deep-bar{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.goal-deep-pct{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;width:36px;text-align:right;flex-shrink:0}
+.goal-deep-stats{font-size:11px;color:var(--text3);margin-bottom:10px}
+.goal-deep-tip{display:flex;gap:8px;align-items:flex-start;padding:9px 11px;background:rgba(255,122,69,.06);border:1px solid rgba(255,122,69,.12);border-radius:9px;font-size:11px;color:var(--text2);line-height:1.5}
+.goal-deep-tip-icon{font-size:13px;flex-shrink:0;margin-top:1px}
+.goal-deep-close{position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:2px}
 
 /* TRADE CARDS */
 .trade-list{padding:0 16px}
@@ -2764,14 +2779,88 @@ function renderGoalsBanner(){
 function goalHTML(g){
   const {pct, cur, label} = getGoalProgress(g);
   const col = pct>=100?'var(--green)':pct>=60?'var(--orange)':'var(--blue)';
+  const icon = {winrate:'🎯',trades:'📊',pnl:'💰',discipline:'🧠',rr:'⚖️',drawdown:'🛡️'}[g.type]||'🎯';
   return `<div class="goal-card">
-    <div class="goal-row"><div class="goal-name">${escapeHtml(g.name||getGoalLabel(g.type))}</div><div class="goal-pct" style="color:${col}">${Math.min(pct,100).toFixed(0)}%</div></div>
+    <div class="goal-row">
+      <div class="goal-name">${icon} ${escapeHtml(g.name||getGoalLabel(g.type))}</div>
+      <div class="goal-pct" style="color:${col}">${Math.min(pct,100).toFixed(0)}%</div>
+    </div>
     <div class="goal-bar-wrap"><div class="goal-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>
     <div class="goal-detail">${label}</div>
   </div>`;
 }
 
 function getGoalLabel(type){ return T('goal_'+type)||type; }
+
+function getGoalTip(g, pct, cur){
+  const ru = lang==='ru';
+  const done = pct >= 100;
+  switch(g.type){
+    case 'winrate':
+      if(done)  return ru?'Цель достигнута. Поддерживай стабильность — не меняй рабочую систему':'Goal reached. Maintain consistency — don\'t change what\'s working';
+      if(pct<50) return ru?'WR отстаёт — входи только при 100% подтверждении сетапа. Меньше сделок, выше качество':'WR lagging — enter only at 100% setup confirmation. Fewer trades, higher quality';
+      if(pct<75) return ru?'Прогресс есть. Ищи A+ точки входа — один хороший вход лучше трёх сомнительных':'Progress made. Hunt A+ entries — one quality entry beats three mediocre ones';
+      return ru?'Близко к цели. Не меняй стратегию — продолжай торговать только свой сетап':'Close to target. Don\'t change strategy — keep trading your setup only';
+    case 'trades':
+      if(done)  return ru?'Выборка набрана. Теперь анализируй статистику и ищи паттерны':'Sample complete. Now analyze your statistics and find patterns';
+      if(pct<50) return ru?'Набирай выборку без спешки. Качество каждой сделки важнее скорости':'Build sample without rush. Quality of each trade matters more than speed';
+      return ru?'Хороший темп. Не торгуй ради числа — только подтверждённые сетапы':'Good pace. Don\'t trade for count — confirmed setups only';
+    case 'pnl':
+      if(done)  return ru?'Цель по P&L выполнена. Зафиксируй подход, который привёл к результату':'P&L goal reached. Document the approach that got you here';
+      if(cur<0) return ru?'P&L в минусе — снизь риск до 0.5% на сделку, торгуй только лучшие сетапы':'P&L negative — reduce risk to 0.5% per trade, trade best setups only';
+      if(pct<50) return ru?'Медленный старт. Один убыток не должен съедать больше трёх побед — контролируй размер':'Slow start. One loss shouldn\'t cancel three wins — control position size';
+      return ru?'Прогресс есть. Не рискуй ради ускорения — стабильность важнее рывка':'Progress is there. Don\'t rush — consistency beats acceleration';
+    case 'discipline':
+      if(done)  return ru?'Дисциплина на уровне. Это твой главный edge — поддерживай':'Discipline level achieved. This is your main edge — maintain it';
+      if(pct<50) return ru?'Дисциплина просела. Чеклист перед каждым входом — не опционально. Одно нарушение = стоп на день':'Discipline dropped. Checklist before every entry — not optional. One violation = stop for the day';
+      return ru?'Прогресс есть. Система и среда важнее мотивации — убери лишние триггеры':'Progress made. Systems beat motivation — remove triggers that cause violations';
+    case 'rr':
+      if(done)  return ru?'R:R достигнут. Не двигай SL — позволяй победителям идти до TP':'R:R reached. Don\'t move SL — let winners run to TP';
+      if(pct<50) return ru?'R:R ниже цели. Не бери ранний TP — один хороший выход компенсирует два убытка':'R:R below target. Don\'t take early TP — one good exit offsets two losses';
+      return ru?'R:R растёт. Режь убытки рано, держи победителей до TP — не выходи на эмоциях':'R:R growing. Cut losses early, hold winners to TP — don\'t exit emotionally';
+    case 'drawdown':
+      return ru?`Лимит просадки: ${g.target}%. После достижения — обязательный стоп, разбор причин, снижение риска до восстановления`:`Drawdown limit: ${g.target}%. When hit — mandatory stop, review causes, reduce risk until recovered`;
+    default:
+      return ru?'Следуй плану. Стабильность важнее скорости':'Stick to the plan. Consistency beats speed';
+  }
+}
+
+function goalDeepHTML(g, i){
+  const {pct, cur, label} = getGoalProgress(g);
+  const ru = lang==='ru';
+  const clampedPct = Math.min(pct, 100);
+  const col = pct>=100?'var(--green)':pct>=75?'var(--orange)':pct>=40?'var(--blue)':'var(--red)';
+  const icon = {winrate:'🎯',trades:'📊',pnl:'💰',discipline:'🧠',rr:'⚖️',drawdown:'🛡️'}[g.type]||'🎯';
+  const iconBg = pct>=100?'rgba(0,217,126,.12)':pct>=75?'rgba(255,122,69,.12)':pct>=40?'rgba(123,97,255,.12)':'rgba(255,77,106,.1)';
+
+  let badgeTxt, badgeBg, badgeCol;
+  if(pct>=100){ badgeTxt=ru?'✅ Выполнено':'✅ Done'; badgeBg='rgba(0,217,126,.12)'; badgeCol='var(--green)'; }
+  else if(pct>=75){ badgeTxt=ru?'🔥 Близко':'🔥 Almost'; badgeBg='rgba(255,122,69,.12)'; badgeCol='var(--orange)'; }
+  else if(pct>=40){ badgeTxt=ru?'⏳ В процессе':'⏳ In progress'; badgeBg='rgba(123,97,255,.1)'; badgeCol='var(--purple2)'; }
+  else { badgeTxt=ru?'⚠️ Отстаём':'⚠️ Behind'; badgeBg='rgba(255,77,106,.1)'; badgeCol='var(--red)'; }
+
+  const tip = getGoalTip(g, pct, cur);
+
+  return `<div class="goal-deep">
+    <button class="goal-deep-close" onclick="deleteGoal(${i})">✕</button>
+    <div class="goal-deep-header">
+      <div class="goal-deep-icon" style="background:${iconBg}">${icon}</div>
+      <div style="flex:1;min-width:0">
+        <div class="goal-deep-title">${escapeHtml(g.name||getGoalLabel(g.type))}</div>
+        <div style="margin-top:3px"><span class="goal-deep-badge" style="background:${badgeBg};color:${badgeCol}">${badgeTxt}</span></div>
+      </div>
+    </div>
+    <div class="goal-deep-bar-row">
+      <div class="goal-deep-bar-wrap"><div class="goal-deep-bar" style="width:${clampedPct}%;background:${col}"></div></div>
+      <div class="goal-deep-pct" style="color:${col}">${clampedPct.toFixed(0)}%</div>
+    </div>
+    <div class="goal-deep-stats">${label}</div>
+    <div class="goal-deep-tip">
+      <span class="goal-deep-tip-icon">💡</span>
+      <span>${escapeHtml(tip)}</span>
+    </div>
+  </div>`;
+}
 
 function getGoalProgress(g){
   const {wr, total, pnl, avgRR} = calcStats(trades);
@@ -3272,11 +3361,7 @@ function renderProgress(){
 
   // Goals deep
   if(goals.length){
-    document.getElementById('goalsDeep').innerHTML = goals.map((g,i)=>`
-      <div class="goal-card" style="position:relative">
-        ${goalHTML(g)}
-        <button onclick="deleteGoal(${i})" style="position:absolute;top:10px;right:10px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px">✕</button>
-      </div>`).join('');
+    document.getElementById('goalsDeep').innerHTML = goals.map((g,i)=>goalDeepHTML(g,i)).join('');
   } else document.getElementById('goalsDeep').innerHTML = `<div style="margin:0 16px 10px"><button class="btn-secondary" onclick="openModal('goalsModal')">${T('goals_empty')}</button></div>`;
 
   // Equity stats
