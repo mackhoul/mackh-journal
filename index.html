@@ -1312,6 +1312,20 @@ body.compact .disc-card{padding:10px 14px 12px}
         </button>
       </div>
 
+      <!-- Server status -->
+      <div style="border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:4px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="srvDot" style="width:9px;height:9px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .3s"></div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)" id="srvStatusLbl">Сервер</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:1px" id="srvStatusSub">Нажми проверить</div>
+            </div>
+          </div>
+          <button onclick="pingServer()" id="srvPingBtn" style="padding:5px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--card2);font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;white-space:nowrap">Проверить</button>
+        </div>
+      </div>
+
       <div style="text-align:center;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace">MackH Journal <span style="color:var(--orange)">v1.4.0</span></div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px;opacity:.5">2026-04-02</div>
@@ -5105,6 +5119,53 @@ function openSettings(){
   });
   _syncSettingsLabels();
   openModal('settingsModal');
+  // Auto-ping server when settings open
+  pingServer();
+}
+
+async function pingServer(){
+  const dot  = document.getElementById('srvDot');
+  const lbl  = document.getElementById('srvStatusLbl');
+  const sub  = document.getElementById('srvStatusSub');
+  const btn  = document.getElementById('srvPingBtn');
+  if(!dot) return;
+  const ru = lang==='ru';
+
+  // Loading state
+  dot.style.background = 'var(--text3)';
+  lbl.textContent = ru?'Сервер':'Server';
+  sub.textContent = ru?'Проверяю...':'Checking...';
+  if(btn){ btn.disabled=true; btn.textContent = ru?'...':'...'; }
+
+  const t0 = Date.now();
+  try{
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), 10000);
+    const res = await fetch(SERVER+'/health',{
+      method:'GET',
+      headers:{'x-telegram-init-data':INIT_DATA},
+      signal:controller.signal
+    });
+    clearTimeout(timer);
+    const ms = Date.now()-t0;
+    if(res.ok){
+      dot.style.background = 'var(--green)';
+      lbl.textContent = ru?'Сервер онлайн':'Server online';
+      sub.textContent = `${ms} ms`;
+    } else {
+      dot.style.background = 'var(--orange)';
+      lbl.textContent = ru?`Сервер: ошибка ${res.status}`:`Server error ${res.status}`;
+      sub.textContent = ru?'Ответил, но с ошибкой':'Responded with error';
+    }
+  }catch(e){
+    const ms = Date.now()-t0;
+    dot.style.background = 'var(--red)';
+    lbl.textContent = ru?'Сервер недоступен':'Server offline';
+    sub.textContent = e.name==='AbortError'
+      ? (ru?'Таймаут (>10 сек) — сервер спит':'Timeout (>10s) — server sleeping')
+      : (ru?'Нет ответа':'No response');
+  }
+  if(btn){ btn.disabled=false; btn.textContent = ru?'Проверить':'Check'; }
 }
 
 function onSettingChange(){
