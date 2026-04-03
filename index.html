@@ -1996,6 +1996,20 @@ function calcStats(list){
   return {total, wins, losses, wr, pnl, avgRR};
 }
 
+// Expectancy = (WR × avgRR) − (LR × 1)  [WR/LR as decimals 0-1]
+// Returns null if insufficient data (no RR values or no trades)
+function calcExpectancy(list){
+  if(!list || !list.length) return null;
+  const wins  = list.filter(t=>t.result==='win').length;
+  const total = list.length;
+  const wr  = wins / total;          // decimal 0-1
+  const lr  = 1 - wr;
+  const rrVals = list.map(t=>parseRR(t.rr)).filter(Boolean);
+  if(!rrVals.length) return null;
+  const avgRR = rrVals.reduce((a,b)=>a+b,0) / rrVals.length;
+  return (wr * avgRR) - (lr * 1);
+}
+
 function calcDiscipline(){
   const t = trades;
   if(!t.length) return null;
@@ -2145,6 +2159,30 @@ function getInsightDetail(ins){
              :['Entry without a planned setup = no edge, just luck','FOMO and emotions cancel out your statistical advantage','Every off-plan trade trains your brain to ignore the system','Even a profitable off-plan trade is harmful long-term'],
       fix: ru?['Проверяй план перед каждым входом: "Это мой сетап?"','Если ответ "не уверен" — не входи','Запиши план сессии до открытия платформы','После выполнения плана — закрой терминал']
              :['Check your plan before every entry: "Is this my setup?"','If the answer is "not sure" — don\'t enter','Write your session plan before opening the platform','After completing the plan — close the terminal'],
+    },
+    strategy_no_data:{
+      why: ru?['30 сделок — минимальная выборка для значимой статистики','Меньше 30 = случайные результаты, не система','Каждый сетап нужно тестировать на достаточном числе сделок','Вывод из малой выборки может привести к неверным решениям']
+             :['30 trades is the minimum sample for meaningful statistics','Below 30 = random results, not a system','Every setup needs to be tested on a sufficient number of trades','Conclusions from small samples lead to wrong decisions'],
+      fix: ru?['Торгуй один сетап — не меняй его до набора 30 сделок','Каждая сделка — данные. Записывай всё честно','Не делай выводов о стратегии пока выборка мала','После 30 сделок — смотри Expectancy, не WR']
+             :['Trade one setup — don\'t change it until 30 trades','Every trade is data. Record everything honestly','Don\'t draw strategy conclusions from a small sample','After 30 trades — look at Expectancy, not just WR'],
+    },
+    strategy_expectancy_bad:{
+      why: ru?['Expectancy < 0 значит система теряет деньги при любой дисциплине','Проблема не в психологии — в самой логике входов','Низкий WR при плохом RR = двойной удар по капиталу','Можно торговать идеально по плану и всё равно терять']
+             :['Expectancy < 0 means the system loses money regardless of discipline','The problem isn\'t psychology — it\'s the entry logic itself','Low WR with poor RR = double hit on capital','You can trade perfectly by plan and still lose'],
+      fix: ru?['Останови торговлю и разбери последние 30 убытков','Найди: точки входа слишком ранние, или RR нереалистичный?','Протестируй сетап на истории — убедись что edge существует','Снизь размер до минимума пока Expectancy не станет положительной']
+             :['Stop trading and review the last 30 losses','Find: entries too early, or RR unrealistic?','Backtest the setup — confirm the edge actually exists','Reduce size to minimum until Expectancy turns positive'],
+    },
+    strategy_expectancy_ok:{
+      why: ru?['Expectancy 0–0.2R = система едва в безубытке','Комиссии и спред могут перевести её в минус','Маленький edge легко уничтожается ошибками исполнения','Нужно улучшить либо WR, либо RR — или оба']
+             :['Expectancy 0–0.2R = system is barely break-even','Commissions and spread can push it into loss','Small edge is easily destroyed by execution errors','Need to improve either WR, RR, or both'],
+      fix: ru?['Улучши качество входов — жди только A+ подтверждений','Не бери ранний TP — позволь RR расти','Убери худшие сделки из выборки — найди общую причину','Цель: Expectancy выше 0.2R стабильно на 50+ сделках']
+             :['Improve entry quality — wait for A+ confirmation only','Don\'t take early TP — let RR grow','Remove worst trades from sample — find common cause','Goal: Expectancy above 0.2R consistently over 50+ trades'],
+    },
+    strategy_expectancy_good:{
+      why: ru?['Expectancy ≥ 0.2R = система математически прибыльна','WR и RR в правильном балансе для долгосрочного роста','Это твой доказанный edge — редкое и ценное достижение','Главный риск теперь — нарушить систему которая работает']
+             :['Expectancy ≥ 0.2R = system is mathematically profitable','WR and RR are in the right balance for long-term growth','This is your proven edge — a rare and valuable achievement','Main risk now — breaking the system that works'],
+      fix: ru?['Не меняй стратегию. Масштабируй размер постепенно (не резко)','Продолжай вести журнал — следи чтобы Expectancy не падала','Если Expectancy упала ниже 0.1R — снизь размер и разбери причину','Цель: стабильность 0.2R+ на 100+ сделках = масштабирование']
+             :['Don\'t change the strategy. Scale size gradually (not sharply)','Keep journaling — monitor that Expectancy doesn\'t drop','If Expectancy drops below 0.1R — reduce size and investigate','Goal: consistent 0.2R+ over 100+ trades = ready to scale'],
     },
     range_wr:{
       why: ru?['Боковик — сложная среда: много ложных пробоев и шума','Вход в середине ренджа = нет чёткого SL и TP','Без чётких уровней H/L зоны edge исчезает','Часто боковик торгуется как тренд — главная ошибка']
@@ -2516,16 +2554,57 @@ function generateInsights(){
     } // end topCount >= 3
   }
 
-  // ── 5. OVERALL WR WARNING ──────────────────────────
-  if(overallWR!==null && overallWR<40 && overallTotal>=5){
-    ins('alert','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line stroke-linecap="round" x1="18" y1="20" x2="18" y2="10"/><line stroke-linecap="round" x1="12" y1="20" x2="12" y2="4"/><line stroke-linecap="round" x1="6" y1="20" x2="6" y2="14"/></svg>',
-      `Общий винрейт низкий (${overallWR.toFixed(0)}%) — пересмотри стратегию`,
-      `Overall win rate is low (${overallWR.toFixed(0)}%) — review your strategy`,
-      `${overallTotal} сделок`, `${overallTotal} trades`,
-      `WR ниже 40% — системная проблема. Стоп торговля на 2 дня, разбери 5 убытков, найди одну общую причину`,
-      `WR below 40% is a system problem. Stop trading 2 days, review 5 losses, find one common cause`,
-      {id:'low_winrate', count:overallTotal}
+  // ── 5. STRATEGY EXPECTANCY ─────────────────────────
+  const stratIcon = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
+  if(overallTotal < 30){
+    ins('info', stratIcon,
+      isRu?'Недостаточно сделок для оценки стратегии':'Not enough trades to evaluate strategy',
+      isRu?'Not enough trades to evaluate strategy':'Недостаточно сделок для оценки стратегии',
+      isRu?`${overallTotal} из 30 минимальных`:`${overallTotal} of 30 minimum`,
+      isRu?`${overallTotal} of 30 minimum`:`${overallTotal} из 30 минимальных`,
+      isRu?'Набери 30 сделок по одному сетапу — только тогда статистика значима':'Collect 30 trades on one setup — only then does the data mean something',
+      isRu?'Collect 30 trades on one setup — only then does the data mean something':'Набери 30 сделок по одному сетапу — только тогда статистика значима',
+      {id:'strategy_no_data', count:overallTotal}
     );
+  } else {
+    const exp = calcExpectancy(t);
+    if(exp !== null){
+      const expFmt = (exp>=0?'+':'')+exp.toFixed(2)+'R';
+      const rrVals = t.map(x=>parseRR(x.rr)).filter(Boolean);
+      const avgRR  = rrVals.length ? (rrVals.reduce((a,b)=>a+b,0)/rrVals.length).toFixed(2) : '—';
+      const wrFmt  = overallWR!==null ? overallWR.toFixed(0)+'%' : '—';
+      if(exp < 0){
+        ins('alert', stratIcon,
+          `Стратегия убыточна (E = ${expFmt})`,
+          `Strategy is losing (E = ${expFmt})`,
+          isRu?`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} сделок`:`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} trades`,
+          isRu?`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} trades`:`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} сделок`,
+          isRu?'Отрицательный expectancy = система теряет деньги при любой дисциплине. Срочно пересмотри входы':'Negative expectancy = system loses money regardless of discipline. Urgently review entries',
+          isRu?'Urgently review entries and risk management':'Срочно пересмотри входы и управление рисками',
+          {id:'strategy_expectancy_bad', count:overallTotal}
+        );
+      } else if(exp < 0.2){
+        ins('warn', stratIcon,
+          `Слабая эффективность стратегии (E = ${expFmt})`,
+          `Weak strategy efficiency (E = ${expFmt})`,
+          isRu?`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} сделок`:`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} trades`,
+          isRu?`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} trades`:`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} сделок`,
+          isRu?'Expectancy близко к нулю — стратегия едва покрывает убытки. Проверь качество входов и дисциплину':'Expectancy near zero — strategy barely covers losses. Check entry quality and discipline',
+          isRu?'Check entry quality and discipline':'Проверь качество входов и дисциплину',
+          {id:'strategy_expectancy_ok', count:overallTotal}
+        );
+      } else {
+        ins('good', stratIcon,
+          `Стратегия прибыльная (E = ${expFmt})`,
+          `Strategy is profitable (E = ${expFmt})`,
+          isRu?`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} сделок`:`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} trades`,
+          isRu?`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} trades`:`WR ${wrFmt} · Avg RR 1:${avgRR} · ${overallTotal} сделок`,
+          isRu?'Положительный expectancy = система работает. Не меняй то, что работает — масштабируй постепенно':'Positive expectancy = system works. Don\'t change what\'s working — scale gradually',
+          isRu?'Don\'t change what\'s working — scale gradually':'Не меняй то, что работает — масштабируй постепенно',
+          {id:'strategy_expectancy_good', count:overallTotal}
+        );
+      }
+    }
   }
 
   // ── 6. IMPULSIVE TRADES ────────────────────────────
