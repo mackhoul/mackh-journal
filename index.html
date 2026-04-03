@@ -873,16 +873,16 @@ body.compact .disc-card{padding:10px 14px 12px}
       </button>
       <div class="cal-popup opens-down" id="tradesCalPopup" style="display:none"></div>
     </div>
-    <select class="finput" id="filterSetup" onchange="renderTrades()" style="flex:.9">
+    <select class="finput" id="filterSetup" onchange="renderTrades(true)" style="flex:.9">
       <option value="" id="setupFilterDefault">Все сетапы</option>
     </select>
-    <select class="finput" id="filterResult" onchange="renderTrades()" style="flex:.7">
+    <select class="finput" id="filterResult" onchange="renderTrades(true)" style="flex:.7">
       <option value="" id="filterResultDefault">Все</option>
       <option value="win" id="filterResultWin">WIN</option>
       <option value="loss" id="filterResultLoss">LOSS</option>
       <option value="be" id="filterResultBE">B/E</option>
     </select>
-    <select class="finput" id="filterRR" onchange="renderTrades()" style="flex:.8">
+    <select class="finput" id="filterRR" onchange="renderTrades(true)" style="flex:.8">
       <option value="">R:R</option>
       <option value="0-1">&lt; 1:1</option>
       <option value="1-2">1:1 – 1:2</option>
@@ -2731,20 +2731,22 @@ function renderHome(){
   renderGoalsBanner();
   renderHomeChart();
 
-  // Trades list
-  const recent = [...f].sort((a,b)=>(b.date||b.id||'').localeCompare(a.date||a.id||'')).slice(0,20);
+  // Trades list — show 4 by default, rest behind "Ещё" button
+  const recent = [...f].sort((a,b)=>(b.date||b.id||'').localeCompare(a.date||a.id||''));
   const homeTradesEl = document.getElementById('homeTrades');
+  const homeShowAll = homeTradesEl.dataset.showAll==='1';
   homeTradesEl.innerHTML = recent.length
-    ? renderGrouped(recent, 10, false)
+    ? renderGrouped(recent, 4, homeShowAll)
     : emptyHTML(T('no_trades'),T('no_trades_sub'));
-  // Wire show-all button
-  homeTradesEl.addEventListener('showAll', function(){
-    this.innerHTML = renderGrouped(recent, 10, true);
-    // Wire show-less after expansion
-    this.addEventListener('showLess', function(){
-      this.innerHTML = renderGrouped(recent, 10, false);
+  if(!homeShowAll){
+    homeTradesEl.addEventListener('showAll', function(){
+      this.dataset.showAll='1'; renderHome();
     }, {once:true});
-  }, {once:true});
+  } else {
+    homeTradesEl.addEventListener('showLess', function(){
+      this.dataset.showAll=''; renderHome();
+    }, {once:true});
+  }
 
   // Trader Score
   const ts = calcTraderScore();
@@ -3009,7 +3011,11 @@ function setRange(btn){
 // ═══════════════════════════════════════════════════════
 //  TRADES PAGE
 // ═══════════════════════════════════════════════════════
-function renderTrades(){
+function renderTrades(resetExpand=false){
+  if(resetExpand){
+    const el = document.getElementById('allTrades');
+    if(el) el.dataset.showAll='';
+  }
   const date   = calState.trades.date||'';
   const setup  = document.getElementById('filterSetup')?.value||'';
   const result = document.getElementById('filterResult')?.value||'';
