@@ -2619,11 +2619,16 @@ function renderInsights(showAll){
   const ru = lang==='ru';
   const wrap = document.getElementById('insightsWrap');
 
-  // Update "Все" button label
+  // Show/hide "Все" button — only relevant when there are more than 3 insights
   const seeAllBtn = document.getElementById('insightsSeeAll');
   if(seeAllBtn){
-    seeAllBtn.textContent = _insightsShowAll && ins.length>3 ? (ru?'Свернуть':'Collapse') : T('insights_see_all');
-    seeAllBtn.onclick = ()=>renderInsights(!_insightsShowAll);
+    if(ins.length > 3){
+      seeAllBtn.style.display = '';
+      seeAllBtn.textContent = _insightsShowAll ? (ru?'Свернуть':'Collapse') : T('insights_see_all');
+      seeAllBtn.onclick = ()=>renderInsights(!_insightsShowAll);
+    } else {
+      seeAllBtn.style.display = 'none';
+    }
   }
 
   if(!ins.length){
