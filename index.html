@@ -2335,13 +2335,11 @@ function generateInsights(){
 
   // ── 2. SETUP ANALYSIS ──────────────────────────────
   const setupGroups = {};
-  const _quickLbl = isRu ? '⚡ Быстрая' : '⚡ Quick';
   t.forEach(x=>{
-    const k = x.setup || (x.quickTrade ? _quickLbl : null);
+    const k = x.setup || null;
     if(k)(setupGroups[k]=setupGroups[k]||[]).push(x);
   });
   const setupStats = Object.entries(setupGroups)
-    .filter(([name])=> name !== _quickLbl) // never create insights for "⚡ Быстрая"
     .map(([name,list])=>({name,...calcStats(list), losses:list.filter(x=>x.result==='loss').length}))
     .filter(s=>s.total>=3);
 
@@ -2964,11 +2962,10 @@ function renderAnalytics(){
         </div>`).join('')
     : `<div style="color:var(--text3);font-size:12px">${T('no_session_data')}</div>`;
 
-  // Setups — quick trades are grouped under "⚡ Быстрая / ⚡ Quick"
+  // Setups — group by actual setup name only (quick trades without a setup are skipped)
   const setupGroups = {};
-  const quickLabel = lang==='ru' ? '⚡ Быстрая' : '⚡ Quick';
   t.forEach(x=>{
-    const key = x.setup || (x.quickTrade ? quickLabel : null);
+    const key = x.setup || null;
     if(key){ (setupGroups[key]=setupGroups[key]||[]).push(x); }
   });
   const setupList = Object.entries(setupGroups).map(([name,list])=>{
