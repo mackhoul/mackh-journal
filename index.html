@@ -383,7 +383,7 @@ body.light .goal-deep-bar-wrap{background:rgba(0,0,0,.06)}
 .goal-deep-pct{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;width:36px;text-align:right;flex-shrink:0}
 .goal-deep-stats{font-size:11px;color:var(--text3);margin-bottom:10px}
 .goal-deep-tip{display:flex;gap:8px;align-items:flex-start;padding:9px 11px;background:rgba(255,122,69,.06);border:1px solid rgba(255,122,69,.12);border-radius:9px;font-size:11px;color:var(--text2);line-height:1.5}
-.goal-deep-tip-icon{font-size:13px;flex-shrink:0;margin-top:1px}
+.goal-deep-tip-icon{flex-shrink:0;margin-top:1px;display:flex;align-items:center}
 .goal-deep-close{position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;line-height:1;padding:2px}
 
 /* TRADE CARDS */
@@ -2779,10 +2779,9 @@ function renderGoalsBanner(){
 function goalHTML(g){
   const {pct, cur, label} = getGoalProgress(g);
   const col = pct>=100?'var(--green)':pct>=60?'var(--orange)':'var(--blue)';
-  const icon = {winrate:'🎯',trades:'📊',pnl:'💰',discipline:'🧠',rr:'⚖️',drawdown:'🛡️'}[g.type]||'🎯';
   return `<div class="goal-card">
     <div class="goal-row">
-      <div class="goal-name">${icon} ${escapeHtml(g.name||getGoalLabel(g.type))}</div>
+      <div class="goal-name">${escapeHtml(g.name||getGoalLabel(g.type))}</div>
       <div class="goal-pct" style="color:${col}">${Math.min(pct,100).toFixed(0)}%</div>
     </div>
     <div class="goal-bar-wrap"><div class="goal-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>
@@ -2830,8 +2829,16 @@ function goalDeepHTML(g, i){
   const ru = lang==='ru';
   const clampedPct = Math.min(pct, 100);
   const col = pct>=100?'var(--green)':pct>=75?'var(--orange)':pct>=40?'var(--blue)':'var(--red)';
-  const icon = {winrate:'🎯',trades:'📊',pnl:'💰',discipline:'🧠',rr:'⚖️',drawdown:'🛡️'}[g.type]||'🎯';
   const iconBg = pct>=100?'rgba(0,217,126,.12)':pct>=75?'rgba(255,122,69,.12)':pct>=40?'rgba(123,97,255,.12)':'rgba(255,77,106,.1)';
+  const goalIcons = {
+    winrate:   `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+    trades:    `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><line stroke-linecap="round" x1="18" y1="20" x2="18" y2="10"/><line stroke-linecap="round" x1="12" y1="20" x2="12" y2="4"/><line stroke-linecap="round" x1="6" y1="20" x2="6" y2="14"/></svg>`,
+    pnl:       `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><line stroke-linecap="round" x1="12" y1="1" x2="12" y2="23"/><path stroke-linecap="round" d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>`,
+    discipline:`<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+    rr:        `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l9-3 9 3v6c0 5-4 8-9 9-5-1-9-4-9-9V6z"/></svg>`,
+    drawdown:  `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><polyline stroke-linecap="round" stroke-linejoin="round" points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline stroke-linecap="round" stroke-linejoin="round" points="17 6 23 6 23 12"/></svg>`,
+  };
+  const icon = goalIcons[g.type] || goalIcons.winrate;
 
   let badgeTxt, badgeBg, badgeCol;
   if(pct>=100){ badgeTxt=ru?'✅ Выполнено':'✅ Done'; badgeBg='rgba(0,217,126,.12)'; badgeCol='var(--green)'; }
@@ -2844,7 +2851,7 @@ function goalDeepHTML(g, i){
   return `<div class="goal-deep">
     <button class="goal-deep-close" onclick="deleteGoal(${i})">✕</button>
     <div class="goal-deep-header">
-      <div class="goal-deep-icon" style="background:${iconBg}">${icon}</div>
+      <div class="goal-deep-icon" style="background:${iconBg};color:${col}">${icon}</div>
       <div style="flex:1;min-width:0">
         <div class="goal-deep-title">${escapeHtml(g.name||getGoalLabel(g.type))}</div>
         <div style="margin-top:3px"><span class="goal-deep-badge" style="background:${badgeBg};color:${badgeCol}">${badgeTxt}</span></div>
@@ -2856,7 +2863,7 @@ function goalDeepHTML(g, i){
     </div>
     <div class="goal-deep-stats">${label}</div>
     <div class="goal-deep-tip">
-      <span class="goal-deep-tip-icon">💡</span>
+      <span class="goal-deep-tip-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="13" height="13" style="color:var(--orange)"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
       <span>${escapeHtml(tip)}</span>
     </div>
   </div>`;
