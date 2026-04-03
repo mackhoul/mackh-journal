@@ -2104,62 +2104,62 @@ function getInsightDetail(ins){
   // Content map: key → {why, fix:[...]}
   const map = {
     offplan_wr:{
-      why: ru?'Ты входишь в сделки вне своего торгового плана — без подтверждения сетапа, на эмоциях или из FOMO. Такие сделки статистически убыточны, потому что у них нет edge.'
-             :'You\'re entering trades outside your trading plan — without setup confirmation, emotionally or from FOMO. These trades are statistically losing because they have no edge.',
+      why: ru?['Вход без сетапа из плана = нет edge, только удача','FOMO и эмоции обнуляют статистическое преимущество','Каждая off-plan сделка учит мозг игнорировать систему','Даже прибыльная off-plan сделка — вред в долгосроке']
+             :['Entry without a planned setup = no edge, just luck','FOMO and emotions cancel out your statistical advantage','Every off-plan trade trains your brain to ignore the system','Even a profitable off-plan trade is harmful long-term'],
       fix: ru?['Проверяй план перед каждым входом: "Это мой сетап?"','Если ответ "не уверен" — не входи','Запиши план сессии до открытия платформы','После выполнения плана — закрой терминал']
              :['Check your plan before every entry: "Is this my setup?"','If the answer is "not sure" — don\'t enter','Write your session plan before opening the platform','After completing the plan — close the terminal'],
     },
     mistake_broke_plan:{
-      why: ru?'Ты изменил SL, взял TP раньше времени, добавил к убыточной позиции или вошёл без сигнала. Каждое нарушение ломает статистику и создаёт привычку игнорировать правила.'
-             :'You moved your SL, took TP early, added to a losing position, or entered without a signal. Each violation breaks your statistics and creates a habit of ignoring rules.',
+      why: ru?['Изменение SL или ранний TP разрушают R:R всей системы','Каждое нарушение делает следующее нарушение легче','Добавка к убытку — самая дорогая ошибка в трейдинге','Статистика работает только если правила соблюдаются всегда']
+             :['Moving SL or early TP destroys the R:R of your system','Each violation makes the next one easier to commit','Adding to a loser is the most expensive mistake in trading','Statistics only work when rules are followed consistently'],
       fix: ru?['Записывай план сделки до входа (entry, SL, TP)','Не прикасайся к SL после установки','Если хочется нарушить план — выйди из рынка','Веди журнал: отмечай каждое нарушение']
              :['Write your trade plan before entry (entry, SL, TP)','Don\'t touch SL after placing it','If you want to break the plan — exit the market','Journal every rule violation'],
     },
     mistake_early_entry:{
-      why: ru?'Ты входишь до завершения формирования сигнала — свеча ещё не закрылась, структура не подтверждена. Это снижает вероятность успеха и ухудшает R:R.'
-             :'You enter before the signal is fully formed — the candle hasn\'t closed, structure isn\'t confirmed. This reduces win probability and worsens R:R.',
+      why: ru?['Свеча не закрылась — сигнала ещё нет, только предположение','Ранний вход ухудшает R:R и увеличивает вероятность стопа','BOS/CHOCH подтверждается только на закрытой свече','Нетерпение — одна из главных причин убытков в price action']
+             :['Unclosed candle means no signal yet — just an assumption','Early entry worsens R:R and increases stop probability','BOS/CHOCH is only confirmed on a closed candle','Impatience is one of the top causes of loss in price action'],
       fix: ru?['Жди закрытия свечи — никогда не входи на незакрытой','Проверь старший ТФ перед входом','Используй лимитные ордера вместо рыночных','Если пропустил вход — пропусти сделку']
              :['Wait for candle close — never enter on an open candle','Check higher TF before entry','Use limit orders instead of market orders','If you missed the entry — skip the trade'],
     },
     mistake_no_confirm:{
-      why: ru?'Ты входишь без полного набора подтверждений — MTF согласованность, ликвидность, структура. Неполный сигнал = повышенный риск.'
-             :'You enter without full confirmation — MTF alignment, liquidity, structure. Incomplete signal = elevated risk.',
+      why: ru?['Неполный сигнал = сделка на предположении, не на факте','Без MTF согласованности ты торгуешь против старшего тренда','Ликвидность и структура должны совпадать одновременно','Частичное подтверждение снижает WR и ломает систему']
+             :['Incomplete signal = trade on assumption, not fact','Without MTF alignment you trade against the higher trend','Liquidity and structure must align at the same time','Partial confirmation lowers WR and breaks the system'],
       fix: ru?['Составь чеклист подтверждений (3-5 пунктов)','Входи только при 100% соответствии чеклисту','"Хороший сетап" ≠ "подтверждённый сетап"','Записывай причину входа перед нажатием кнопки']
              :['Build a confirmation checklist (3-5 items)','Only enter at 100% checklist match','"Good setup" ≠ "confirmed setup"','Write your entry reason before clicking the button'],
     },
     mistake_overtrade:{
-      why: ru?'Ты превышаешь оптимальное количество сделок за сессию. Чрезмерная торговля снижает качество решений, увеличивает комиссии и приводит к эмоциональным входам.'
-             :'You exceed the optimal number of trades per session. Overtrading reduces decision quality, increases commissions, and leads to emotional entries.',
+      why: ru?['После 3+ сделок качество решений резко снижается','Лишние сделки открываются из скуки, не из edge','Комиссии и спред съедают прибыль при высокой частоте','Усталость от экрана = эмоциональные входы во второй половине дня']
+             :['After 3+ trades decision quality drops sharply','Extra trades come from boredom, not from edge','Commissions and spread eat profits at high frequency','Screen fatigue = emotional entries in the second half of the day'],
       fix: ru?['Установи лимит: не более 2-3 сделок в день','После 2 убытков подряд — обязательный стоп на день','Введи "правило первой сделки": если убыток — стоп','Качество важнее количества']
              :['Set a limit: no more than 2-3 trades per day','After 2 consecutive losses — mandatory daily stop','Implement "first trade rule": if loss — stop for the day','Quality over quantity'],
     },
     low_winrate:{
-      why: ru?'Менее 40% сделок закрываются в плюс. Это может означать проблему с точкой входа, сетапом, управлением позицией или психологией.'
-             :'Less than 40% of trades close in profit. This may indicate an issue with entry timing, setup, position management, or psychology.',
+      why: ru?['WR ниже 40% — сигнал системной проблемы, не полосы невезения','Точка входа или тайминг не совпадают с реальным движением','Возможно сетап работал раньше, но рынок изменился','Психологические фильтры могут искажать выбор сделок']
+             :['WR below 40% signals a systemic issue, not bad luck','Entry point or timing doesn\'t match the actual move','Setup may have worked before but the market has changed','Psychological filters may be distorting trade selection'],
       fix: ru?['Разбери последние 10 убыточных сделок: найди общую причину','Не торгуй 2-3 дня — сделай паузу','Вернись к базовому сетапу, который работал раньше','Снизь размер позиции до минимума пока WR не улучшится']
              :['Review last 10 losing trades: find the common cause','Don\'t trade for 2-3 days — take a break','Return to the basic setup that worked before','Reduce position size to minimum until WR improves'],
     },
     emotional:{
-      why: ru?'Эмоциональные сделки открываются под давлением: после убытка (revenge trading), из страха пропустить (FOMO), от скуки или азарта. Статистически они проигрывают.'
-             :'Emotional trades open under pressure: after a loss (revenge trading), from fear of missing out (FOMO), boredom, or excitement. Statistically, they lose.',
+      why: ru?['Revenge trading после убытка — попытка "отыграть", которая убивает счёт','FOMO заставляет входить в конце движения, не в начале','В эмоциональном состоянии мозг игнорирует риск-менеджмент','Скука и азарт — такие же триггеры, как страх и жадность']
+             :['Revenge trading after a loss is an attempt to recover that kills the account','FOMO causes you to enter at the end of a move, not the start','In emotional state the brain ignores risk management','Boredom and excitement are just as dangerous as fear and greed'],
       fix: ru?['Используй чеклист перед КАЖДЫМ входом — он тормозит импульс','После убытка: 30 минут перерыв, выйди из платформы','Закрой терминал если чувствуешь раздражение или азарт','Веди "эмоциональный дневник" — отмечай состояние перед сделкой']
              :['Use a checklist before EVERY entry — it slows impulse','After a loss: 30 minute break, leave the platform','Close the terminal if feeling frustration or excitement','Keep an "emotional journal" — note your state before each trade'],
     },
     drawdown:{
-      why: ru?'Серия убытков или один крупный убыток создали значительную просадку капитала. Это нормальная часть трейдинга, но требует немедленного управления риском.'
-             :'A series of losses or one large loss created significant capital drawdown. This is a normal part of trading but requires immediate risk management.',
+      why: ru?['Серия убытков создаёт цикл: стресс → ошибки → больше убытков','Попытка "отыграться" быстро приводит к катастрофическим потерям','Просадка требует непропорционально больший рост для восстановления','Риск-менеджмент важнее, чем поиск следующего входа']
+             :['A losing streak creates a cycle: stress → mistakes → more losses','Trying to "win it back" quickly leads to catastrophic losses','Drawdown requires disproportionately larger gains to recover','Risk management matters more than finding the next entry'],
       fix: ru?['Снизь риск на сделку до 0.5% пока не восстановишься','Не пытайся "отыграться" — это увеличит просадку','Установи максимальную дневную потерю (например 2%)','Сделай паузу и разбери причины каждого убытка']
              :['Reduce per-trade risk to 0.5% until recovery','Don\'t try to "win it back" — this increases drawdown','Set a maximum daily loss (e.g. 2%)','Take a break and analyze the reason for each loss'],
     },
     dirty_trades:{
-      why: ru?'Более половины сделок нарушают хотя бы одно правило дисциплины: чеклист не пройден, вход не по плану или эмоциональный.'
-             :'More than half of trades violate at least one discipline rule: checklist not completed, entry off-plan, or emotional.',
+      why: ru?['Грязные сделки — симптом: ты знаешь правила, но не следуешь им','Привычка нарушать формируется быстро, ломается долго','Каждая грязная сделка обесценивает статистику журнала','Дисциплина — это не мотивация, это система и среда']
+             :['Dirty trades are a symptom: you know the rules but don\'t follow them','The habit of breaking rules forms fast and breaks slowly','Each dirty trade invalidates your journal statistics','Discipline is not motivation — it\'s systems and environment'],
       fix: ru?['Заполняй чеклист перед каждым входом — это не опционально','Одно нарушение = выход из рынка на день','Качество > количество: лучше 2 чистых сделки, чем 10 грязных','Настрой напоминание: "Ты прошёл чеклист?"']
              :['Complete the checklist before every entry — not optional','One violation = exit market for the day','Quality > quantity: better 2 clean trades than 10 dirty ones','Set a reminder: "Did you complete the checklist?"'],
     },
     clean_trades:{
-      why: ru?'Чистые сделки (по плану + чеклист + без эмоций) показывают значительно лучший результат. Это доказывает, что твой сетап работает — нужна только дисциплина.'
-             :'Clean trades (by plan + checklist + no emotions) show significantly better results. This proves your setup works — you just need discipline.',
+      why: ru?['Чистые сделки доказывают: сетап и edge реально работают','Разница в результате — это дисциплина, не рынок','Последовательность в исполнении важнее частоты','Каждая чистая сделка укрепляет правильную привычку']
+             :['Clean trades prove that your setup and edge actually work','The difference in results is discipline, not the market','Consistency in execution matters more than frequency','Each clean trade reinforces the right habit'],
       fix: ru?['Продолжай в том же духе — система работает','Проанализируй что делаешь по-другому в чистых сделках','Постепенно увеличивай размер только в чистых сделках','Ставь цель: 80%+ чистых сделок в месяц']
              :['Keep it up — the system works','Analyze what you do differently in clean trades','Gradually increase size only in clean trades','Set a goal: 80%+ clean trades per month'],
     },
@@ -2177,34 +2177,40 @@ function getInsightDetail(ins){
   }
   const fallbacks = {
     _best_sess:{
-      why:ru?'Эта сессия совпадает с твоим торговым стилем, уровнем концентрации и волатильностью рынка.':'This session aligns with your trading style, concentration level, and market volatility.',
+      why:ru?['Эта сессия совпадает с твоим торговым стилем и уровнем концентрации','Волатильность и ликвидность в это время подходят твоему сетапу','Психологически ты в лучшем состоянии именно в эти часы','Рынок даёт понятные структуры именно в эту сессию']
+            :['This session aligns with your trading style and concentration level','Volatility and liquidity at this time suit your setup','Psychologically you are at your best during these hours','The market provides clear structures in this session'],
       fix:ru?['Сосредоточь большую часть сделок на этой сессии','Анализируй почему именно она работает','Не торгуй в этой сессии если устал или расстроен','Настрой уведомления под это время']
             :['Focus most trades on this session','Analyze why exactly it works','Don\'t trade in this session when tired or upset','Set notifications for this time'],
     },
     _worst_sess:{
-      why:ru?'В этой сессии твои результаты хуже среднего. Возможные причины: другая волатильность, усталость, несовместимость с твоим сетапом.':'Your results in this session are below average. Possible reasons: different volatility, fatigue, incompatibility with your setup.',
+      why:ru?['Волатильность или ликвидность в этой сессии не совпадают с твоим сетапом','Возможна усталость или снижение концентрации в это время','Структуры рынка в эту сессию труднее читаются','Паттерн повторяется — это статистика, не случайность']
+            :['Volatility or liquidity in this session doesn\'t match your setup','Possible fatigue or reduced concentration at this time','Market structures are harder to read in this session','The pattern repeats — this is statistics, not coincidence'],
       fix:ru?['Рассмотри пропуск этой сессии полностью','Снизь размер позиции вдвое в этой сессии','Веди наблюдение ещё 2 недели — нужна выборка','Анализируй причину убытков именно в это время']
             :['Consider skipping this session entirely','Halve position size in this session','Observe for another 2 weeks — need a sample','Analyze the cause of losses at this time'],
     },
     _sess_loss:{
-      why:ru?'Большинство убытков концентрируются в одной сессии. Это паттерн, требующий внимания.':'Most losses are concentrated in one session. This pattern requires attention.',
+      why:ru?['Убытки концентрируются в одной сессии — это паттерн, не случайность','Рынок в это время ведёт себя иначе, чем ожидает твоя система','Возможна систематическая ошибка в чтении структуры в эти часы','Статистика указывает на конкретную временную проблему']
+            :['Losses concentrate in one session — this is a pattern, not coincidence','The market behaves differently at this time than your system expects','Possible systematic error in reading structure at these hours','Statistics point to a specific time-based problem'],
       fix:ru?['Сократи количество сделок в этой сессии','Повысь требования к подтверждению входа','Установи максимум 1-2 сделки в проблемной сессии','Разбери каждый убыток из этой сессии']
             :['Reduce trades in this session','Increase entry confirmation requirements','Set maximum 1-2 trades in the problem session','Review each loss from this session'],
     },
     _best_setup:{
-      why:ru?'Этот сетап показывает наилучшие результаты в твоей статистике. Это твой основной edge.':'This setup shows the best results in your statistics. This is your main edge.',
+      why:ru?['Этот сетап даёт реальный edge в текущих рыночных условиях','Логика паттерна совпадает с твоим стилем исполнения','Статистика подтверждена достаточной выборкой сделок','Это твоё конкурентное преимущество — защищай его']
+            :['This setup provides real edge in current market conditions','The pattern logic matches your execution style','Statistics are confirmed by a sufficient sample of trades','This is your competitive advantage — protect it'],
       fix:ru?['Фокусируйся именно на этом сетапе','Не отвлекайся на менее надёжные паттерны','Постепенно увеличивай размер в этом сетапе','Изучи его глубже — найди ещё лучшие условия']
             :['Focus on this setup specifically','Don\'t get distracted by less reliable patterns','Gradually increase size in this setup','Study it deeper — find even better conditions'],
     },
     _worst_setup:{
-      why:ru?'Этот сетап показывает плохие результаты. Проблема может быть в исполнении, рыночных условиях или самом паттерне.':'This setup shows poor results. The issue may be in execution, market conditions, or the pattern itself.',
+      why:ru?['Этот сетап не даёт edge в текущих условиях рынка','Проблема может быть в исполнении, тайминге или самом паттерне','Рынок мог измениться — сетап работал раньше, но не сейчас','Продолжать торговать им = терять деньги без причины']
+            :['This setup provides no edge in current market conditions','The issue may be execution, timing, or the pattern itself','The market may have changed — setup worked before but not now','Continuing to trade it = losing money for no reason'],
       fix:ru?['Приостанови этот сетап на 1 месяц','Разбери последние 5 убыточных сделок по нему','Протестируй на истории — возможно он перестал работать','Снизь размер или исключи из торгового плана']
             :['Pause this setup for 1 month','Review last 5 losing trades from it','Test on history — it may have stopped working','Reduce size or remove from trading plan'],
     },
   };
 
   const content = map[key] || fallbacks[key] || {
-    why: ru?'Этот инсайт основан на твоей статистике. Изучи детали и прими меры.':'This insight is based on your statistics. Review the details and take action.',
+    why: ru?['Этот инсайт основан на твоей статистике','Паттерн повторяется достаточно часто, чтобы требовать внимания','Изучи связанные сделки для поиска причины','Приними меры до следующей торговой сессии']
+           :['This insight is based on your statistics','The pattern repeats often enough to require attention','Review related trades to find the cause','Take action before your next trading session'],
     fix: ru?['Проанализируй связанные сделки','Найди общую причину','Составь план улучшения','Проверь результат через 10 сделок']
            :['Analyze related trades','Find the common cause','Create an improvement plan','Check results after 10 trades'],
   };
@@ -2232,7 +2238,11 @@ function openInsightDetail(id){
     ${ins.meta?`<div style="font-size:11px;color:var(--text3);margin-bottom:12px;padding:0 1px">${escapeHtml(ins.meta)}</div>`:''}
     <div class="insight-detail-why">
       <div class="insight-detail-block-title">${ru?'💡 Почему это происходит':'💡 Why this happens'}</div>
-      <div class="insight-detail-text">${escapeHtml(content.why)}</div>
+      ${(Array.isArray(content.why)?content.why:[content.why]).map(w=>`
+        <div class="insight-fix-item">
+          <div class="insight-fix-check" style="color:var(--text3)">·</div>
+          <span>${escapeHtml(w)}</span>
+        </div>`).join('')}
     </div>
     <div class="insight-detail-fix">
       <div class="insight-detail-block-title">${ru?'🎯 Как исправить':'🎯 How to fix'}</div>
@@ -2301,8 +2311,8 @@ function generateInsights(){
           `Худшая сессия: ${worst.name} (WR ${worst.wr?.toFixed(0)}%)`,
           `Worst session: ${worst.name} (WR ${worst.wr?.toFixed(0)}%)`,
           `${worst.total} сделок`,`${worst.total} trades`,
-          `Рассмотри снижение риска или отказ от торговли в ${worst.name}`,
-          `Consider reducing risk or skipping ${worst.name} session`,
+          `${worst.name}: либо только A+ сетапы с уменьшенным размером, либо пропускай сессию`,
+          `${worst.name}: A+ setups with reduced size only — or skip the session entirely`,
           {id:'worst_sess_'+worst.name, count:worst.total}
         );
       }
@@ -2315,8 +2325,8 @@ function generateInsights(){
         `Most losses: ${worstByLoss.name} session (${worstByLoss.losses.length} losses)`,
         `${((worstByLoss.losses.length/losses.length||0)*100).toFixed(0)}% всех убытков`,
         `${((worstByLoss.losses.length/losses.length||0)*100).toFixed(0)}% of all losses`,
-        `Уменьши размер позиции или пропускай ${worstByLoss.name}`,
-        `Reduce position size or skip ${worstByLoss.name}`,
+        `В ${worstByLoss.name} входи только с подтверждением HTF структуры + зоны — или не входишь`,
+        `In ${worstByLoss.name}: require HTF structure + liquidity zone confirmation — otherwise skip`,
         {id:'sess_loss_'+worstByLoss.name, count:worstByLoss.losses.length}
       );
     }
@@ -2330,6 +2340,7 @@ function generateInsights(){
     if(k)(setupGroups[k]=setupGroups[k]||[]).push(x);
   });
   const setupStats = Object.entries(setupGroups)
+    .filter(([name])=> name !== _quickLbl) // never create insights for "⚡ Быстрая"
     .map(([name,list])=>({name,...calcStats(list), losses:list.filter(x=>x.result==='loss').length}))
     .filter(s=>s.total>=3);
 
@@ -2350,8 +2361,8 @@ function generateInsights(){
         `Weak setup: "${worstSetup.name}" (WR ${worstSetup.wr.toFixed(0)}%)`,
         `${worstSetup.losses} убытков из ${worstSetup.total}`,
         `${worstSetup.losses} losses out of ${worstSetup.total}`,
-        `Избегай входов без полного подтверждения`,
-        `Avoid entries without full confirmation`,
+        `Без BOS/CHOCH + реакции от зоны ликвидности — нет входа в "${worstSetup.name}"`,
+        `No entry in "${worstSetup.name}" without BOS/CHOCH + liquidity zone reaction`,
         {id:'worst_setup_'+worstSetup.name.replace(/[^a-zA-Z0-9]/g,'_'), count:worstSetup.losses}
       );
     }
@@ -2364,8 +2375,8 @@ function generateInsights(){
           `Сделки "Off-plan" убыточны (WR ${opWR.toFixed(0)}%)`,
           `"Off-plan" trades are unprofitable (WR ${opWR.toFixed(0)}%)`,
           `${offplan.length} сделок`, `${offplan.length} trades`,
-          `Торгуй только при полном подтверждении сетапа`,
-          `Only trade with full setup confirmation`,
+          `Off-plan = нет edge. Нет сетапа из плана — нет входа, даже если "очевидно"`,
+          `Off-plan = no edge. No setup from the plan — no trade, even if it "looks obvious"`,
           {id:'offplan_wr', count:offplan.length}
         );
       }
@@ -2384,8 +2395,8 @@ function generateInsights(){
         `Clean trades are ${(wClean-wDirty).toFixed(0)}% better than dirty ones`,
         `${wClean.toFixed(0)}% WR vs ${wDirty.toFixed(0)}% WR`,
         `${wClean.toFixed(0)}% WR vs ${wDirty.toFixed(0)}% WR`,
-        `Придерживайся чеклиста — это окупается`,
-        `Stick to your checklist — it pays off`,
+        `Твой edge работает — защити его. Торгуй только Clean, не разменивай статистику`,
+        `Your edge works — protect it. Trade only Clean, don't dilute your stats`,
         {id:'clean_trades', count:clean.length}
       );
     }
@@ -2395,8 +2406,8 @@ function generateInsights(){
         `${dirtyPct.toFixed(0)}% сделок — "грязные" (нарушения дисциплины)`,
         `${dirtyPct.toFixed(0)}% of trades are "dirty" (discipline issues)`,
         `Чеклист, план, контроль эмоций`,`Checklist, plan, impulsive trades`,
-        `Сосредоточься на качестве входов, а не количестве`,
-        `Focus on trade quality over quantity`,
+        `Более половины входов — без edge. Правило: не уверен на 100% — не входишь`,
+        `More than half your entries have no edge. Rule: not 100% sure — you don't enter`,
         {id:'dirty_trades', count:dirty.length}
       );
     }
@@ -2418,16 +2429,16 @@ function generateInsights(){
       `Top mistake: "${mLabel(topMistake)}" (${pct}% of trades)`,
       `${mistakeLosses} убытков связаны с этой ошибкой`,
       `${mistakeLosses} losses linked to this mistake`,
-      topMistake==='early_entry'?isRu?'Жди подтверждения перед входом':'Wait for confirmation before entry'
-       :topMistake==='no_confirm'?isRu?'Торгуй только при полном подтверждении':'Only trade with full confirmation'
-       :topMistake==='overtrade'?isRu?'Установи дневной лимит сделок':'Set a daily trade limit'
-       :topMistake==='broke_plan'?isRu?'Следуй плану — не отступай от правил':'Follow the plan — don\'t break your rules'
-       :isRu?'Обрати внимание на эту ошибку':'Pay attention to this mistake',
-      topMistake==='early_entry'?'Wait for confirmation before entry'
-       :topMistake==='no_confirm'?'Only trade with full confirmation'
-       :topMistake==='overtrade'?'Set a daily trade limit'
-       :topMistake==='broke_plan'?'Follow the plan — don\'t break your rules'
-       :'Pay attention to this mistake',
+      topMistake==='early_entry'?isRu?'Свеча не закрылась — нет сигнала. Жди BOS/CHOCH + реакцию от зоны, иначе входишь на предположении':'Candle hasn\'t closed — no signal. Wait for BOS/CHOCH + zone reaction, otherwise you\'re guessing'
+       :topMistake==='no_confirm'?isRu?'Неполный сигнал = случайный результат. 100% чеклист или нет входа — без исключений':'Incomplete signal = random result. 100% checklist or no entry — no exceptions'
+       :topMistake==='overtrade'?isRu?'Лимит 2 сделки в день. Третья — только если первые две чистые. После 2 убытков — стоп на день':'Max 2 trades per day. Third only if first two were clean. After 2 losses — done for the day'
+       :topMistake==='broke_plan'?isRu?'Нарушил план — не знаешь где ошибся. Записывай entry/SL/TP до входа и не прикасайся к SL после':'Breaking plan = you can\'t tell where you went wrong. Write entry/SL/TP before entry, never touch SL after'
+       :isRu?'Системная ошибка. Разбери последние 5 случаев — найди триггер':'Systematic error. Review last 5 occurrences — find the trigger',
+      topMistake==='early_entry'?'Candle hasn\'t closed — no signal. Wait for BOS/CHOCH + zone reaction, otherwise you\'re guessing'
+       :topMistake==='no_confirm'?'Incomplete signal = random result. 100% checklist or no entry — no exceptions'
+       :topMistake==='overtrade'?'Max 2 trades per day. Third only if first two were clean. After 2 losses — done for the day'
+       :topMistake==='broke_plan'?'Breaking plan = you can\'t tell where you went wrong. Write entry/SL/TP before entry, never touch SL after'
+       :'Systematic error. Review last 5 occurrences — find the trigger',
       {id:'mistake_'+topMistake, count:topCount}
     );
     } // end topCount >= 3
@@ -2439,8 +2450,8 @@ function generateInsights(){
       `Общий винрейт низкий (${overallWR.toFixed(0)}%) — пересмотри стратегию`,
       `Overall win rate is low (${overallWR.toFixed(0)}%) — review your strategy`,
       `${overallTotal} сделок`, `${overallTotal} trades`,
-      `Сделай паузу, проанализируй убыточные сделки`,
-      `Take a break and review your losing trades`,
+      `WR ниже 40% — системная проблема. Стоп торговля на 2 дня, разбери 5 убытков, найди одну общую причину`,
+      `WR below 40% is a system problem. Stop trading 2 days, review 5 losses, find one common cause`,
       {id:'low_winrate', count:overallTotal}
     );
   }
@@ -2457,8 +2468,8 @@ function generateInsights(){
         `Emotional trades reduce WR by ${(nWR-eWR).toFixed(0)}%`,
         `${eWR.toFixed(0)}% vs ${nWR.toFixed(0)}%`,
         `${eWR.toFixed(0)}% vs ${nWR.toFixed(0)}%`,
-        `Соблюдай чеклист перед каждым входом`,
-        `Follow your checklist before every entry`,
+        `Эмоциональный вход = торговля без edge. Правило: 10 сек паузы + чеклист перед каждой сделкой`,
+        `Emotional entry = trading without edge. Rule: 10 sec pause + checklist before every trade`,
         {id:'emotional', count:emo.length}
       );
     }
@@ -2479,8 +2490,8 @@ function generateInsights(){
       `Max drawdown: ${maxDD.toFixed(1)}%`,
       isRu?'Снизь размер позиций':'Consider reducing position sizes',
       'Consider reducing position sizes',
-      `Снизь риск на сделку до 1%, пока не восстановишься`,
-      `Reduce per-trade risk to 1% until recovery`,
+      `Просадка = риск 0.5%, только A+ сетапы. На просадке мстишь рынку — не давай себе этой возможности`,
+      `Drawdown = 0.5% risk, A+ setups only. In drawdown you revenge-trade — don't give yourself the option`,
       {id:'drawdown', count:t.length}
     );
   }
