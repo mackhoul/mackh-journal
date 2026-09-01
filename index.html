@@ -808,6 +808,12 @@ body.light .idea-card{border-color:var(--border-strong)}
   /* Recent trades — use the extra width instead of stacking to 2 columns */
   .trade-grid{grid-template-columns:repeat(3,1fr);gap:10px}
 
+  /* Analytics — detail sections in a 2-column grid instead of a long vertical list */
+  .an-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 24px 10px;align-items:start}
+  .an-detail-grid .shdr{padding:0 0 8px}
+  .an-detail-grid .card{margin:0}
+  .an-section-full{grid-column:1/-1}
+
   /* Modals become centered dialogs instead of bottom sheets */
   .overlay{align-items:center;padding:24px}
   .modal{width:100%;max-width:560px;border-radius:var(--radius-lg);border:1px solid var(--border-strong);max-height:86vh;animation:modalPop .18s cubic-bezier(.32,.72,0,1)}
@@ -1089,42 +1095,62 @@ body.light .idea-card{border-color:var(--border-strong)}
     <div style="height:130px"><canvas id="pnlChart"></canvas></div>
   </div>
 
+  <div class="an-detail-grid">
+
   <!-- Sessions -->
-  <div class="shdr"><div class="stitle" id="sessTitle"></div></div>
-  <div class="card card-p" id="sessionsCard"></div>
+  <div class="an-section">
+    <div class="shdr"><div class="stitle" id="sessTitle"></div></div>
+    <div class="card card-p" id="sessionsCard"></div>
+  </div>
 
   <!-- Setup performance -->
-  <div class="shdr"><div class="stitle" id="setupsTitle"></div></div>
-  <div class="card card-p" id="setupsCard"></div>
+  <div class="an-section">
+    <div class="shdr"><div class="stitle" id="setupsTitle"></div></div>
+    <div class="card card-p" id="setupsCard"></div>
+  </div>
 
   <!-- Heatmap -->
-  <div class="shdr"><div class="stitle" id="heatTitle"></div></div>
-  <div class="card card-p" id="heatmapCard"></div>
+  <div class="an-section">
+    <div class="shdr"><div class="stitle" id="heatTitle"></div></div>
+    <div class="card card-p" id="heatmapCard"></div>
+  </div>
 
   <!-- Mistakes -->
-  <div class="shdr"><div class="stitle" id="mistakesTitle"></div></div>
-  <div class="card card-p" id="mistakesCard"></div>
+  <div class="an-section">
+    <div class="shdr"><div class="stitle" id="mistakesTitle"></div></div>
+    <div class="card card-p" id="mistakesCard"></div>
+  </div>
 
   <!-- Market donut -->
-  <div class="shdr"><div class="stitle" id="marketsTitle"></div></div>
-  <div class="an-grid">
-    <div class="an-card an-full" id="mktDonutWrap">
-      <div class="an-card-title"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="2" y1="12" x2="22" y2="12"/><path stroke-linecap="round" d="M12 2a15.3 15.3 0 010 20"/></svg>Распределение</div>
-      <div style="height:200px"><canvas id="mktChart"></canvas></div>
+  <div class="an-section an-section-full">
+    <div class="shdr"><div class="stitle" id="marketsTitle"></div></div>
+    <div class="an-grid">
+      <div class="an-card an-full" id="mktDonutWrap">
+        <div class="an-card-title"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="2" y1="12" x2="22" y2="12"/><path stroke-linecap="round" d="M12 2a15.3 15.3 0 010 20"/></svg>Распределение</div>
+        <div style="height:200px"><canvas id="mktChart"></canvas></div>
+      </div>
     </div>
   </div>
 
   <!-- RR analysis -->
-  <div class="shdr"><div class="stitle" id="rrTitle"></div></div>
-  <div class="card card-p" id="rrCard"></div>
+  <div class="an-section">
+    <div class="shdr"><div class="stitle" id="rrTitle"></div></div>
+    <div class="card card-p" id="rrCard"></div>
+  </div>
 
   <!-- Clean vs Dirty -->
-  <div class="shdr"><div class="stitle" id="cleanDirtyTitle"></div></div>
-  <div class="card card-p" id="cleanDirtyCard"></div>
+  <div class="an-section">
+    <div class="shdr"><div class="stitle" id="cleanDirtyTitle"></div></div>
+    <div class="card card-p" id="cleanDirtyCard"></div>
+  </div>
 
   <!-- Loss analysis -->
-  <div class="shdr"><div class="stitle" id="lossTitle"></div></div>
-  <div class="card card-p" id="lossCard"></div>
+  <div class="an-section">
+    <div class="shdr"><div class="stitle" id="lossTitle"></div></div>
+    <div class="card card-p" id="lossCard"></div>
+  </div>
+
+  </div><!-- /an-detail-grid -->
 </div>
 
 <!-- ═══════════ PROGRESS ═══════════ -->
