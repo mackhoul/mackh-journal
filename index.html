@@ -445,36 +445,32 @@ body.light .goal-deep-bar-wrap{background:rgba(0,0,0,.06)}
 @media(hover:hover){.tc:hover{border-color:var(--border-strong);background:var(--surface-2)}}
 .tc:active{transform:scale(.988)}
 @media(hover:none){.tc{-webkit-tap-highlight-color:transparent}.tc:active{border-color:var(--border-strong);transform:scale(.97);transition:transform .08s}}
-.tc-hdr{display:flex;align-items:center;gap:10px;padding:10px 12px}
-.tc-thumb{width:38px;height:38px;border-radius:10px;flex-shrink:0;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--border)}
+.tc-body{display:flex;gap:10px;padding:12px}
+.tc-thumb{width:36px;height:36px;border-radius:9px;flex-shrink:0;background:var(--surface-2);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--border)}
 .tc-thumb img{width:100%;height:100%;object-fit:cover}
-.tc-thumb svg{width:17px;height:17px}
-.tc-info{flex:1;min-width:0}
-.tc-meta{display:flex;align-items:center;gap:4px;margin-bottom:3px;flex-wrap:wrap}
+.tc-thumb svg{width:16px;height:16px}
+.tc-text{flex:1;min-width:0}
+.tc-row1{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.tc-row2{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
+.tc-row3{font-size:11px;color:var(--text-secondary);margin-top:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.tc-row4{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
 .mkt-badge{font-size:8px;font-weight:700;letter-spacing:.06em;padding:2px 6px;border-radius:20px;text-transform:uppercase}
 .mb-forex{background:rgba(123,97,255,.12);color:var(--info-2);border:1px solid rgba(123,97,255,.2)}
 .mb-crypto{background:rgba(255,122,69,.1);color:#FF9A6C;border:1px solid rgba(255,122,69,.18)}
 .mb-stocks{background:rgba(0,217,126,.08);color:var(--positive);border:1px solid rgba(0,217,126,.15)}
 .mb-metals{background:rgba(255,209,102,.08);color:var(--warning);border:1px solid rgba(255,209,102,.15)}
-.tc-date{font-size:10px;color:var(--text-muted)}
-.tc-pair{font-size:13px;font-weight:700;color:var(--text);letter-spacing:-.01em;line-height:1.2}
-.tc-sub{font-size:10px;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.tc-desc{font-size:10px;color:var(--text-secondary);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tc-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;min-width:60px}
-.tc-pnl-main{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;line-height:1}
-.tc-result-row{display:flex;align-items:center;gap:4px;margin-top:1px}
-.res-badge{font-size:8px;font-weight:700;padding:2px 6px;border-radius:20px;display:flex;align-items:center;gap:3px;letter-spacing:.04em}
-.res-badge svg{width:8px;height:8px;stroke-width:2.8}
+.tc-pair{font-size:14px;font-weight:700;color:var(--text);letter-spacing:-.01em}
+.tc-pnl-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;flex-shrink:0}
+.tc-meta{font-size:11px;color:var(--text-muted)}
+.tc-rr{font-family:'JetBrains Mono',monospace;font-size:11px}
+.tc-quality-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;display:inline-block;margin-right:4px}
+.tc-quality-lbl{font-size:10px;font-weight:600;display:inline-flex;align-items:center}
+.tc-tags{padding:0 12px 10px;display:flex;gap:3px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 6px;border-radius:20px;background:rgba(123,97,255,.1);color:var(--info-2);border:1px solid rgba(123,97,255,.14);font-weight:500}
+.res-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.03em;flex-shrink:0}
 .rb-win{background:rgba(0,217,126,.1);color:var(--positive);border:1px solid rgba(0,217,126,.18)}
 .rb-loss{background:rgba(255,77,106,.1);color:var(--negative);border:1px solid rgba(255,77,106,.18)}
 .rb-be{background:rgba(255,209,102,.08);color:var(--warning);border:1px solid rgba(255,209,102,.15)}
-.tc-rr{font-family:'JetBrains Mono',monospace;font-size:10px}
-.tc-pnl{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500}
-.tc-quality{display:flex;gap:4px;padding:0 12px 8px;align-items:center}
-.tc-quality-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.tc-quality-lbl{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
-.tc-tags{padding:0 12px 8px;display:flex;gap:3px;flex-wrap:wrap}
-.tag{font-size:10px;padding:2px 6px;border-radius:20px;background:rgba(123,97,255,.1);color:var(--info-2);border:1px solid rgba(123,97,255,.14);font-weight:500}
 .tc-flags{padding:0 12px 8px;display:flex;gap:4px}
 .flag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;letter-spacing:.03em}
 .flag-plan{background:rgba(0,217,126,.08);color:var(--positive);border:1px solid rgba(0,217,126,.14)}
@@ -730,9 +726,8 @@ body.compact .kpi-val{font-size:18px!important}
 body.compact .card-p{padding:10px 12px}
 /* Trade cards */
 body.compact .tc{margin-bottom:5px}
-body.compact .tc-hdr{padding:8px 10px}
+body.compact .tc-body{padding:8px 10px}
 body.compact .tc-thumb{width:32px;height:32px;border-radius:8px}
-body.compact .tc-quality{padding:0 10px 5px}
 body.compact .tc-tags{padding:0 10px 5px}
 body.compact .tc-flags{padding:0 10px 5px}
 body.compact .trade-group-header{padding:5px 16px 2px;font-size:10px}
@@ -3965,41 +3960,37 @@ function tcHTML(t){
   const pnlCol  = pnlNum>0?'var(--positive)':pnlNum<0?'var(--negative)':'var(--warning)';
   const resCol  = t.result==='win'?'var(--positive)':t.result==='loss'?'var(--negative)':'var(--warning)';
   const resText = t.result==='win'?'WIN':t.result==='loss'?'LOSS':'B/E';
+  const resBadgeCls = t.result==='win'?'rb-win':t.result==='loss'?'rb-loss':'rb-be';
 
-  // ── Primary: PnL ─────────────────────────────────
+  // Row 1: Pair → P&L
   const pnlDisplay = hasPnl
-    ? `<div class="tc-pnl-main" style="color:${pnlCol}">${pnlNum>=0?'+':''}$${Math.abs(pnlNum).toFixed(2)}</div>`
-    : `<div class="tc-pnl-main" style="color:${resCol}">${resText}</div>`;
-
-  // ── Secondary: result badge ───────────────────────
-  const resultBadge = hasPnl
-    ? `<span style="font-size:10px;font-weight:700;color:${resCol};letter-spacing:.04em">${resText}</span>`
-    : '';
-
-  const rrText = t.rr ? (()=>{ const _n=parseFloat(t.rr.replace('1:','')); return `<span class="tc-rr" style="color:${rrColor(_n)}">R:R ${escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n)))}</span>`; })() : '';
+    ? `<span class="tc-pnl-val" style="color:${pnlCol}">${pnlNum>=0?'+':''}$${Math.abs(pnlNum).toFixed(2)}</span>`
+    : `<span class="tc-pnl-val" style="color:${resCol}">${resText}</span>`;
 
   // ── Thumbnail ─────────────────────────────────────
   const thumbSrc = t.img || t.img_url || null;
   const thumb = thumbSrc
     ? `<div class="tc-thumb"><img src="${escapeHtml(thumbSrc)}" alt=""></div>`
-    : `<div class="tc-thumb" style="background:${m.bg}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${m.sc}" stroke-width="1.8">${m.svgPath}</svg></div>`;
+    : `<div class="tc-thumb" style="background:${m.bg}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${m.sc}" stroke-width="1.8">${m.svgPath}</svg></div>`;
 
-  // ── Date ─────────────────────────────────────────
   const ds = t.date ? new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short'}) : '';
 
-  // ── Sub-row: setup · session · date ──────────────
-  const subParts = [
+  // Row 3: Direction · Setup · Session · Quick
+  const row3Parts = [
     t.dir ? `<span style="color:${t.dir==='buy'?'var(--positive)':'var(--negative)'};font-weight:700">${t.dir==='buy'?'▲':'▼'} ${t.dir.toUpperCase()}</span>` : '',
-    t.setup ? `<span style="color:var(--accent);font-weight:600">${escapeHtml(setupDisplayName(t.setup))}</span>` : '',
+    t.setup ? `<span style="color:var(--accent)">${escapeHtml(setupDisplayName(t.setup))}</span>` : '',
     t.session ? `<span>${t.session}</span>` : '',
-    t.quickTrade ? `<span style="color:var(--info-2);font-weight:700;display:inline-flex;align-items:center;gap:3px"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>${lang==='ru'?'Быстрая':'Quick'}</span>` : '',
-    ds ? `<span>${ds}</span>` : '',
+    t.quickTrade ? `<span style="color:var(--info-2);display:inline-flex;align-items:center;gap:3px"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>${lang==='ru'?'Быстрая':'Quick'}</span>` : '',
   ].filter(Boolean);
-  const subRow = subParts.length
-    ? `<div class="tc-sub">${subParts.map((p,i)=>i<subParts.length-1?p+`<span style="opacity:.3">·</span>`:p).join('')}</div>`
+  const row3 = row3Parts.length
+    ? `<div class="tc-row3">${row3Parts.map((p,i)=>i<row3Parts.length-1?p+`<span style="opacity:.3">·</span>`:p).join('')}</div>`
     : '';
 
-  // ── Clean/dirty + mistake indicator ──────────────
+  // Row 4: R:R → Quality
+  const rrHTML = t.rr
+    ? (()=>{ const _n=parseFloat(t.rr.replace('1:','')); return `<span class="tc-rr" style="color:${rrColor(_n)}">R:R ${escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n)))}</span>`; })()
+    : `<span class="tc-rr" style="color:var(--text-muted)">—</span>`;
+
   const isClean = t.checklistScore>=0.8 && t.byPlan===true && t.emotional!==true;
   const isDirty = t.checklistScore!==null && t.checklistScore!==undefined &&
                   (t.checklistScore<0.6 || t.emotional===true || t.byPlan===false);
@@ -4007,40 +3998,30 @@ function tcHTML(t){
 
   let qualityHTML = '';
   if(isClean){
-    qualityHTML = `<div class="tc-quality">
-      <div class="tc-quality-dot" style="background:var(--positive)"></div>
-      <span class="tc-quality-lbl" style="color:var(--positive)">Clean</span>
-    </div>`;
+    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--positive)"><span class="tc-quality-dot" style="background:var(--positive)"></span>Clean</span>`;
   } else if(isDirty){
     const mistakeLabel = hasMistakes ? ` · ${mLabel(t.mistakes[0])}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}` : '';
-    qualityHTML = `<div class="tc-quality">
-      <div class="tc-quality-dot" style="background:var(--negative)"></div>
-      <span class="tc-quality-lbl" style="color:var(--text-muted)">Dirty${mistakeLabel}</span>
-    </div>`;
+    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--negative)"></span>Dirty${mistakeLabel}</span>`;
   } else if(hasMistakes){
-    qualityHTML = `<div class="tc-quality">
-      <div class="tc-quality-dot" style="background:var(--accent)"></div>
-      <span class="tc-quality-lbl" style="color:var(--text-muted)">${mLabel(t.mistakes[0])}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}  </span>
-    </div>`;
+    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--accent)"></span>${mLabel(t.mistakes[0])}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}</span>`;
   }
 
   // ── Tags (only if they exist, compact) ───────────
   const tagsHTML = t.tags?.length
-    ? `<div style="padding:0 14px 10px;display:flex;gap:4px;flex-wrap:wrap">${t.tags.map(tg=>`<span class="tag">#${escapeHtml(tg)}</span>`).join('')}</div>`
+    ? `<div class="tc-tags">${t.tags.map(tg=>`<span class="tag">#${escapeHtml(tg)}</span>`).join('')}</div>`
     : '';
 
   return `<div class="tc ${resCls}" data-id="${t.id}" onclick="bulkMode?toggleBulkItem('${t.id}',event):openDetail('${t.id}')">
-    <div class="tc-hdr">${thumb}
-      <div class="tc-info">
-        <div class="tc-pair">${escapeHtml(t.pair||t.asset||'—')}</div>
-        ${subRow}
-      </div>
-      <div class="tc-right">
-        ${pnlDisplay}
-        <div class="tc-result-row">${resultBadge}${rrText}</div>
+    <div class="tc-body">
+      ${thumb}
+      <div class="tc-text">
+        <div class="tc-row1"><span class="tc-pair">${escapeHtml(t.pair||t.asset||'—')}</span>${pnlDisplay}</div>
+        <div class="tc-row2"><span class="tc-meta">${m.label}${ds?' · '+ds:''}</span><span class="res-badge ${resBadgeCls}">${resText}</span></div>
+        ${row3}
+        <div class="tc-row4">${rrHTML}${qualityHTML}</div>
       </div>
     </div>
-    ${qualityHTML}${tagsHTML}
+    ${tagsHTML}
   </div>`;
 }
 
