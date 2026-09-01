@@ -541,6 +541,8 @@ body.light .goal-deep-bar-wrap{background:rgba(0,0,0,.06)}
 .mbody{padding:13px 17px 6px}
 
 /* FORM */
+.fsection{font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.05em;text-transform:uppercase;margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--border)}
+.fsection:first-child{margin-top:0;padding-top:0;border-top:none}
 .fgroup{margin-bottom:11px}
 .flabel{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:4px;display:flex;align-items:center;gap:4px}
 .flabel svg{width:11px;height:11px;stroke-width:2}
@@ -1194,6 +1196,7 @@ body.light .idea-card{border-color:var(--border-strong)}
 
     <!-- STEP 0: Trade Details -->
     <div class="mbody" id="step0">
+      <div class="fsection" id="fsecBasics0">Основное</div>
       <div class="fgroup">
         <label class="flabel" id="lbl_pair_el">Инструмент</label>
         <input class="finput" id="tPair" placeholder="EURUSD, XAUUSD, BTCUSDT..." list="pairSuggestions" autocomplete="off">
@@ -1225,6 +1228,7 @@ body.light .idea-card{border-color:var(--border-strong)}
             <button class="tbtn" id="btnSell" onclick="setTrade('dir','sell')">▼ Sell</button>
           </div>
       </div>
+      <div class="fsection" id="fsecDetails0">Параметры сделки</div>
       <div class="frow3">
         <div class="fgroup">
           <label class="flabel">Entry</label>
@@ -1265,6 +1269,7 @@ body.light .idea-card{border-color:var(--border-strong)}
           </div>
         </div>
       </div>
+      <div class="fsection" id="fsecResult0">Результат</div>
       <div class="frow2">
         <div class="fgroup">
           <label class="flabel">P&amp;L ($)</label>
@@ -1280,6 +1285,7 @@ body.light .idea-card{border-color:var(--border-strong)}
 
     <!-- STEP 1: Setup + Screenshot -->
     <div class="mbody" id="step1" style="display:none">
+      <div class="fsection" id="fsecSetup1">Сетап</div>
       <div class="fgroup">
         <label class="flabel" id="lbl_setup_el">Тип сетапа</label>
         <div class="toggle-group cols3">
@@ -1289,6 +1295,7 @@ body.light .idea-card{border-color:var(--border-strong)}
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.5"><span id="trendHint">Движение по тренду</span> &nbsp;·&nbsp; <span id="rangeHint">Боковой рынок</span> &nbsp;·&nbsp; <span id="offplanHint">Вне плана</span></div>
       </div>
+      <div class="fsection" id="fsecNotes1">Заметки</div>
       <div class="fgroup">
         <label class="flabel" id="lbl_ss_el">Скриншот</label>
         <div class="img-upload" id="imgUploadArea" onclick="document.getElementById('imgInput').click()">
@@ -1322,6 +1329,7 @@ body.light .idea-card{border-color:var(--border-strong)}
 
     <!-- STEP 2: Checklist -->
     <div class="mbody" id="step2" style="display:none">
+      <div class="fsection" id="fsecPsych2">Психология</div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6" id="chkHint">Отметь что было выполнено перед входом в сделку.</div>
       <div id="checklistItems"></div>
       <div class="cl-score">
@@ -1336,6 +1344,7 @@ body.light .idea-card{border-color:var(--border-strong)}
 
     <!-- STEP 3: Discipline + Mistakes -->
     <div class="mbody" id="step3" style="display:none">
+      <div class="fsection" id="fsecPsych3">Психология</div>
       <div class="fgroup">
         <label class="flabel" id="lbl_byplan_el">Следовал торговому плану?</label>
         <div class="toggle-group cols2">
@@ -5670,6 +5679,8 @@ const STRINGS = {
     add_trade:'Новая сделка',
     step0:'Детали', step1:'Сетап', step2:'Чеклист', step3:'Дисциплина',
     // Form fields
+    fsec_basics:'Основное', fsec_details:'Параметры сделки', fsec_result:'Результат',
+    fsec_setup:'Сетап', fsec_notes:'Заметки', fsec_psychology:'Психология',
     lbl_pair:'Инструмент', lbl_market:'Рынок', lbl_type:'Тип',
     lbl_entry:'Entry', lbl_sl:'Stop Loss', lbl_tp:'Take Profit',
     lbl_rr:'R:R (авто)', lbl_result:'Результат',
@@ -5850,6 +5861,8 @@ const STRINGS = {
     add_trade:'New Trade',
     step0:'Details', step1:'Setup', step2:'Checklist', step3:'Discipline',
     // Form fields
+    fsec_basics:'Trade Basics', fsec_details:'Trade Details', fsec_result:'Result',
+    fsec_setup:'Setup', fsec_notes:'Notes', fsec_psychology:'Psychology',
     lbl_pair:'Instrument', lbl_market:'Market', lbl_type:'Type',
     lbl_entry:'Entry', lbl_sl:'Stop Loss', lbl_tp:'Take Profit',
     lbl_rr:'R:R (auto)', lbl_result:'Result',
@@ -6160,6 +6173,13 @@ function applyLang(){
   _setT('lbl_emo_el',     'lbl_impulsive');
   _setT('lbl_mist_el',    'lbl_mistakes');
   _setT('lbl_cl_el',      'lbl_cl_score');
+  _setT('fsecBasics0',    'fsec_basics');
+  _setT('fsecDetails0',   'fsec_details');
+  _setT('fsecResult0',    'fsec_result');
+  _setT('fsecSetup1',     'fsec_setup');
+  _setT('fsecNotes1',     'fsec_notes');
+  _setT('fsecPsych2',     'fsec_psychology');
+  _setT('fsecPsych3',     'fsec_psychology');
 
   // Form buttons
   _setT('btnNextSetup',   'btn_next_setup');
