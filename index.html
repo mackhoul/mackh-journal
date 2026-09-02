@@ -783,13 +783,14 @@ body.light .idea-card{border-color:var(--border-strong)}
 
   /* Nav becomes a left sidebar — same .nb buttons, restyled only */
   .nav{position:fixed;left:0;top:0;bottom:0;width:236px;transform:none;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;padding:24px 14px;background:var(--bg);border-top:none;border-right:1px solid var(--border);backdrop-filter:none;border-radius:0}
-  .nb{flex-direction:row;justify-content:flex-start;gap:12px;padding:12px 14px;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;border-radius:var(--radius-sm)}
-  .nb svg{width:19px;height:19px}
+  /* flex:1 from the mobile bar would stretch each button to full height here */
+  .nb{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:12px;padding:12px 14px;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;border-radius:var(--radius-sm)}
+  .nb svg{width:19px;height:19px;flex-shrink:0}
   .nb.active{background:var(--surface-2);box-shadow:inset 3px 0 0 var(--accent)}
   .nb:not(.active):hover{background:var(--surface-2);color:var(--text-secondary)}
   .nb.active svg{filter:none}
   .nb-dot{display:none}
-  .nav-fab{order:-1;width:100%;height:46px;border-radius:var(--radius-sm);margin:0 0 18px}
+  .nav-fab{order:-1;flex:0 0 auto;align-self:stretch;width:100%;height:46px;border-radius:var(--radius-sm);margin:0 0 18px}
   .nav-logo{display:block;order:-3;font-size:18px;font-weight:700;letter-spacing:-.01em;padding:4px 14px 22px;color:var(--text)}
   .nav-logo span{color:var(--accent)}
 
@@ -5932,7 +5933,7 @@ const STRINGS = {
     // Recent trades section
     recent_trades:'Последние сделки',
     // Filter reset button
-    filter_reset_btn:'Сброс', kpi_losses:'Убыточных', kpi_pnl:'Итого P&L', kpi_rr:'Средний R:R',
+    filter_reset_btn:'Сброс', kpi_wins:'Прибыльных', kpi_losses:'Убыточных', kpi_pnl:'Итого P&L', kpi_rr:'Средний R:R',
     streak_journal:'Серия журналирования', streak_days:'дней подряд',
     // Trade form — step labels
     add_trade:'Новая сделка',
@@ -6114,7 +6115,7 @@ const STRINGS = {
     // Recent trades section
     recent_trades:'Recent Trades',
     // Filter reset button
-    filter_reset_btn:'Reset', kpi_losses:'Losses', kpi_pnl:'Total P&L', kpi_rr:'Avg R:R',
+    filter_reset_btn:'Reset', kpi_wins:'Wins', kpi_losses:'Losses', kpi_pnl:'Total P&L', kpi_rr:'Avg R:R',
     streak_journal:'Journal streak', streak_days:'days in a row',
     // Trade form
     add_trade:'New Trade',
