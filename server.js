@@ -28,6 +28,59 @@ app.use(cors({
   }
 }));
 
+// ── Stripe ───────────────────────────────────────────────
+const STRIPE_SECRET_KEY     = process.env.STRIPE_SECRET_KEY;
+const STRIPE_PRICE_ID       = process.env.STRIPE_PRICE_ID;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const SITE_URL              = process.env.SITE_URL || 'https://mackhoul.github.io/mackh-journal/';
+
+const stripe = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
+const STRIPE_READY = !!(stripe && STRIPE_PRICE_ID);
+console.log(STRIPE_READY ? '💳 Stripe configured' : 'ℹ️  Stripe not configured — subscriptions disabled');
+
+// The webhook MUST be registered before express.json(): Stripe signs the raw
+// request body, and a parsed body can no longer be verified.
+app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !STRIPE_WEBHOOK_SECRET) return res.status(503).send('Stripe not configured');
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+  } catch (e) {
+    console.error('[STRIPE] webhook signature failed:', e.message);
+    return res.status(400).send(`Webhook Error: ${e.message}`);
+  }
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const s = event.data.object;
+        const userId = Number(s.client_reference_id);
+        if (userId && s.subscription) {
+          const sub = await stripe.subscriptions.retrieve(s.subscription);
+          await saveSubscription(userId, sub, s.customer);
+          console.log(`[STRIPE] checkout completed → user ${userId} subscribed`);
+        }
+        break;
+      }
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object;
+        const userId = Number(sub.metadata?.user_id);
+        if (userId) {
+          await saveSubscription(userId, sub, sub.customer);
+          console.log(`[STRIPE] subscription ${event.type} → user ${userId}: ${sub.status}`);
+        }
+        break;
+      }
+    }
+    res.json({ received: true });
+  } catch (e) {
+    console.error('[STRIPE] webhook handling error:', e.message);
+    res.status(500).send('Webhook handler failed');
+  }
+});
+
 app.use(express.json({ limit: '10mb' })); // 10 MB is plenty for a photo
 
 // ── Environment ─────────────────────────────────────────
@@ -270,6 +323,8 @@ app.get('/health', (req, res) => res.json({
     supabase_key:   !!SUPABASE_SERVICE_KEY,
     r2_storage:     R2_READY,
     web_auth:       !!SUPABASE_ANON_KEY,
+    stripe:         STRIPE_READY,
+    stripe_webhook: !!STRIPE_WEBHOOK_SECRET,
   },
   storage: R2_READY ? 'cloudflare-r2' : 'supabase (1GB free limit — set R2_* env vars to switch)',
   ready: !!(BOT_TOKEN && SUPABASE_URL && SUPABASE_SERVICE_KEY),
@@ -390,6 +445,97 @@ app.post('/settings', auth, async (req, res) => {
   } catch (e) {
     console.error('[API] POST /settings error:', e.message);
     res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// ── Subscriptions ────────────────────────────────────────
+// Stripe is the source of truth; we mirror just enough to answer
+// "is this user allowed in?" without calling Stripe on every request.
+async function saveSubscription(userId, sub, customerId) {
+  await supabase('POST', 'subscriptions?on_conflict=user_id', {
+    user_id:            userId,
+    stripe_customer_id: typeof customerId === 'string' ? customerId : customerId?.id || null,
+    stripe_sub_id:      sub.id,
+    status:             sub.status,
+    current_period_end: sub.current_period_end
+                          ? new Date(sub.current_period_end * 1000).toISOString()
+                          : null,
+    updated_at:         new Date().toISOString(),
+  });
+}
+
+const ACTIVE_STATUSES = ['active', 'trialing'];
+
+async function getSubscription(userId) {
+  const rows = await supabase('GET', `subscriptions?user_id=eq.${userId}&select=*`);
+  const row  = rows && rows[0];
+  if (!row) return { active: false, status: 'none' };
+  const notExpired = !row.current_period_end || new Date(row.current_period_end) > new Date();
+  return {
+    active:  ACTIVE_STATUSES.includes(row.status) && notExpired,
+    status:  row.status,
+    renews:  row.current_period_end,
+  };
+}
+
+// GET /billing/status — is this user subscribed?
+app.get('/billing/status', auth, async (req, res) => {
+  if (!STRIPE_READY) return res.json({ active: false, status: 'disabled', billing_enabled: false });
+  try {
+    const sub = await getSubscription(req.userId);
+    res.json({ ...sub, billing_enabled: true });
+  } catch (e) {
+    console.error('[BILLING] status error:', e.message);
+    res.status(500).json({ error: 'Failed to load subscription' });
+  }
+});
+
+// POST /billing/checkout — start a Stripe Checkout session
+app.post('/billing/checkout', auth, async (req, res) => {
+  if (!STRIPE_READY) return res.status(503).json({ error: 'Billing not configured' });
+  try {
+    const existing = await getSubscription(req.userId);
+    if (existing.active) return res.status(400).json({ error: 'Already subscribed' });
+
+    // Reuse the Stripe customer if this user paid before
+    const rows = await supabase('GET', `subscriptions?user_id=eq.${req.userId}&select=stripe_customer_id`);
+    const customerId = rows?.[0]?.stripe_customer_id || undefined;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      client_reference_id: String(req.userId),
+      customer: customerId,
+      customer_email: customerId ? undefined : (req.authUser?.email || undefined),
+      subscription_data: { metadata: { user_id: String(req.userId) } },
+      success_url: `${SITE_URL}?checkout=success`,
+      cancel_url:  `${SITE_URL}?checkout=cancelled`,
+      allow_promotion_codes: true,
+    });
+    console.log(`[BILLING] checkout session for user ${req.userId}`);
+    res.json({ url: session.url });
+  } catch (e) {
+    console.error('[BILLING] checkout error:', e.message);
+    res.status(500).json({ error: 'Failed to start checkout' });
+  }
+});
+
+// POST /billing/portal — manage or cancel an existing subscription
+app.post('/billing/portal', auth, async (req, res) => {
+  if (!STRIPE_READY) return res.status(503).json({ error: 'Billing not configured' });
+  try {
+    const rows = await supabase('GET', `subscriptions?user_id=eq.${req.userId}&select=stripe_customer_id`);
+    const customerId = rows?.[0]?.stripe_customer_id;
+    if (!customerId) return res.status(404).json({ error: 'No subscription found' });
+
+    const portal = await stripe.billingPortal.sessions.create({
+      customer:   customerId,
+      return_url: SITE_URL,
+    });
+    res.json({ url: portal.url });
+  } catch (e) {
+    console.error('[BILLING] portal error:', e.message);
+    res.status(500).json({ error: 'Failed to open billing portal' });
   }
 });
 
