@@ -875,6 +875,25 @@ body.light .idea-card{border-color:var(--border-strong)}
 .auth-msg.ok{background:var(--accent-muted);color:var(--accent)}
 .auth-foot{font-size:11px;color:var(--text-muted);margin-top:20px;text-align:center;line-height:1.6}
 .auth-signout{background:none;border:1px solid var(--border);color:var(--text-secondary);font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer}
+
+/* ── STYLED SELECT — native <select> stays in the DOM (hidden) so all the
+   filtering logic keeps working; only the visuals are replaced, because a
+   browser won't let us style the OS dropdown list itself. ── */
+.ssel{position:relative}
+.ssel > select{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.ssel-trigger{width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-md);background:var(--surface-2);font-family:'Outfit',sans-serif;font-size:13px;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:border-color .15s}
+.ssel-trigger:hover{border-color:var(--border-strong)}
+.ssel-trigger.has-value{border-color:rgba(20,158,108,.4);color:var(--text)}
+.ssel-trigger svg{width:12px;height:12px;stroke-width:2;color:var(--text-muted);flex-shrink:0;transition:transform .18s}
+.ssel.open .ssel-trigger{border-color:var(--accent)}
+.ssel.open .ssel-trigger svg{transform:rotate(180deg)}
+.ssel-lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ssel-popup{position:absolute;top:calc(100% + 6px);left:0;min-width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-md);z-index:400;box-shadow:0 8px 24px rgba(0,0,0,.35);overflow:hidden;padding:4px;display:none;animation:fadeUp .18s ease;max-height:260px;overflow-y:auto}
+.ssel.open .ssel-popup{display:block}
+.ssel-opt{padding:8px 11px;border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .12s,color .12s}
+.ssel-opt:hover{background:var(--surface-3);color:var(--text)}
+.ssel-opt.sel{color:var(--accent);font-weight:600}
+.ssel-opt.sel::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
 </style>
 </head>
 <body>
@@ -1107,22 +1126,28 @@ body.light .idea-card{border-color:var(--border-strong)}
       </button>
       <div class="cal-popup opens-down" id="tradesCalPopup" style="display:none"></div>
     </div>
-    <select class="finput" id="filterSetup" onchange="renderTrades(true)" style="flex:.9">
-      <option value="" id="setupFilterDefault">Все сетапы</option>
-    </select>
-    <select class="finput" id="filterResult" onchange="renderTrades(true)" style="flex:.7">
-      <option value="" id="filterResultDefault">Все</option>
-      <option value="win" id="filterResultWin">WIN</option>
-      <option value="loss" id="filterResultLoss">LOSS</option>
-      <option value="be" id="filterResultBE">B/E</option>
-    </select>
-    <select class="finput" id="filterRR" onchange="renderTrades(true)" style="flex:.8">
-      <option value="">R:R</option>
-      <option value="0-1">&lt; 1:1</option>
-      <option value="1-2">1:1 – 1:2</option>
-      <option value="2-3">1:2 – 1:3</option>
-      <option value="3+">≥ 1:3</option>
-    </select>
+    <div class="ssel" id="ssel_filterSetup" style="flex:.9;min-width:120px">
+      <select class="finput" id="filterSetup" onchange="renderTrades(true)">
+        <option value="" id="setupFilterDefault">Все сетапы</option>
+      </select>
+    </div>
+    <div class="ssel" id="ssel_filterResult" style="flex:.7;min-width:92px">
+      <select class="finput" id="filterResult" onchange="renderTrades(true)">
+        <option value="" id="filterResultDefault">Все</option>
+        <option value="win" id="filterResultWin">WIN</option>
+        <option value="loss" id="filterResultLoss">LOSS</option>
+        <option value="be" id="filterResultBE">B/E</option>
+      </select>
+    </div>
+    <div class="ssel" id="ssel_filterRR" style="flex:.8;min-width:104px">
+      <select class="finput" id="filterRR" onchange="renderTrades(true)">
+        <option value="">R:R</option>
+        <option value="0-1">&lt; 1:1</option>
+        <option value="1-2">1:1 – 1:2</option>
+        <option value="2-3">1:2 – 1:3</option>
+        <option value="3+">≥ 1:3</option>
+      </select>
+    </div>
     <button class="fclear" id="filterResetBtn" onclick="clearFilters()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="trade-list" id="allTrades"></div>
@@ -3797,7 +3822,83 @@ function renderTrades(resetExpand=false){
   const cur = sel.value;
   sel.innerHTML = `<option value="">${T('filter_setups')}</option>` + setups.map(s=>`<option value="${s}">${escapeHtml(setupDisplayName(s))}</option>`).join('');
   sel.value = cur;
+  buildStyledSelect('filterSetup'); // options changed — rebuild the visible list
 }
+
+// ═══════════════════════════════════════════════════════
+//  STYLED SELECT — replaces the OS dropdown with an in-app
+//  one. The real <select> stays in the DOM and remains the
+//  single source of truth, so every existing read of
+//  .value and every onchange handler works untouched.
+// ═══════════════════════════════════════════════════════
+function buildStyledSelect(selectId){
+  const sel  = document.getElementById(selectId);
+  const wrap = document.getElementById('ssel_'+selectId);
+  if(!sel || !wrap) return;
+
+  let trigger = wrap.querySelector('.ssel-trigger');
+  let popup   = wrap.querySelector('.ssel-popup');
+  if(!trigger){
+    trigger = document.createElement('button');
+    trigger.type='button';
+    trigger.className='ssel-trigger';
+    trigger.innerHTML = `<span class="ssel-lbl"></span><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="6 9 12 15 18 9"/></svg>`;
+    trigger.addEventListener('click', e=>{
+      e.stopPropagation();
+      const wasOpen = wrap.classList.contains('open');
+      closeAllStyledSelects();
+      if(!wasOpen) wrap.classList.add('open');
+    });
+    wrap.appendChild(trigger);
+
+    popup = document.createElement('div');
+    popup.className='ssel-popup';
+    popup.addEventListener('click', e=>e.stopPropagation());
+    wrap.appendChild(popup);
+  }
+
+  // Mirror the current <option> list
+  popup.innerHTML='';
+  [...sel.options].forEach(opt=>{
+    const row=document.createElement('div');
+    row.className='ssel-opt'+(opt.value===sel.value?' sel':'');
+    row.textContent=opt.textContent;
+    row.addEventListener('click',()=>{
+      sel.value=opt.value;
+      wrap.classList.remove('open');
+      syncStyledSelect(selectId);
+      sel.dispatchEvent(new Event('change',{bubbles:true})); // fires renderTrades
+    });
+    popup.appendChild(row);
+  });
+  syncStyledSelect(selectId);
+}
+
+// Keeps the visible trigger in step with the real <select> value.
+function syncStyledSelect(selectId){
+  const sel  = document.getElementById(selectId);
+  const wrap = document.getElementById('ssel_'+selectId);
+  if(!sel || !wrap) return;
+  const lbl = wrap.querySelector('.ssel-lbl');
+  const trg = wrap.querySelector('.ssel-trigger');
+  if(!lbl || !trg) return;
+  const opt = sel.options[sel.selectedIndex];
+  lbl.textContent = opt ? opt.textContent : '';
+  trg.classList.toggle('has-value', !!sel.value);
+  wrap.querySelectorAll('.ssel-opt').forEach((row,i)=>{
+    row.classList.toggle('sel', sel.options[i] && sel.options[i].value===sel.value);
+  });
+}
+
+function closeAllStyledSelects(){
+  document.querySelectorAll('.ssel.open').forEach(w=>w.classList.remove('open'));
+}
+document.addEventListener('click', closeAllStyledSelects);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAllStyledSelects(); });
+
+const STYLED_SELECTS = ['filterSetup','filterResult','filterRR'];
+function initStyledSelects(){ STYLED_SELECTS.forEach(buildStyledSelect); }
+function syncAllStyledSelects(){ STYLED_SELECTS.forEach(syncStyledSelect); }
 
 function clearFilters(){
   calState.trades.date='';
@@ -3805,6 +3906,7 @@ function clearFilters(){
   document.getElementById('filterSetup').value='';
   const fr=document.getElementById('filterResult'); if(fr) fr.value='';
   const fRR=document.getElementById('filterRR'); if(fRR) fRR.value='';
+  syncAllStyledSelects();
   document.getElementById('allTrades').dataset.showAll='';
   renderTrades();
 }
@@ -5983,7 +6085,7 @@ const STRINGS = {
     detail_edit:'Редактировать',
     // Trades page
     cal_all_dates:'Все даты',
-    trades_title:'Все сделки', filter_setups:'Все сетапы', filter_reset:'Сброс',
+    trades_title:'Все сделки', filter_setups:'Все сетапы', filter_res_all:'Все', filter_reset:'Сброс',
     trades_pre:'Все ', trades_span:'сделки',
     // Analytics page
     analytics_title:'Аналитика',
@@ -6165,7 +6267,7 @@ const STRINGS = {
     detail_edit:'Edit',
     // Trades page
     cal_all_dates:'All dates',
-    trades_title:'All Trades', filter_setups:'All setups', filter_reset:'Reset',
+    trades_title:'All Trades', filter_setups:'All setups', filter_res_all:'All', filter_reset:'Reset',
     trades_pre:'All ', trades_span:'Trades',
     // Analytics page
     analytics_title:'Analytics',
@@ -6359,6 +6461,9 @@ function applyLang(){
   // Trades page filter select default option
   const sfd=document.getElementById('setupFilterDefault');
   if(sfd) sfd.textContent=T('filter_setups');
+  const frd=document.getElementById('filterResultDefault');
+  if(frd) frd.textContent=T('filter_res_all');
+  initStyledSelects(); // option text changed — refresh the visible lists
 
   // Re-run renderTrades so the select rebuilds with correct language
   if(document.getElementById('page-trades').classList.contains('active')) renderTrades();
@@ -6899,6 +7004,7 @@ window.addEventListener('paste', e=>{
 
 updateGoalHint();
 initSwipeClose();
+initStyledSelects();
 updateThemeIcon();
 updateOnlineStatus();
 window.addEventListener('resize',()=>{if(homeCI){homeCI.destroy();homeCI=null;renderHomeChart();}});
