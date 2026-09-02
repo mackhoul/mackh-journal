@@ -894,6 +894,17 @@ body.light .idea-card{border-color:var(--border-strong)}
 .ssel-opt:hover{background:var(--surface-3);color:var(--text)}
 .ssel-opt.sel{color:var(--accent);font-weight:600}
 .ssel-opt.sel::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
+
+/* ── SUBSCRIPTION ──────────────────────────────────────── */
+.sub-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0}
+.sub-state{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text)}
+.sub-badge{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:20px}
+.sub-badge.on{background:var(--accent-muted);color:var(--accent)}
+.sub-badge.off{background:var(--surface-3);color:var(--text-muted)}
+.sub-hint{font-size:11px;color:var(--text-muted);margin-top:2px}
+.sub-btn{background:var(--accent);border:none;color:#fff;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:8px 14px;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.sub-btn:disabled{opacity:.5;cursor:default}
+.sub-btn.ghost{background:none;border:1px solid var(--border);color:var(--text-secondary)}
 </style>
 </head>
 <body>
@@ -1575,6 +1586,21 @@ body.light .idea-card{border-color:var(--border-strong)}
             <div id="acctHint" style="font-size:11px;color:var(--text-muted);margin-top:2px">Веб-сессия</div>
           </div>
           <button class="auth-signout" id="acctSignOut" onclick="signOut()">Выйти</button>
+        </div>
+      </div>
+
+      <!-- Subscription (web only — Telegram forbids external payment for digital goods) -->
+      <div class="s-group" id="subGroup" style="display:none">
+        <div class="s-group-title" id="sGrpSub">Подписка</div>
+        <div class="sub-row">
+          <div style="min-width:0">
+            <div class="sub-state">
+              <span id="subPlanName">MackH Journal Pro</span>
+              <span class="sub-badge off" id="subBadge">—</span>
+            </div>
+            <div class="sub-hint" id="subHint"></div>
+          </div>
+          <button class="sub-btn" id="subBtn" onclick="onSubButton()">—</button>
         </div>
       </div>
 
@@ -6675,6 +6701,8 @@ function openSettings(){
       document.getElementById('acctSignOut').textContent = lang==='ru'?'Выйти':'Sign out';
     } else { ag.style.display='none'; }
   }
+  renderSubscription();
+  if(!IN_TELEGRAM && webSession && !subState) loadSubscription();
   openModal('settingsModal');
   // Auto-ping server when settings open
   pingServer();
@@ -7009,6 +7037,85 @@ updateThemeIcon();
 updateOnlineStatus();
 window.addEventListener('resize',()=>{if(homeCI){homeCI.destroy();homeCI=null;renderHomeChart();}});
 
+// ═══════════════════════════════════════════════════════
+//  SUBSCRIPTION — web only.
+//  Telegram requires digital goods inside a Mini App to be
+//  paid for with Stars, so the checkout button is never
+//  shown there; Telegram users manage billing on the site.
+// ═══════════════════════════════════════════════════════
+let subState = null; // { active, status, renews, billing_enabled }
+
+async function loadSubscription(){
+  if(IN_TELEGRAM) return null;
+  subState = await api('GET','/billing/status');
+  renderSubscription();
+  return subState;
+}
+
+function renderSubscription(){
+  const grp = document.getElementById('subGroup');
+  if(!grp) return;
+  if(IN_TELEGRAM || !webSession || !subState?.billing_enabled){ grp.style.display='none'; return; }
+  grp.style.display='';
+
+  const ru     = lang==='ru';
+  const active = !!subState.active;
+  const badge  = document.getElementById('subBadge');
+  const hint   = document.getElementById('subHint');
+  const btn    = document.getElementById('subBtn');
+
+  document.getElementById('sGrpSub').textContent = ru?'Подписка':'Subscription';
+  badge.className = 'sub-badge '+(active?'on':'off');
+  badge.textContent = active ? (ru?'Активна':'Active') : (ru?'Нет':'Inactive');
+
+  if(active && subState.renews){
+    const d = new Date(subState.renews).toLocaleDateString(ru?'ru-RU':'en-GB',{day:'numeric',month:'short',year:'numeric'});
+    hint.textContent = (subState.status==='canceled' || subState.status==='cancelled')
+      ? (ru?`Доступ до ${d}`:`Access until ${d}`)
+      : (ru?`Продление ${d}`:`Renews ${d}`);
+  } else {
+    hint.textContent = ru?'$9.99 в месяц':'$9.99 per month';
+  }
+
+  btn.disabled = false;
+  btn.className = 'sub-btn'+(active?' ghost':'');
+  btn.textContent = active ? (ru?'Управлять':'Manage') : (ru?'Оформить':'Subscribe');
+}
+
+async function onSubButton(){
+  const ru  = lang==='ru';
+  const btn = document.getElementById('subBtn');
+  btn.disabled = true;
+  btn.textContent = ru?'Секунду...':'One moment...';
+
+  const res = await api('POST', subState?.active ? '/billing/portal' : '/billing/checkout');
+  if(res?.url){
+    window.location.href = res.url; // Stripe-hosted page
+  } else {
+    showToast(ru?'⚠️ Не удалось открыть оплату':'⚠️ Could not open checkout');
+    renderSubscription();
+  }
+}
+
+// Returning from Stripe Checkout — confirm and clean up the URL.
+async function handleCheckoutReturn(){
+  const p = new URLSearchParams(location.search);
+  const r = p.get('checkout');
+  if(!r) return;
+  history.replaceState({}, '', location.pathname);
+  if(r==='success'){
+    showToast(lang==='ru'?'✅ Подписка активна':'✅ Subscription active');
+    // The webhook may land a moment after the redirect — re-check briefly.
+    for(let i=0;i<5;i++){
+      await new Promise(r=>setTimeout(r,1500));
+      const s = await loadSubscription();
+      if(s?.active) break;
+    }
+  } else if(r==='cancelled'){
+    showToast(lang==='ru'?'Оплата отменена':'Checkout cancelled');
+  }
+}
+
 // Loads the journal itself. Called straight away inside Telegram, or after a
 // successful sign-in in the browser.
 async function startApp(){
@@ -7018,6 +7125,8 @@ async function startApp(){
   renderTrades();
   applyLang();
   loadIdeas();
+  loadSubscription();
+  handleCheckoutReturn();
 }
 
 // Entry point: Telegram users go straight in, browser users hit the gate.
