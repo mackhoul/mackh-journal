@@ -2,7 +2,7 @@ const express = require('express');
 const cors    = require('cors');
 const crypto  = require('crypto'); // built-in Node.js module
 const fetch   = require('node-fetch');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 const app = express();
 
@@ -189,7 +189,8 @@ async function uploadImage(userId, base64Data) {
       console.log('[STORAGE] ✓ Image uploaded to R2:', publicUrl);
       return publicUrl;
     } catch (e) {
-      console.error('[STORAGE] R2 upload failed, falling back to Supabase:', e.message);
+      // name + HTTP status make R2 failures diagnosable (AccessDenied, NoSuchBucket, 403…)
+      console.error(`[STORAGE] R2 upload failed (${e.name || 'Error'}, HTTP ${e.$metadata?.httpStatusCode || '—'}), falling back to Supabase:`, e.message);
       // fall through to Supabase below rather than losing the screenshot
     }
   }
@@ -208,7 +209,7 @@ async function uploadImage(userId, base64Data) {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error('[STORAGE] Supabase upload failed:', errText);
+      console.error(`[STORAGE] Supabase upload failed (HTTP ${res.status}):`, errText);
       return null;
     }
 
@@ -329,6 +330,94 @@ app.get('/health', (req, res) => res.json({
   storage: R2_READY ? 'cloudflare-r2' : 'supabase (1GB free limit — set R2_* env vars to switch)',
   ready: !!(BOT_TOKEN && SUPABASE_URL && SUPABASE_SERVICE_KEY),
 }));
+
+// Deep storage check — actually writes a tiny object, reads it back through the
+// PUBLIC url (the one the app shows to users), then deletes it. This catches what
+// /health can't: expired R2 token, wrong permissions, disabled public access,
+// or a full Supabase bucket. R2 and Supabase are tested independently because
+// uploadImage() silently falls back from one to the other.
+// Result is cached for 60s so this public endpoint can't be used to hammer storage.
+const STORAGE_CHECK_TTL_MS = 60 * 1000;
+let storageCheckCache = { at: 0, result: null, pending: null };
+
+const shortErr = (e) => String(e?.message || e).slice(0, 200);
+
+async function checkOne(name, put, publicUrlFor, del) {
+  const out = { ok: false, upload: false, public_read: false, deleted: false, ms: 0, error: null };
+  const t0 = Date.now();
+  const key = `_healthcheck/${Date.now()}.jpg`;
+  const body = Buffer.from('mackh-healthcheck');
+  try {
+    await put(key, body);
+    out.upload = true;
+    try {
+      const r = await fetch(publicUrlFor(key));
+      out.public_read = r.ok;
+      if (!r.ok) out.error = `public URL returned HTTP ${r.status} — uploads work but images can't be displayed`;
+    } catch (e) { out.error = `public URL unreachable: ${shortErr(e)}`; }
+    try { await del(key); out.deleted = true; } catch (e) { out.error = out.error || `cleanup failed: ${shortErr(e)}`; }
+    out.ok = out.upload && out.public_read;
+  } catch (e) {
+    out.error = `${e.name || 'Error'}${e.$metadata?.httpStatusCode ? ` (HTTP ${e.$metadata.httpStatusCode})` : ''}: ${shortErr(e)}`;
+  }
+  out.ms = Date.now() - t0;
+  return out;
+}
+
+async function runStorageCheck() {
+  const result = { checked_at: new Date().toISOString(), r2: { skipped: 'R2 not configured' }, supabase: null };
+
+  if (r2) {
+    result.r2 = await checkOne('r2',
+      (key, body) => r2.send(new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, Body: body, ContentType: 'image/jpeg' })),
+      (key) => `${R2_PUBLIC_URL}/${key}`,
+      (key) => r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })));
+  }
+
+  if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+    const headers = { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` };
+    result.supabase = await checkOne('supabase',
+      async (key, body) => {
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/trade-images/${key}`, { method: 'POST', headers: { ...headers, 'Content-Type': 'image/jpeg' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 150)}`);
+      },
+      (key) => `${SUPABASE_URL}/storage/v1/object/public/trade-images/${key}`,
+      async (key) => {
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/trade-images/${key}`, { method: 'DELETE', headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      });
+  } else {
+    result.supabase = { skipped: 'Supabase not configured' };
+  }
+
+  // What users actually get right now: R2 if it works, otherwise the Supabase fallback
+  const r2Good = r2 && result.r2.ok;
+  const sbGood = result.supabase && result.supabase.ok;
+  result.screenshots_will_save = !!(r2Good || sbGood);
+  result.active_backend = r2Good ? 'r2' : sbGood ? 'supabase' : 'none';
+  if (r2 && !result.r2.ok && sbGood) result.warning = 'R2 is failing — uploads are silently falling back to Supabase (1GB free limit)';
+  if (!result.screenshots_will_save) result.warning = 'No working storage backend — screenshots are NOT being saved';
+  return result;
+}
+
+app.get('/health/storage', async (req, res) => {
+  const now = Date.now();
+  if (storageCheckCache.result && now - storageCheckCache.at < STORAGE_CHECK_TTL_MS) {
+    return res.json({ ...storageCheckCache.result, cached: true });
+  }
+  try {
+    // Concurrent callers share one in-flight check instead of each writing to storage
+    if (!storageCheckCache.pending) {
+      storageCheckCache.pending = runStorageCheck().finally(() => { storageCheckCache.pending = null; });
+    }
+    const result = await storageCheckCache.pending;
+    storageCheckCache = { at: Date.now(), result, pending: null };
+    res.json({ ...result, cached: false });
+  } catch (e) {
+    console.error('[HEALTH] storage check crashed:', e.message);
+    res.status(500).json({ error: 'storage check failed', detail: shortErr(e) });
+  }
+});
 
 // Public config for the web front-end. The anon key is designed to be public
 // (it only allows what Row Level Security permits) — the service key is never
