@@ -419,6 +419,30 @@ app.get('/health/storage', async (req, res) => {
   }
 });
 
+// Keep-alive for the database. Supabase's free plan pauses a project after a
+// week without activity. Point an uptime monitor (UptimeRobot, cron-job.org…)
+// at this URL: each hit runs one tiny real query, which counts as activity, and
+// it also wakes this Render service. Answers 200 only if the database replied,
+// so the monitor doubles as an outage alert. Cached 30s so it can't be hammered.
+let dbCheckCache = { at: 0, result: null };
+app.get('/health/db', async (req, res) => {
+  const now = Date.now();
+  if (dbCheckCache.result && now - dbCheckCache.at < 30 * 1000) {
+    return res.status(dbCheckCache.result.ok ? 200 : 503).json({ ...dbCheckCache.result, cached: true });
+  }
+  const t0 = Date.now();
+  let result;
+  try {
+    await supabase('GET', 'users?select=user_id&limit=1');
+    result = { ok: true, ms: Date.now() - t0, checked_at: new Date().toISOString() };
+  } catch (e) {
+    console.error('[HEALTH] db check failed:', e.message);
+    result = { ok: false, ms: Date.now() - t0, checked_at: new Date().toISOString(), error: shortErr(e) };
+  }
+  dbCheckCache = { at: Date.now(), result };
+  res.status(result.ok ? 200 : 503).json({ ...result, cached: false });
+});
+
 // Public config for the web front-end. The anon key is designed to be public
 // (it only allows what Row Level Security permits) — the service key is never
 // sent here. Serving it from the API keeps keys out of the GitHub repo.
