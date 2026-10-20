@@ -2,7 +2,7 @@ const express = require('express');
 const cors    = require('cors');
 const crypto  = require('crypto'); // built-in Node.js module
 const fetch   = require('node-fetch');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 const app = express();
 
@@ -28,12 +28,66 @@ app.use(cors({
   }
 }));
 
+// ── Stripe ───────────────────────────────────────────────
+const STRIPE_SECRET_KEY     = process.env.STRIPE_SECRET_KEY;
+const STRIPE_PRICE_ID       = process.env.STRIPE_PRICE_ID;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const SITE_URL              = process.env.SITE_URL || 'https://mackhoul.github.io/mackh-journal/';
+
+const stripe = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
+const STRIPE_READY = !!(stripe && STRIPE_PRICE_ID);
+console.log(STRIPE_READY ? '💳 Stripe configured' : 'ℹ️  Stripe not configured — subscriptions disabled');
+
+// The webhook MUST be registered before express.json(): Stripe signs the raw
+// request body, and a parsed body can no longer be verified.
+app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !STRIPE_WEBHOOK_SECRET) return res.status(503).send('Stripe not configured');
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], STRIPE_WEBHOOK_SECRET);
+  } catch (e) {
+    console.error('[STRIPE] webhook signature failed:', e.message);
+    return res.status(400).send(`Webhook Error: ${e.message}`);
+  }
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const s = event.data.object;
+        const userId = Number(s.client_reference_id);
+        if (userId && s.subscription) {
+          const sub = await stripe.subscriptions.retrieve(s.subscription);
+          await saveSubscription(userId, sub, s.customer);
+          console.log(`[STRIPE] checkout completed → user ${userId} subscribed`);
+        }
+        break;
+      }
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object;
+        const userId = Number(sub.metadata?.user_id);
+        if (userId) {
+          await saveSubscription(userId, sub, sub.customer);
+          console.log(`[STRIPE] subscription ${event.type} → user ${userId}: ${sub.status}`);
+        }
+        break;
+      }
+    }
+    res.json({ received: true });
+  } catch (e) {
+    console.error('[STRIPE] webhook handling error:', e.message);
+    res.status(500).send('Webhook handler failed');
+  }
+});
+
 app.use(express.json({ limit: '10mb' })); // 10 MB is plenty for a photo
 
 // ── Environment ─────────────────────────────────────────
 const BOT_TOKEN            = process.env.BOT_TOKEN;
 const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+const SUPABASE_ANON_KEY    = process.env.SUPABASE_ANON_KEY; // public key, used by the web front-end
 
 if (!BOT_TOKEN)            console.error('❌ BOT_TOKEN is not set');
 if (!SUPABASE_URL)         console.error('❌ SUPABASE_URL is not set');
@@ -135,7 +189,8 @@ async function uploadImage(userId, base64Data) {
       console.log('[STORAGE] ✓ Image uploaded to R2:', publicUrl);
       return publicUrl;
     } catch (e) {
-      console.error('[STORAGE] R2 upload failed, falling back to Supabase:', e.message);
+      // name + HTTP status make R2 failures diagnosable (AccessDenied, NoSuchBucket, 403…)
+      console.error(`[STORAGE] R2 upload failed (${e.name || 'Error'}, HTTP ${e.$metadata?.httpStatusCode || '—'}), falling back to Supabase:`, e.message);
       // fall through to Supabase below rather than losing the screenshot
     }
   }
@@ -154,7 +209,7 @@ async function uploadImage(userId, base64Data) {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error('[STORAGE] Supabase upload failed:', errText);
+      console.error(`[STORAGE] Supabase upload failed (HTTP ${res.status}):`, errText);
       return null;
     }
 
@@ -167,15 +222,84 @@ async function uploadImage(userId, base64Data) {
   }
 }
 
+// ── Web auth (Supabase) ──────────────────────────────────
+// Verifies a Supabase access token by asking Supabase who it belongs to.
+// Cached briefly so we don't call Supabase on every single request.
+const tokenCache = new Map(); // token -> { authUser, expires }
+const TOKEN_CACHE_MS = 5 * 60 * 1000;
+
+async function verifySupabaseToken(token) {
+  const hit = tokenCache.get(token);
+  if (hit && hit.expires > Date.now()) return hit.authUser;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        'apikey':        SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) return null;
+    const authUser = await res.json();
+    if (!authUser || !authUser.id) return null;
+
+    tokenCache.set(token, { authUser, expires: Date.now() + TOKEN_CACHE_MS });
+    if (tokenCache.size > 500) { // keep the cache from growing forever
+      for (const [k, v] of tokenCache) if (v.expires <= Date.now()) tokenCache.delete(k);
+    }
+    return authUser;
+  } catch (e) {
+    console.error('[AUTH] verifySupabaseToken error:', e.message);
+    return null;
+  }
+}
+
+// Maps a Supabase account to the internal user_id that owns the trades.
+// First web login creates the link. Telegram users keep their Telegram id
+// as the internal id, so their existing trades stay attached.
+async function resolveWebUserId(authUser) {
+  const rows = await supabase('GET', `account_links?auth_id=eq.${authUser.id}&select=*`);
+  if (rows && rows.length) return Number(rows[0].user_id);
+
+  // New web account — generate an internal id that can't collide with a
+  // Telegram id (those are far smaller than this range).
+  const newId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+  await supabase('POST', 'account_links', {
+    auth_id:  authUser.id,
+    user_id:  newId,
+    email:    authUser.email || null,
+  });
+  console.log(`[AUTH] linked new web account ${authUser.email} → user_id ${newId}`);
+  return newId;
+}
+
 // ── Auth middleware ──────────────────────────────────────
-function auth(req, res, next) {
+// Accepts either Telegram Mini App auth or a Supabase web session.
+async function auth(req, res, next) {
   const initData = req.headers['x-telegram-init-data'];
-  if (!initData)                        return res.status(401).json({ error: 'No auth header' });
-  if (!validateTelegramAuth(initData))  return res.status(401).json({ error: 'Invalid Telegram auth' });
-  const userId = getUserId(initData);
-  if (!userId)                          return res.status(401).json({ error: 'Cannot parse user id' });
-  req.userId = userId;
-  next();
+  if (initData) {
+    if (!validateTelegramAuth(initData)) return res.status(401).json({ error: 'Invalid Telegram auth' });
+    const userId = getUserId(initData);
+    if (!userId)                         return res.status(401).json({ error: 'Cannot parse user id' });
+    req.userId = userId;
+    return next();
+  }
+
+  const bearer = req.headers.authorization;
+  if (bearer && bearer.startsWith('Bearer ')) {
+    const authUser = await verifySupabaseToken(bearer.slice(7));
+    if (!authUser) return res.status(401).json({ error: 'Invalid or expired session' });
+    try {
+      req.userId  = await resolveWebUserId(authUser);
+      req.authUser = authUser;
+      return next();
+    } catch (e) {
+      console.error('[AUTH] resolveWebUserId error:', e.message);
+      return res.status(500).json({ error: 'Failed to resolve account' });
+    }
+  }
+
+  return res.status(401).json({ error: 'No auth header' });
 }
 
 // ── Routes ───────────────────────────────────────────────
@@ -199,9 +323,133 @@ app.get('/health', (req, res) => res.json({
     supabase_url:   !!SUPABASE_URL,
     supabase_key:   !!SUPABASE_SERVICE_KEY,
     r2_storage:     R2_READY,
+    web_auth:       !!SUPABASE_ANON_KEY,
+    stripe:         STRIPE_READY,
+    stripe_webhook: !!STRIPE_WEBHOOK_SECRET,
   },
   storage: R2_READY ? 'cloudflare-r2' : 'supabase (1GB free limit — set R2_* env vars to switch)',
   ready: !!(BOT_TOKEN && SUPABASE_URL && SUPABASE_SERVICE_KEY),
+}));
+
+// Deep storage check — actually writes a tiny object, reads it back through the
+// PUBLIC url (the one the app shows to users), then deletes it. This catches what
+// /health can't: expired R2 token, wrong permissions, disabled public access,
+// or a full Supabase bucket. R2 and Supabase are tested independently because
+// uploadImage() silently falls back from one to the other.
+// Result is cached for 60s so this public endpoint can't be used to hammer storage.
+const STORAGE_CHECK_TTL_MS = 60 * 1000;
+let storageCheckCache = { at: 0, result: null, pending: null };
+
+const shortErr = (e) => String(e?.message || e).slice(0, 200);
+
+async function checkOne(name, put, publicUrlFor, del) {
+  const out = { ok: false, upload: false, public_read: false, deleted: false, ms: 0, error: null };
+  const t0 = Date.now();
+  const key = `_healthcheck/${Date.now()}.jpg`;
+  const body = Buffer.from('mackh-healthcheck');
+  try {
+    await put(key, body);
+    out.upload = true;
+    try {
+      const r = await fetch(publicUrlFor(key));
+      out.public_read = r.ok;
+      if (!r.ok) out.error = `public URL returned HTTP ${r.status} — uploads work but images can't be displayed`;
+    } catch (e) { out.error = `public URL unreachable: ${shortErr(e)}`; }
+    try { await del(key); out.deleted = true; } catch (e) { out.error = out.error || `cleanup failed: ${shortErr(e)}`; }
+    out.ok = out.upload && out.public_read;
+  } catch (e) {
+    out.error = `${e.name || 'Error'}${e.$metadata?.httpStatusCode ? ` (HTTP ${e.$metadata.httpStatusCode})` : ''}: ${shortErr(e)}`;
+  }
+  out.ms = Date.now() - t0;
+  return out;
+}
+
+async function runStorageCheck() {
+  const result = { checked_at: new Date().toISOString(), r2: { skipped: 'R2 not configured' }, supabase: null };
+
+  if (r2) {
+    result.r2 = await checkOne('r2',
+      (key, body) => r2.send(new PutObjectCommand({ Bucket: R2_BUCKET, Key: key, Body: body, ContentType: 'image/jpeg' })),
+      (key) => `${R2_PUBLIC_URL}/${key}`,
+      (key) => r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })));
+  }
+
+  if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+    const headers = { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` };
+    result.supabase = await checkOne('supabase',
+      async (key, body) => {
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/trade-images/${key}`, { method: 'POST', headers: { ...headers, 'Content-Type': 'image/jpeg' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 150)}`);
+      },
+      (key) => `${SUPABASE_URL}/storage/v1/object/public/trade-images/${key}`,
+      async (key) => {
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/trade-images/${key}`, { method: 'DELETE', headers });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      });
+  } else {
+    result.supabase = { skipped: 'Supabase not configured' };
+  }
+
+  // What users actually get right now: R2 if it works, otherwise the Supabase fallback
+  const r2Good = r2 && result.r2.ok;
+  const sbGood = result.supabase && result.supabase.ok;
+  result.screenshots_will_save = !!(r2Good || sbGood);
+  result.active_backend = r2Good ? 'r2' : sbGood ? 'supabase' : 'none';
+  if (r2 && !result.r2.ok && sbGood) result.warning = 'R2 is failing — uploads are silently falling back to Supabase (1GB free limit)';
+  if (!result.screenshots_will_save) result.warning = 'No working storage backend — screenshots are NOT being saved';
+  return result;
+}
+
+app.get('/health/storage', async (req, res) => {
+  const now = Date.now();
+  if (storageCheckCache.result && now - storageCheckCache.at < STORAGE_CHECK_TTL_MS) {
+    return res.json({ ...storageCheckCache.result, cached: true });
+  }
+  try {
+    // Concurrent callers share one in-flight check instead of each writing to storage
+    if (!storageCheckCache.pending) {
+      storageCheckCache.pending = runStorageCheck().finally(() => { storageCheckCache.pending = null; });
+    }
+    const result = await storageCheckCache.pending;
+    storageCheckCache = { at: Date.now(), result, pending: null };
+    res.json({ ...result, cached: false });
+  } catch (e) {
+    console.error('[HEALTH] storage check crashed:', e.message);
+    res.status(500).json({ error: 'storage check failed', detail: shortErr(e) });
+  }
+});
+
+// Keep-alive for the database. Supabase's free plan pauses a project after a
+// week without activity. Point an uptime monitor (UptimeRobot, cron-job.org…)
+// at this URL: each hit runs one tiny real query, which counts as activity, and
+// it also wakes this Render service. Answers 200 only if the database replied,
+// so the monitor doubles as an outage alert. Cached 30s so it can't be hammered.
+let dbCheckCache = { at: 0, result: null };
+app.get('/health/db', async (req, res) => {
+  const now = Date.now();
+  if (dbCheckCache.result && now - dbCheckCache.at < 30 * 1000) {
+    return res.status(dbCheckCache.result.ok ? 200 : 503).json({ ...dbCheckCache.result, cached: true });
+  }
+  const t0 = Date.now();
+  let result;
+  try {
+    await supabase('GET', 'users?select=user_id&limit=1');
+    result = { ok: true, ms: Date.now() - t0, checked_at: new Date().toISOString() };
+  } catch (e) {
+    console.error('[HEALTH] db check failed:', e.message);
+    result = { ok: false, ms: Date.now() - t0, checked_at: new Date().toISOString(), error: shortErr(e) };
+  }
+  dbCheckCache = { at: Date.now(), result };
+  res.status(result.ok ? 200 : 503).json({ ...result, cached: false });
+});
+
+// Public config for the web front-end. The anon key is designed to be public
+// (it only allows what Row Level Security permits) — the service key is never
+// sent here. Serving it from the API keeps keys out of the GitHub repo.
+app.get('/config', (req, res) => res.json({
+  supabase_url:      SUPABASE_URL || null,
+  supabase_anon_key: SUPABASE_ANON_KEY || null,
+  web_auth_ready:    !!(SUPABASE_URL && SUPABASE_ANON_KEY),
 }));
 
 // GET /trades — fetch all trades for authenticated user
@@ -310,6 +558,97 @@ app.post('/settings', auth, async (req, res) => {
   } catch (e) {
     console.error('[API] POST /settings error:', e.message);
     res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// ── Subscriptions ────────────────────────────────────────
+// Stripe is the source of truth; we mirror just enough to answer
+// "is this user allowed in?" without calling Stripe on every request.
+async function saveSubscription(userId, sub, customerId) {
+  await supabase('POST', 'subscriptions?on_conflict=user_id', {
+    user_id:            userId,
+    stripe_customer_id: typeof customerId === 'string' ? customerId : customerId?.id || null,
+    stripe_sub_id:      sub.id,
+    status:             sub.status,
+    current_period_end: sub.current_period_end
+                          ? new Date(sub.current_period_end * 1000).toISOString()
+                          : null,
+    updated_at:         new Date().toISOString(),
+  });
+}
+
+const ACTIVE_STATUSES = ['active', 'trialing'];
+
+async function getSubscription(userId) {
+  const rows = await supabase('GET', `subscriptions?user_id=eq.${userId}&select=*`);
+  const row  = rows && rows[0];
+  if (!row) return { active: false, status: 'none' };
+  const notExpired = !row.current_period_end || new Date(row.current_period_end) > new Date();
+  return {
+    active:  ACTIVE_STATUSES.includes(row.status) && notExpired,
+    status:  row.status,
+    renews:  row.current_period_end,
+  };
+}
+
+// GET /billing/status — is this user subscribed?
+app.get('/billing/status', auth, async (req, res) => {
+  if (!STRIPE_READY) return res.json({ active: false, status: 'disabled', billing_enabled: false });
+  try {
+    const sub = await getSubscription(req.userId);
+    res.json({ ...sub, billing_enabled: true });
+  } catch (e) {
+    console.error('[BILLING] status error:', e.message);
+    res.status(500).json({ error: 'Failed to load subscription' });
+  }
+});
+
+// POST /billing/checkout — start a Stripe Checkout session
+app.post('/billing/checkout', auth, async (req, res) => {
+  if (!STRIPE_READY) return res.status(503).json({ error: 'Billing not configured' });
+  try {
+    const existing = await getSubscription(req.userId);
+    if (existing.active) return res.status(400).json({ error: 'Already subscribed' });
+
+    // Reuse the Stripe customer if this user paid before
+    const rows = await supabase('GET', `subscriptions?user_id=eq.${req.userId}&select=stripe_customer_id`);
+    const customerId = rows?.[0]?.stripe_customer_id || undefined;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      client_reference_id: String(req.userId),
+      customer: customerId,
+      customer_email: customerId ? undefined : (req.authUser?.email || undefined),
+      subscription_data: { metadata: { user_id: String(req.userId) } },
+      success_url: `${SITE_URL}?checkout=success`,
+      cancel_url:  `${SITE_URL}?checkout=cancelled`,
+      allow_promotion_codes: true,
+    });
+    console.log(`[BILLING] checkout session for user ${req.userId}`);
+    res.json({ url: session.url });
+  } catch (e) {
+    console.error('[BILLING] checkout error:', e.message);
+    res.status(500).json({ error: 'Failed to start checkout' });
+  }
+});
+
+// POST /billing/portal — manage or cancel an existing subscription
+app.post('/billing/portal', auth, async (req, res) => {
+  if (!STRIPE_READY) return res.status(503).json({ error: 'Billing not configured' });
+  try {
+    const rows = await supabase('GET', `subscriptions?user_id=eq.${req.userId}&select=stripe_customer_id`);
+    const customerId = rows?.[0]?.stripe_customer_id;
+    if (!customerId) return res.status(404).json({ error: 'No subscription found' });
+
+    const portal = await stripe.billingPortal.sessions.create({
+      customer:   customerId,
+      return_url: SITE_URL,
+    });
+    res.json({ url: portal.url });
+  } catch (e) {
+    console.error('[BILLING] portal error:', e.message);
+    res.status(500).json({ error: 'Failed to open billing portal' });
   }
 });
 
