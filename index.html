@@ -1136,6 +1136,66 @@ body.light .mtab.active{background:var(--text);color:var(--surface)}
 .idea-eyebrow-dot{animation:none}
 #iSaveBtn{color:#0E0B1F}
 .dstat-val{font-family:var(--serif);font-size:17px;font-weight:600}
+
+/* ── In-app select and date picker ── */
+.ssel-form .ssel-trigger,.dp .ssel-trigger{padding:11px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border-strong);font-size:14px;color:var(--text);min-height:44px}
+.ssel-form .ssel-trigger.has-value,.dp .ssel-trigger.has-value{border-color:var(--border-strong)}
+.ssel-form.open .ssel-trigger,.dp.open .ssel-trigger{border-color:var(--text-secondary);box-shadow:0 0 0 3px var(--accent-muted)}
+.ssel-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ssel-popup{padding:6px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border-strong);box-shadow:var(--shadow-pop);animation:sselIn .16s var(--ease)}
+@keyframes sselIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.ssel.up .ssel-popup,.ssel.up .dp-popup{top:auto;bottom:calc(100% + 6px);animation-name:sselInUp}
+@keyframes sselInUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ssel-opt{width:100%;border:none;background:none;font-family:var(--sans);text-align:left;padding:10px 12px;border-radius:10px;font-size:14px;color:var(--text-secondary)}
+.ssel-opt:hover,.ssel-opt:focus-visible{background:var(--surface-3);color:var(--text);outline:none}
+.ssel-opt.sel{color:var(--text);font-weight:600}
+.ssel-opt.sel::after{width:6px;height:6px;background:var(--accent)}
+body.light .ssel-opt.sel::after{background:var(--text)}
+/* time-zone pill inside the lime tile */
+.now-tile{overflow:visible}
+.ssel-tz .ssel-trigger{min-height:0;padding:6px 10px 6px 12px;border-radius:999px;background:rgba(14,16,6,.08);border:1px solid rgba(14,16,6,.18);color:#0E1006;font-size:12px;font-weight:600;gap:6px}
+.ssel-tz .ssel-trigger svg{color:#0E1006;opacity:.7}
+.ssel-tz.open .ssel-trigger{border-color:#0E1006}
+.ssel-tz .ssel-trigger:focus-visible{outline-color:#0E1006}
+.ssel-tz .ssel-popup{left:auto;right:0;min-width:180px}
+/* date picker */
+.dp{position:relative}
+.dp>input[type="date"]{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.dp-trigger svg{width:16px!important;height:16px!important;stroke-width:1.7!important}
+.dp-popup{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:400;width:296px;max-width:calc(100vw - 32px);padding:12px;border-radius:16px;background:var(--surface-2);border:1px solid var(--border-strong);box-shadow:var(--shadow-pop);animation:sselIn .16s var(--ease)}
+.dp.open .dp-popup{display:block}
+.frow2>div:last-child .dp-popup{left:auto;right:0}
+.dp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.dp-title{font-family:var(--serif);font-size:16px;font-weight:600}
+.dp-title::first-letter{text-transform:uppercase}
+.dp-nav{width:34px;height:34px;border-radius:10px;border:1px solid var(--border-strong);background:transparent;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.dp-nav:hover{background:var(--surface-3);color:var(--text)}
+.dp-nav svg{width:15px;height:15px;stroke-width:2}
+.dp-wd,.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.dp-wd span{font-size:11px;color:var(--text-muted);padding:4px 0}
+.dp-day{height:36px;border:none;border-radius:10px;background:none;font-family:var(--sans);font-size:14px;color:var(--text);cursor:pointer;font-variant-numeric:tabular-nums}
+.dp-day:hover,.dp-day:focus-visible{background:var(--surface-3);outline:none}
+.dp-day.today{box-shadow:inset 0 0 0 1px var(--border-strong)}
+.dp-day.sel{background:var(--accent);color:var(--on-accent);font-weight:600}
+.dp-day[disabled]{color:var(--text-muted);opacity:.4;cursor:default;background:none}
+.dp-quick{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.dp-quick button{flex:1;padding:8px;border-radius:10px;border:1px solid var(--border-strong);background:transparent;font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text);cursor:pointer}
+.dp-quick button:hover{background:var(--surface-3)}
+/* browser autofill and native bits in the app's colours */
+:root{color-scheme:dark}
+body.light{color-scheme:light}
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus,textarea:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px var(--surface-2) inset!important;-webkit-text-fill-color:var(--text)!important;caret-color:var(--text);transition:background-color 99999s}
+.auth-input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px var(--surface) inset!important}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+::placeholder{color:var(--text-muted);opacity:1}
+*{scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:8px;border:2px solid var(--bg)}
+.modal::-webkit-scrollbar-thumb{border-color:var(--surface)}
+.insights-empty{margin:0 16px}
+@media(min-width:1024px){.insights-empty{margin:0}}
 @media(prefers-reduced-motion:reduce){.ss-now::after{animation:none;opacity:0}}
 </style>
 </head>
@@ -3887,10 +3947,7 @@ function renderInsights(showAll){
   }
 
   if(!ins.length){
-    wrap.innerHTML = `<div style="margin:0 16px 10px;padding:14px 16px;border:1px dashed var(--border-strong);border-radius:var(--radius-md);display:flex;align-items:center;gap:12px">
-      <div style="display:flex;flex-shrink:0;color:var(--text-muted)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 18h6M10 21h4M12 3a6 6 0 00-6 6c0 2.5 1.5 4 2.5 5.5.4.6.5 1 .5 1.5h6c0-.5.1-.9.5-1.5C16.5 13 18 11.5 18 9a6 6 0 00-6-6z"/></svg></div>
-      <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">${T('insights_empty')}</div>
-    </div>`;
+    wrap.innerHTML = `<div class="idea-empty insights-empty">${T('insights_empty')}</div>`;
     renderDismissedSection(wrap);
     return;
   }
@@ -4182,11 +4239,24 @@ function buildStyledSelect(selectId){
     trigger.type='button';
     trigger.className='ssel-trigger';
     trigger.innerHTML = `<span class="ssel-lbl"></span><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="6 9 12 15 18 9"/></svg>`;
+    trigger.setAttribute('aria-haspopup','listbox');
     trigger.addEventListener('click', e=>{
       e.stopPropagation();
       const wasOpen = wrap.classList.contains('open');
       closeAllStyledSelects();
-      if(!wasOpen) wrap.classList.add('open');
+      if(!wasOpen) openStyledPopup(wrap);
+    });
+    wrap.addEventListener('keydown', e=>{
+      if(!wrap.classList.contains('open')){
+        if((e.key==='ArrowDown'||e.key==='ArrowUp') && e.target===trigger){ e.preventDefault(); openStyledPopup(wrap); }
+        return;
+      }
+      const rows=[...wrap.querySelectorAll('.ssel-opt')];
+      const i=rows.indexOf(document.activeElement);
+      if(e.key==='ArrowDown'){ e.preventDefault(); (rows[i+1]||rows[0]).focus(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); (rows[i-1]||rows[rows.length-1]).focus(); }
+      else if(e.key==='Escape'){ e.stopPropagation(); wrap.classList.remove('open'); trigger.focus(); }
+      else if(e.key==='Tab'){ wrap.classList.remove('open'); }
     });
     wrap.appendChild(trigger);
 
@@ -4198,14 +4268,18 @@ function buildStyledSelect(selectId){
 
   // Mirror the current <option> list
   popup.innerHTML='';
+  popup.setAttribute('role','listbox');
   [...sel.options].forEach(opt=>{
-    const row=document.createElement('div');
+    const row=document.createElement('button');
+    row.type='button';
+    row.setAttribute('role','option');
     row.className='ssel-opt'+(opt.value===sel.value?' sel':'');
     row.textContent=opt.textContent;
     row.addEventListener('click',()=>{
       sel.value=opt.value;
       wrap.classList.remove('open');
       syncStyledSelect(selectId);
+      trigger.focus();
       sel.dispatchEvent(new Event('change',{bubbles:true})); // fires renderTrades
     });
     popup.appendChild(row);
@@ -4235,9 +4309,148 @@ function closeAllStyledSelects(){
 document.addEventListener('click', closeAllStyledSelects);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAllStyledSelects(); });
 
-const STYLED_SELECTS = ['filterSetup','filterResult','filterRR'];
-function initStyledSelects(){ STYLED_SELECTS.forEach(buildStyledSelect); }
-function syncAllStyledSelects(){ STYLED_SELECTS.forEach(syncStyledSelect); }
+// Opens a styled list and flips it upward when there is no room below
+function openStyledPopup(wrap){
+  wrap.classList.add('open');
+  wrap.classList.remove('up');
+  const popup = wrap.querySelector('.ssel-popup, .dp-popup');
+  if(popup){
+    const r = wrap.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    if(below < popup.offsetHeight + 16 && r.top > below) wrap.classList.add('up');
+    const cur = popup.querySelector('.ssel-opt.sel, .dp-day.sel') || popup.querySelector('button:not([disabled])');
+    if(cur) cur.focus({preventScroll:true});
+  }
+}
+
+// Every <select> in the app gets the in-app list. The real element keeps the
+// value: setting sel.value from code updates the visible label, and replacing
+// its <option>s rebuilds the list.
+const _selValue = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');
+const _selIndex = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'selectedIndex');
+function enhanceSelect(sel){
+  if(!sel.id || sel.dataset.enhanced) return;
+  sel.dataset.enhanced='1';
+  let wrap = document.getElementById('ssel_'+sel.id);
+  if(!wrap){
+    wrap = document.createElement('div');
+    wrap.id = 'ssel_'+sel.id;
+    wrap.className = 'ssel ssel-form'+(sel.classList.contains('kz-tz-select')?' ssel-tz':'');
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+  }
+  sel.tabIndex = -1;
+  Object.defineProperty(sel,'value',{configurable:true,
+    get(){ return _selValue.get.call(this); },
+    set(v){ _selValue.set.call(this,v); syncStyledSelect(this.id); }});
+  Object.defineProperty(sel,'selectedIndex',{configurable:true,
+    get(){ return _selIndex.get.call(this); },
+    set(v){ _selIndex.set.call(this,v); syncStyledSelect(this.id); }});
+  new MutationObserver(()=>buildStyledSelect(sel.id)).observe(sel,{childList:true,subtree:true,characterData:true});
+  buildStyledSelect(sel.id);
+}
+function initStyledSelects(){
+  document.querySelectorAll('select[id]').forEach(sel=>{
+    if(sel.dataset.enhanced) buildStyledSelect(sel.id); else enhanceSelect(sel);
+  });
+  initDatePickers();
+}
+function syncAllStyledSelects(){ document.querySelectorAll('select[id]').forEach(sel=>syncStyledSelect(sel.id)); }
+
+// ── Date picker — the same idea for <input type="date"> ──
+const _inValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+function dpFormat(v){
+  const ru = lang==='ru';
+  if(!v) return ru?'Выберите дату':'Pick a date';
+  const today = new Date().toISOString().split('T')[0];
+  const yest  = new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const txt = new Date(v+'T12:00:00').toLocaleDateString(ru?'ru-RU':'en-GB',{day:'numeric',month:'long',year:'numeric'}).replace(' г.','');
+  if(v===today) return (ru?'Сегодня, ':'Today, ')+txt;
+  if(v===yest)  return (ru?'Вчера, ':'Yesterday, ')+txt;
+  return txt;
+}
+function enhanceDate(inp){
+  if(!inp.id || inp.dataset.enhanced) return;
+  inp.dataset.enhanced='1';
+  const wrap = document.createElement('div');
+  wrap.className='ssel dp';
+  wrap.id='dp_'+inp.id;
+  inp.parentNode.insertBefore(wrap, inp);
+  wrap.appendChild(inp);
+  inp.tabIndex=-1;
+  const trg = document.createElement('button');
+  trg.type='button'; trg.className='ssel-trigger dp-trigger';
+  trg.setAttribute('aria-haspopup','dialog');
+  trg.innerHTML='<span class="ssel-lbl"></span><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path stroke-linecap="round" d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>';
+  const pop = document.createElement('div');
+  pop.className='dp-popup';
+  pop.addEventListener('click', e=>e.stopPropagation());
+  wrap.appendChild(trg); wrap.appendChild(pop);
+  const st = {y:0,m:0};
+  const draw = ()=>{
+    const ru = lang==='ru';
+    const v = inp.value, today = new Date().toISOString().split('T')[0];
+    const first = new Date(st.y, st.m, 1);
+    const lead = (first.getDay()+6)%7, days = new Date(st.y, st.m+1, 0).getDate();
+    const wd = ru?['Пн','Вт','Ср','Чт','Пт','Сб','Вс']:['Mo','Tu','We','Th','Fr','Sa','Su'];
+    const title = first.toLocaleDateString(ru?'ru-RU':'en-GB',{month:'long',year:'numeric'}).replace(' г.','');
+    let cells='';
+    for(let i=0;i<lead;i++) cells+='<span></span>';
+    for(let d=1; d<=days; d++){
+      const ds = st.y+'-'+String(st.m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      cells+=`<button type="button" class="dp-day${ds===v?' sel':''}${ds===today?' today':''}" data-d="${ds}" ${ds>today?'disabled':''}>${d}</button>`;
+    }
+    const arrow = d=>`<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="${d}"/></svg>`;
+    pop.innerHTML = `<div class="dp-head">
+        <button type="button" class="dp-nav" data-n="-1" aria-label="${ru?'Предыдущий месяц':'Previous month'}">${arrow('M15 6l-6 6 6 6')}</button>
+        <div class="dp-title">${title}</div>
+        <button type="button" class="dp-nav" data-n="1" aria-label="${ru?'Следующий месяц':'Next month'}">${arrow('M9 6l6 6-6 6')}</button>
+      </div>
+      <div class="dp-wd">${wd.map(x=>'<span>'+x+'</span>').join('')}</div>
+      <div class="dp-grid">${cells}</div>
+      <div class="dp-quick"><button type="button" data-q="0">${ru?'Сегодня':'Today'}</button><button type="button" data-q="1">${ru?'Вчера':'Yesterday'}</button></div>`;
+  };
+  const pick = ds=>{ inp.value = ds; wrap.classList.remove('open'); inp.dispatchEvent(new Event('change',{bubbles:true})); trg.focus(); };
+  pop.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b || b.disabled) return;
+    if(b.dataset.n){
+      st.m += +b.dataset.n;
+      if(st.m<0){st.m=11;st.y--;} if(st.m>11){st.m=0;st.y++;}
+      draw(); pop.querySelector('.dp-nav[data-n="'+b.dataset.n+'"]').focus();
+    }
+    else if(b.dataset.d) pick(b.dataset.d);
+    else if(b.dataset.q) pick(new Date(Date.now()-(+b.dataset.q)*86400000).toISOString().split('T')[0]);
+  });
+  trg.addEventListener('click', e=>{
+    e.stopPropagation();
+    const was = wrap.classList.contains('open');
+    closeAllStyledSelects();
+    if(was) return;
+    const base = inp.value ? new Date(inp.value+'T12:00:00') : new Date();
+    st.y = base.getFullYear(); st.m = base.getMonth();
+    draw(); openStyledPopup(wrap);
+  });
+  wrap.addEventListener('keydown', e=>{
+    if(!wrap.classList.contains('open')) return;
+    if(e.key==='Escape'){ e.stopPropagation(); wrap.classList.remove('open'); trg.focus(); return; }
+    const days=[...pop.querySelectorAll('.dp-day:not([disabled])')], i=days.indexOf(document.activeElement);
+    if(i<0) return;
+    const step = {ArrowRight:1,ArrowLeft:-1,ArrowDown:7,ArrowUp:-7}[e.key];
+    if(step){ e.preventDefault(); const n=days[i+step]; if(n) n.focus(); }
+  });
+  const sync = ()=>{ trg.querySelector('.ssel-lbl').textContent = dpFormat(inp.value); trg.classList.toggle('has-value', !!inp.value); };
+  Object.defineProperty(inp,'value',{configurable:true,
+    get(){ return _inValue.get.call(this); },
+    set(v){ _inValue.set.call(this,v); sync(); }});
+  inp._dpSync = sync;
+  sync();
+}
+function initDatePickers(){
+  document.querySelectorAll('input[type="date"][id]').forEach(inp=>{
+    if(inp.dataset.enhanced){ if(inp._dpSync) inp._dpSync(); } else enhanceDate(inp);
+  });
+}
+
 
 function clearFilters(){
   calState.trades.date='';
@@ -6395,7 +6608,7 @@ const STRINGS = {
     disc_emotional_lbl:'Эмоциональных',
     flag_plan:'По плану', flag_emotional:'Эмоц.', flag_checklist:'✓ Чеклист',
     disc_byplan_lbl:'По плану', disc_checklist_lbl:'Чеклист',
-    insights_title:'Инсайты', insights_empty:'Добавь больше сделок — инсайты появятся автоматически когда накопится достаточно данных.',
+    insights_title:'Инсайты', insights_empty:'Инсайты появятся сами, когда в журнале наберётся достаточно сделок.',
     goals_title:'Цели', goals_add:'+ Добавить',
     // Market tabs
     tab_all:'Все', tab_forex:'Forex', tab_crypto:'Крипта',
@@ -6581,7 +6794,7 @@ const STRINGS = {
     disc_emotional_lbl:'Emotional',
     flag_plan:'By plan', flag_emotional:'Impulsive', flag_checklist:'✓ Checklist',
     disc_byplan_lbl:'By plan', disc_checklist_lbl:'Checklist',
-    insights_title:'Insights', insights_empty:'Add more trades — insights will appear automatically once enough data is collected.',
+    insights_title:'Insights', insights_empty:'Insights show up on their own once the journal has enough trades.',
     goals_title:'Goals', goals_add:'+ Add',
     // Market tabs
     tab_all:'All', tab_forex:'Forex', tab_crypto:'Crypto',
