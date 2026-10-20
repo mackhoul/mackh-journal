@@ -1196,6 +1196,145 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 .modal::-webkit-scrollbar-thumb{border-color:var(--surface)}
 .insights-empty{margin:0 16px}
 @media(min-width:1024px){.insights-empty{margin:0}}
+
+/* ── Trading tools ── */
+.tt-empty{font-size:14px;color:var(--text-secondary);line-height:1.5;max-width:52ch}
+.tt-foot{font-size:12px;color:var(--text-muted);line-height:1.5;margin-top:10px}
+/* position calculator */
+.pos-calc{margin:6px 0 4px;padding:14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--border-strong)}
+.pc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.pc-title{font-family:var(--serif);font-size:16px;font-weight:600}
+.pc-risk{display:flex;align-items:center;gap:4px}
+.pc-chip{padding:6px 10px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer}
+.pc-chip.on{background:var(--text);border-color:var(--text);color:var(--bg)}
+.pc-custom{display:flex;align-items:center;gap:2px;font-size:12px;color:var(--text-muted)}
+.pc-custom input{width:52px;padding:6px 8px;border-radius:999px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-family:var(--sans);font-size:12px;text-align:center;outline:none}
+.pc-custom input:focus{border-color:var(--text-secondary)}
+.pc-grid{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:1px;background:var(--border);border-radius:12px;overflow:hidden}
+.pc-grid>div{background:var(--surface);padding:10px 12px;min-width:0}
+.pc-grid span{display:block;font-size:12px;color:var(--text-muted)}
+.pc-grid b{display:block;font-family:var(--serif);font-size:18px;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-grid .pc-main b{font-size:20px}
+.pc-grid:has(>div:only-child){grid-template-columns:1fr}
+.pc-note{font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.45}
+/* pair suggestions */
+.pair-suggest{position:relative}
+.pair-suggest .ssel-popup{top:calc(100% + 6px)}
+/* settings numbers */
+.s-num{width:96px!important;flex:0 0 96px;text-align:right;padding:9px 10px!important}
+/* expectancy */
+.exp-top{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border-radius:12px;overflow:hidden}
+.exp-top>div{background:var(--surface-2);padding:12px}
+.exp-top span{display:block;font-size:12px;color:var(--text-muted)}
+.exp-top b{font-family:var(--serif);font-size:22px;font-weight:600;letter-spacing:-.01em}
+.exp-top i{font-style:normal;font-size:13px;color:var(--text-secondary);margin-left:6px}
+@media(min-width:640px){.exp-top{grid-template-columns:repeat(4,1fr)}}
+.r-hist{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:16px;align-items:end}
+.rh-bar-wrap{height:90px;display:flex;align-items:flex-end;background:var(--surface-2);border-radius:8px;overflow:hidden}
+.rh-bar{width:100%;border-radius:8px 8px 0 0;opacity:.85;min-height:0}
+.rh-n{font-family:var(--serif);font-size:14px;font-weight:600;text-align:center;margin-top:4px;min-height:18px}
+.rh-k{font-size:11px;color:var(--text-muted);text-align:center;white-space:nowrap}
+/* drawdown */
+.dd-lead{font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:12px}
+.dd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dd-grid>div{background:var(--surface-2);border-radius:12px;padding:12px}
+.dd-grid b{display:block;font-family:var(--serif);font-size:26px;font-weight:600}
+.dd-grid span{font-size:12px;color:var(--text-muted);line-height:1.35}
+/* sessions × setups */
+.ss-best{font-size:14px;color:var(--text-secondary);line-height:1.5;margin-bottom:12px}
+.ss-best b{color:var(--text);font-weight:600}
+.ss-scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+.ss-table{width:100%;border-collapse:separate;border-spacing:3px;font-size:12px}
+.ss-table thead th{font-weight:500;color:var(--text-muted);text-align:center;padding:4px;white-space:nowrap}
+.ss-table tbody th{text-align:left;font-weight:600;color:var(--text);padding:4px 8px 4px 0;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.ss-table td{border-radius:8px;text-align:center;padding:7px 4px;min-width:62px;background:var(--surface-2)}
+.ss-table td b{display:block;font-family:var(--serif);font-size:15px;font-weight:600}
+.ss-table td i{display:block;font-style:normal;font-size:11px;color:var(--text-secondary)}
+.ss-table td.ss-empty{color:var(--text-muted);background:transparent}
+.hw-title{font-size:13px;font-weight:600;margin:18px 0 8px}
+.hw{display:flex;flex-direction:column;gap:2px}
+.hw-row{display:grid;grid-template-columns:24px repeat(24,1fr);gap:2px;align-items:center}
+.hw-row span{font-size:11px;color:var(--text-muted)}
+.hw-row i{display:block;aspect-ratio:1;border-radius:3px;background:var(--surface-2);min-height:8px}
+.hw-axis em{font-style:normal;font-size:10px;color:var(--text-muted);text-align:left}
+/* P&L calendar */
+.pnl-cal{margin:0 16px 14px;padding:14px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border)}
+.pcal-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.pcal-title{text-align:center;min-width:0}
+.pcal-title b{display:block;font-family:var(--serif);font-size:17px;font-weight:600}
+.pcal-title b::first-letter{text-transform:uppercase}
+.pcal-title span{font-size:12px;color:var(--text-muted)}
+.pcal-title span.green{color:var(--positive)}.pcal-title span.red{color:var(--negative)}
+.pcal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.pc-wd{font-size:11px;color:var(--text-muted);text-align:center;padding:2px 0 4px}
+.pc-week-h,.pc-week{display:none}
+.pc-cell{position:relative;min-height:46px;border:none;border-radius:10px;background:var(--surface-2);font-family:var(--sans);color:var(--text);padding:4px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;cursor:pointer;text-align:left;transition:transform .14s var(--ease)}
+.pc-cell span{font-size:11px;color:var(--text-secondary)}
+.pc-cell b{font-size:11px;font-weight:600;align-self:flex-end;font-variant-numeric:tabular-nums}
+.pc-cell.none{cursor:default;background:transparent;box-shadow:inset 0 0 0 1px var(--border)}
+.pc-cell.today{box-shadow:inset 0 0 0 1.5px var(--text-secondary)}
+.pc-cell.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+body.light .pc-cell.sel{box-shadow:inset 0 0 0 2px var(--text)}
+.pc-cell:not(.none):active{transform:scale(.95)}
+.pc-blank{background:none}
+@media(min-width:640px){
+  .pcal-grid{grid-template-columns:repeat(7,1fr) 64px}
+  .pc-week-h,.pc-week{display:flex}
+  .pc-week{align-items:center;justify-content:flex-end;font-size:13px;font-weight:600;padding-right:4px}
+  .pc-week-h{justify-content:flex-end;padding-right:4px}
+  .pc-cell{min-height:54px;padding:6px 8px}
+  .pc-cell b{font-size:13px}
+}
+@media(min-width:1024px){.pnl-cal{margin:0 0 16px;max-width:760px}}
+/* levels ruler */
+.lr{margin:4px 0 14px;padding:14px;border-radius:14px;background:var(--surface-2)}
+.lr-title{font-size:13px;font-weight:600;margin-bottom:12px}
+.lr-title span{color:var(--text-muted);font-weight:500;margin-left:6px}
+.lr-track{position:relative;height:10px;border-radius:5px;background:var(--surface-3);margin:0 6px}
+.lr-zone{position:absolute;top:0;bottom:0;border-radius:5px}
+.lr-zone.loss{background:var(--negative);opacity:.55}
+.lr-zone.win{background:var(--positive);opacity:.55}
+.lr-exit{position:absolute;top:-5px;width:4px;height:20px;margin-left:-2px;border-radius:2px;background:var(--text)}
+.lr-marks{position:relative;height:44px;margin:6px 6px 0}
+.lr-mark{position:absolute;top:0;transform:translateX(-50%);text-align:center;white-space:nowrap}
+.lr-mark i{display:block;width:1px;height:6px;background:var(--text-muted);margin:0 auto 2px}
+.lr-mark span{display:block;font-size:11px;font-weight:600}
+.lr-mark em{display:block;font-style:normal;font-size:11px;color:var(--text-muted)}
+.lr-mark.m-sl span{color:var(--negative)}.lr-mark.m-tp span{color:var(--positive)}
+.lr-mark:first-child{transform:none;text-align:left}
+.lr-mark:last-child{transform:translateX(-100%);text-align:right}
+.lr-mark:first-child i{margin-left:0}.lr-mark:last-child i{margin-right:0}
+/* trade card as a spread on wide screens */
+@media(min-width:1024px){
+  #detailModal .modal{max-width:920px}
+  .detail-spread.has-media{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start}
+  .detail-spread.has-media .detail-img-wrap{aspect-ratio:4/3}
+}
+/* week in review */
+.week-wrap{margin:0 16px}
+.wk-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;font-size:14px;font-weight:500;color:var(--text-secondary)}
+.wk-nav .dp-nav[disabled]{opacity:.35;cursor:default}
+.wk-card{border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--border);overflow:hidden}
+.wk-hero{background:var(--accent);color:var(--on-accent);padding:18px 20px 20px}
+body.light .wk-hero{background:#C6FF3D;color:#0E1006}
+.wk-hero span{font-size:13px;font-weight:600;opacity:.72}
+.wk-hero b{display:block;font-family:var(--serif);font-size:clamp(38px,11vw,56px);font-weight:600;letter-spacing:-.025em;line-height:1.05;margin-top:6px}
+.wk-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border)}
+.wk-grid>div{background:var(--surface);padding:14px 16px}
+.wk-grid b{display:block;font-family:var(--serif);font-size:26px;font-weight:600}
+.wk-grid span{font-size:12px;color:var(--text-muted)}
+@media(min-width:640px){.wk-grid{grid-template-columns:repeat(4,1fr)}}
+.wk-line{padding:12px 16px;font-size:13px;color:var(--text-secondary);border-top:1px solid var(--border)}
+.wk-line b{color:var(--text)}
+.wk-save{margin-top:10px}
+@media(min-width:1024px){.week-wrap{margin:0;max-width:760px}}
+/* daily loss limit on the «Сейчас» tile */
+.now-limit{margin-top:10px;font-size:13px;font-weight:600;padding:8px 12px;border-radius:10px;background:rgba(14,16,6,.08)}
+.now-tile.limit-near .now-limit{background:rgba(14,16,6,.14)}
+.now-tile.limit-hit{background:#FF6B6B;color:#1A0606}
+body.light .now-tile.limit-hit{background:#FF6B6B;color:#1A0606}
+.now-tile.limit-hit .now-limit{background:rgba(26,6,6,.12)}
+.now-tile.limit-hit .kz-seg,.now-tile.limit-hit .kz-marker{background:#1A0606!important}
 @media(prefers-reduced-motion:reduce){.ss-now::after{animation:none;opacity:0}}
 </style>
 </head>
@@ -1258,6 +1397,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     </div>
     <div class="now-sess" id="nowSess">—</div>
     <div class="now-left" id="nowLeft"></div>
+    <p class="now-limit" id="nowLimit" hidden></p>
     <div class="kz-track" id="kzTrack"></div>
     <div class="kz-ticks"><span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24</span></div>
     <div class="kz-today" id="kzToday"></div>
@@ -1451,6 +1591,7 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
     </div>
     <button class="fclear" id="filterResetBtn" onclick="clearFilters()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
+  <section class="pnl-cal" id="pnlCal" aria-label="P&amp;L"></section>
   <div class="trade-list" id="allTrades"></div>
 </div>
 
@@ -1471,6 +1612,24 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   </div>
 
   <div class="an-detail-grid">
+
+  <!-- Expectancy and R -->
+  <div class="an-section an-section-full">
+    <div class="shdr"><h2 class="stitle" id="expTitle">Матожидание и R</h2></div>
+    <div class="card card-p" id="expCard"></div>
+  </div>
+
+  <!-- Sessions × setups -->
+  <div class="an-section">
+    <div class="shdr"><h2 class="stitle" id="ssTitle">Сессии и сетапы</h2></div>
+    <div class="card card-p" id="ssCard"></div>
+  </div>
+
+  <!-- Drawdown risk -->
+  <div class="an-section">
+    <div class="shdr"><h2 class="stitle" id="ddTitle">Риск просадки</h2></div>
+    <div class="card card-p" id="ddCard"></div>
+  </div>
 
   <!-- Sessions -->
   <div class="an-section">
@@ -1539,6 +1698,12 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
   </div>
 
   <div class="an-detail-grid">
+
+  <!-- Week in review -->
+  <div class="an-section an-section-full">
+    <div class="shdr"><h2 class="stitle" id="weekTitle">Итоги недели</h2></div>
+    <div id="weekCard" class="week-wrap"></div>
+  </div>
 
   <!-- Streaks -->
   <div class="an-section">
@@ -1681,6 +1846,18 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
             <button class="tbtn" id="btnBE" onclick="setTrade('result','be')">B/E</button>
           </div>
         </div>
+      </div>
+      <div class="pos-calc" id="posCalc">
+        <div class="pc-head">
+          <span class="pc-title" id="pcTitle">Размер позиции</span>
+          <div class="pc-risk">
+            <button type="button" class="pc-chip" data-r="0.5">0.5%</button>
+            <button type="button" class="pc-chip" data-r="1">1%</button>
+            <button type="button" class="pc-chip" data-r="2">2%</button>
+            <label class="pc-custom"><input id="pcRiskInput" type="number" step="0.1" min="0.1" max="100" aria-label="Risk %">%</label>
+          </div>
+        </div>
+        <div id="pcOut"></div>
       </div>
       <div class="fsection" id="fsecResult0">Результат</div>
       <div class="frow2">
@@ -1891,6 +2068,19 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
             <div class="sub-hint" id="subHint"></div>
           </div>
           <button class="sub-btn" id="subBtn" onclick="onSubButton()">—</button>
+        </div>
+      </div>
+
+      <!-- Risk -->
+      <div class="s-group">
+        <div class="s-group-title" id="sGrpRisk">Риск</div>
+        <div class="s-row">
+          <div class="s-row-info"><div class="s-row-lbl" id="setRiskLbl">Риск на сделку, %</div><div class="s-row-sub" id="setRiskSub"></div></div>
+          <input class="finput s-num" id="setRiskPct" type="number" step="0.1" min="0.1" max="100" onchange="setRiskPct(this.value)">
+        </div>
+        <div class="s-row">
+          <div class="s-row-info"><div class="s-row-lbl" id="setLimitLbl">Лимит убытка за день, $</div><div class="s-row-sub" id="setLimitSub"></div></div>
+          <input class="finput s-num" id="setDailyLimit" type="number" step="1" min="0" placeholder="—" onchange="setDailyLimit(this.value)">
         </div>
       </div>
 
@@ -3046,7 +3236,7 @@ function renderTodayStats(){
   wrap.className = 'kz-today show';
   wrap.innerHTML = `
     <div class="kz-today-item"><div class="kz-today-val">${todays.length}</div><div class="kz-today-lbl">${T('kz_today_trades')}</div></div>
-    <div class="kz-today-item"><div class="kz-today-val" style="color:${pnl>0?'var(--positive)':pnl<0?'var(--negative)':'var(--text)'}">${pnl>0?'+':''}$${pnl.toFixed(2)}</div><div class="kz-today-lbl">P&amp;L</div></div>
+    <div class="kz-today-item"><div class="kz-today-val" style="color:${pnl>0?'var(--positive)':pnl<0?'var(--negative)':'var(--text)'}">${pnl>0?'+':pnl<0?'−':''}$${Math.abs(pnl).toFixed(2)}</div><div class="kz-today-lbl">P&amp;L</div></div>
     ${clPct!==null ? `<div class="kz-today-item"><div class="kz-today-val">${clPct}%</div><div class="kz-today-lbl">${T('disc_checklist_lbl')}</div></div>` : ''}
   `;
 }
@@ -5101,7 +5291,8 @@ function openDetail(id){
   const mkList=t.mistakes||[];
   const mkBlock=mkList.length?`<div class="dblock"><div class="dblock-title">${T('detail_mistakes')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${mkList.map(mk=>`<span style="font-size:11px;padding:2px 9px;border-radius:20px;background:rgba(255,107,107,.1);color:var(--negative);border:1px solid rgba(255,107,107,.18)">${mLabel(mk)}</span>`).join('')}</div></div>`:'';
 
-  document.getElementById('detailBody').innerHTML=`${imgBlock}
+  const levels=levelsRulerHTML(t);
+  document.getElementById('detailBody').innerHTML=`<div class="detail-spread${imgBlock||levels?' has-media':''}"><div class="ds-media">${imgBlock}${levels}</div><div class="ds-info">
     <div class="irow">
       <span class="mkt-badge ${m.cls}">${m.label}</span>
       ${t.setup?`<span style="font-size:11px;color:var(--text-secondary);font-weight:600;background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:20px">${escapeHtml(setupDisplayName(t.setup))}</span>`:''}
@@ -5128,7 +5319,7 @@ function openDetail(id){
     <div class="detail-actions">
       <button style="flex:1;margin-top:0;gap:5px;padding:8px 10px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;gap:5px" onclick="openEditTrade('${t.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>${T('detail_edit')}</button>
       <button style="flex:1;padding:8px 10px;border-radius:var(--radius-md);background:rgba(255,107,107,.07);color:var(--negative);border:1px solid rgba(255,107,107,.18);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="deleteTrade('${t.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>${T('detail_delete')}</button>
-    </div>`;
+    </div></div></div>`;
   openModal('detailModal');
 }
 
@@ -7603,7 +7794,489 @@ window.addEventListener('paste', e=>{
 
 updateGoalHint();
 initSwipeClose();
+
+// ═══════════════════════════════════════════════════════
+//  TRADING TOOLS — position size, expectancy, drawdown risk,
+//  sessions × setups, P&L calendar, weekly card, daily limit.
+//  Formulas were cross-checked against the tradingcalc tools
+//  (forex position size, linear futures sizing with fees).
+//  Nothing here changes how trades are stored.
+// ═══════════════════════════════════════════════════════
+const L = (ru,en)=> lang==='ru' ? ru : en;
+const money = (v,dec=2)=> (v>0?'+':v<0?'−':'')+'$'+Math.abs(v).toFixed(dec);
+function getRiskPct(){ const v=parseFloat(localStorage.getItem('riskPct')); return v>0 && v<=100 ? v : 1; }
+function getDailyLimit(){ const v=parseFloat(localStorage.getItem('dailyLossLimit')); return v>0 ? v : null; }
+function setRiskPct(v){
+  v=parseFloat(v);
+  if(v>0 && v<=100) localStorage.setItem('riskPct', String(v));
+  calcPosition(); syncRiskSettings();
+  if(document.getElementById('page-analytics').classList.contains('active')) renderTradingAnalytics();
+}
+function setDailyLimit(v){
+  v=parseFloat(v);
+  if(v>0) localStorage.setItem('dailyLossLimit', String(v)); else localStorage.removeItem('dailyLossLimit');
+  renderDailyLimit();
+}
+function syncRiskSettings(){
+  const r=document.getElementById('setRiskPct'); if(r && document.activeElement!==r) r.value=getRiskPct();
+  const d=document.getElementById('setDailyLimit'); if(d && document.activeElement!==d) d.value=getDailyLimit()||'';
+  const lbl=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
+  lbl('sGrpRisk', L('Риск','Risk'));
+  lbl('setRiskLbl', L('Риск на сделку, %','Risk per trade, %'));
+  lbl('setRiskSub', L('Для калькулятора позиции и прогноза просадки','Used by the position calculator and drawdown forecast'));
+  lbl('setLimitLbl', L('Лимит убытка за день, $','Daily loss limit, $'));
+  lbl('setLimitSub', L('Пусто — без лимита','Leave empty for no limit'));
+}
+
+// ── 1. Position size ───────────────────────────────────
+function pairInfo(raw){
+  const p=(raw||'').toUpperCase().replace(/[^A-Z]/g,'');
+  return {p, base:p.slice(0,3), quote:p.slice(3,6)};
+}
+function calcPosition(){
+  const out=document.getElementById('pcOut'); if(!out) return;
+  const risk=getRiskPct();
+  document.querySelectorAll('#posCalc .pc-chip').forEach(b=>b.classList.toggle('on', parseFloat(b.dataset.r)===risk));
+  const inp=document.getElementById('pcRiskInput'); if(inp && document.activeElement!==inp) inp.value=risk;
+  const t=document.getElementById('pcTitle'); if(t) t.textContent=L('Размер позиции','Position size');
+  const e=parseFloat(document.getElementById('tEntry').value);
+  const sl=parseFloat(document.getElementById('tSL').value);
+  const cap=computeCapital();
+  const mkt=document.getElementById('tMarket').value;
+  if(!(cap>0)){ out.innerHTML=`<p class="pc-note">${L('Укажите депозит на главной, чтобы считать риск в процентах.','Set your deposit on the home screen to size by percent.')}</p>`; return; }
+  const riskUsd=cap*risk/100;
+  if(isNaN(e)||isNaN(sl)||e===sl){
+    out.innerHTML=`<div class="pc-grid"><div><span>${L('Риск','Risk')}</span><b>$${riskUsd.toFixed(2)}</b></div></div><p class="pc-note">${L('Введите Entry и Stop Loss — посчитаю объём.','Enter Entry and Stop Loss to get the size.')}</p>`;
+    return;
+  }
+  const stop=Math.abs(e-sl);
+  const {p,base,quote}=pairInfo(document.getElementById('tPair').value);
+  let size='', sizeLbl=L('Объём','Size'), stopTxt='', note='';
+  const f=(n,d)=>n.toLocaleString('en-US',{maximumFractionDigits:d});
+  if(mkt==='forex' && p.length>=6){
+    const pip = quote==='JPY' ? 0.01 : 0.0001;
+    const pips = stop/pip;
+    stopTxt = f(pips,1)+L(' пипс',' pips');
+    let pipPerLot = null;                         // $ per pip for 1 standard lot (100,000 units)
+    if(quote==='USD') pipPerLot = 100000*pip;
+    else if(base==='USD') pipPerLot = 100000*pip/e;
+    if(pipPerLot){
+      const lots = riskUsd/(pips*pipPerLot);
+      size = f(lots,2)+L(' лота',' lots'); sizeLbl=L('Лоты','Lots');
+      if(base==='USD') note=L('Стоимость пункта пересчитана по цене входа.','Pip value converted at the entry price.');
+    } else {
+      size='—';
+      note=L('Для кросс-пары нужен курс к доллару — посмотрите стоимость пункта у брокера.','A cross pair needs a USD rate — check the pip value with your broker.');
+    }
+  } else if(mkt==='metals' && /^XA[UG]/.test(p)){
+    const oz = p.startsWith('XAG') ? 5000 : 100;
+    const units = riskUsd/stop;
+    stopTxt = '$'+f(stop,2);
+    size = f(units/oz,2)+L(' лота',' lots'); sizeLbl=L('Лоты','Lots');
+    note = L(`1 лот = ${oz} унций.`,`1 lot = ${oz} oz.`);
+  } else if(mkt==='crypto'){
+    // linear (USDT) contract, taker fees 0.02% in / 0.05% out — same defaults as tradingcalc
+    const units = riskUsd/(stop + e*0.0002 + sl*0.0005);
+    stopTxt = f(stop/e*100,2)+'%';
+    size = f(units, units<1?4:2)+(base?' '+p.replace(/USDT?$|USDC$/,''):'');
+    note = L(`Позиция ≈ $${f(units*e,0)}. С учётом комиссий 0.02% + 0.05%.`,`Notional ≈ $${f(units*e,0)}. Includes 0.02% + 0.05% fees.`);
+  } else {
+    const units = riskUsd/stop;
+    stopTxt = '$'+f(stop,2);
+    size = f(units, units<10?2:0)+L(' шт.',' units');
+    note = L(`Позиция ≈ $${f(units*e,0)}.`,`Notional ≈ $${f(units*e,0)}.`);
+  }
+  out.innerHTML=`<div class="pc-grid">
+      <div><span>${L('Риск','Risk')}</span><b>$${riskUsd.toFixed(2)}</b></div>
+      <div><span>${L('Стоп','Stop')}</span><b>${stopTxt}</b></div>
+      <div class="pc-main"><span>${sizeLbl}</span><b>${size}</b></div>
+    </div>${note?`<p class="pc-note">${note}</p>`:''}`;
+}
+function initPositionCalc(){
+  ['tEntry','tSL','tPair'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', calcPosition); });
+  const m=document.getElementById('tMarket'); if(m) m.addEventListener('change', calcPosition);
+  document.querySelectorAll('#posCalc .pc-chip').forEach(b=>b.addEventListener('click',()=>setRiskPct(b.dataset.r)));
+  const inp=document.getElementById('pcRiskInput'); if(inp) inp.addEventListener('change',()=>setRiskPct(inp.value));
+  // Forms fill fields from code when they open — refresh after that
+  ['openAddTrade','openEditTrade','copyLastTrade'].forEach(fn=>{
+    const orig=window[fn]; if(typeof orig!=='function') return;
+    window[fn]=function(...a){ const r=orig.apply(this,a); setTimeout(calcPosition,0); return r; };
+  });
+}
+
+// ── Pair suggestions (replaces the browser's datalist) ──
+function initPairSuggest(){
+  const inp=document.getElementById('tPair'); if(!inp) return;
+  inp.removeAttribute('list');
+  const wrap=document.createElement('div'); wrap.className='ssel pair-suggest';
+  inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+  const pop=document.createElement('div'); pop.className='ssel-popup'; pop.setAttribute('role','listbox');
+  wrap.appendChild(pop);
+  const base=['EURUSD','GBPUSD','USDJPY','XAUUSD','BTCUSDT','ETHUSDT','NAS100','US30'];
+  const draw=()=>{
+    const q=inp.value.toUpperCase().trim();
+    const recent=[...new Set(trades.map(t=>(t.pair||'').toUpperCase()).filter(Boolean))];
+    const list=[...new Set([...recent,...base])].filter(x=>!q||x.includes(q)&&x!==q).slice(0,6);
+    if(!list.length){ wrap.classList.remove('open'); return; }
+    pop.innerHTML=list.map(x=>`<button type="button" class="ssel-opt" role="option" data-v="${escapeHtml(x)}">${escapeHtml(x)}</button>`).join('');
+    wrap.classList.add('open');
+  };
+  inp.addEventListener('focus', draw);
+  inp.addEventListener('input', draw);
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='ArrowDown' && wrap.classList.contains('open')){ e.preventDefault(); const b=pop.querySelector('button'); if(b) b.focus(); }
+    if(e.key==='Escape') wrap.classList.remove('open');
+  });
+  pop.addEventListener('keydown', e=>{
+    const rows=[...pop.querySelectorAll('button')], i=rows.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'){ e.preventDefault(); (rows[i+1]||rows[0]).focus(); }
+    if(e.key==='ArrowUp'){ e.preventDefault(); if(i<=0) inp.focus(); else rows[i-1].focus(); }
+    if(e.key==='Escape'){ wrap.classList.remove('open'); inp.focus(); }
+  });
+  pop.addEventListener('mousedown', e=>e.preventDefault());
+  pop.addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    inp.value=b.dataset.v; wrap.classList.remove('open');
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+    wrap.classList.remove('open');
+  });
+  inp.addEventListener('blur', ()=>setTimeout(()=>{ if(!wrap.contains(document.activeElement)) wrap.classList.remove('open'); },120));
+}
+
+// ── 2. Expectancy and R ────────────────────────────────
+// R per trade: win = the planned reward (1:x → +x), loss = −1, B/E = 0.
+function tradeR(t){
+  if(t.result==='loss') return -1;
+  if(t.result==='be') return 0;
+  if(t.result==='win'){ const x=parseRR(t.rr); return x&&x>0 ? x : null; }
+  return null;
+}
+function calcExpStats(list){
+  const withPnl=list.filter(t=>t.pnl!==''&&t.pnl!==null&&t.pnl!==undefined&&!isNaN(parseFloat(t.pnl)));
+  const pnls=withPnl.map(t=>parseFloat(t.pnl));
+  const wins=pnls.filter(v=>v>0), losses=pnls.filter(v=>v<0);
+  const gp=wins.reduce((a,b)=>a+b,0), gl=Math.abs(losses.reduce((a,b)=>a+b,0));
+  const rs=list.map(tradeR).filter(r=>r!==null);
+  return {
+    n:pnls.length,
+    expUsd: pnls.length ? pnls.reduce((a,b)=>a+b,0)/pnls.length : null,
+    expR: rs.length ? rs.reduce((a,b)=>a+b,0)/rs.length : null,
+    pf: gl>0 ? gp/gl : (gp>0 ? Infinity : null),
+    avgWin: wins.length ? gp/wins.length : null,
+    avgLoss: losses.length ? gl/losses.length : null,
+    rs
+  };
+}
+function renderExpectancy(list){
+  const el=document.getElementById('expCard'); if(!el) return;
+  const x=calcExpStats(list);
+  if(x.n<3){ el.innerHTML=`<p class="tt-empty">${L('Нужно хотя бы 3 сделки с P&L.','Needs at least 3 trades with P&L.')}</p>`; return; }
+  const buckets=[
+    {k:'≤ −1R', f:r=>r<=-1},{k:'−1…0', f:r=>r>-1&&r<0},{k:'0', f:r=>r===0},
+    {k:'0…1R', f:r=>r>0&&r<1},{k:'1…2R', f:r=>r>=1&&r<2},{k:'2…3R', f:r=>r>=2&&r<3},{k:'≥ 3R', f:r=>r>=3}];
+  const counts=buckets.map(b=>x.rs.filter(b.f).length), max=Math.max(1,...counts);
+  const col=(i)=> i<2 ? 'var(--negative)' : i===2 ? 'var(--warning)' : 'var(--positive)';
+  const pfTxt = x.pf===null ? '—' : x.pf===Infinity ? '∞' : x.pf.toFixed(2);
+  el.innerHTML=`
+    <div class="exp-top">
+      <div><span>${L('Матожидание на сделку','Expectancy per trade')}</span><b style="color:${x.expUsd>0?'var(--positive)':x.expUsd<0?'var(--negative)':'var(--text)'}">${money(x.expUsd)}</b>${x.expR!==null?`<i>${(x.expR>0?'+':x.expR<0?'−':'')+Math.abs(x.expR).toFixed(2)}R</i>`:''}</div>
+      <div><span>${L('Профит-фактор','Profit factor')}</span><b>${pfTxt}</b></div>
+      <div><span>${L('Средний плюс','Average win')}</span><b class="green">${x.avgWin!==null?'$'+x.avgWin.toFixed(2):'—'}</b></div>
+      <div><span>${L('Средний минус','Average loss')}</span><b class="red">${x.avgLoss!==null?'$'+x.avgLoss.toFixed(2):'—'}</b></div>
+    </div>
+    ${x.rs.length?`<div class="r-hist">${buckets.map((b,i)=>`<div class="rh-col" title="${counts[i]}"><div class="rh-bar-wrap"><div class="rh-bar" style="height:${counts[i]/max*100}%;background:${col(i)}"></div></div><div class="rh-n">${counts[i]||''}</div><div class="rh-k">${b.k}</div></div>`).join('')}</div>
+    <p class="tt-foot">${L('Распределение результатов в R: убыток = −1R, прибыль = плановый R:R.','Results in R: a loss is −1R, a win is the planned R:R.')}</p>`:''}`;
+}
+
+// ── 3. Drawdown risk (Monte Carlo over your own R results) ──
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function simulateDrawdown(rs, riskPct, runs=2000, len=100){
+  const rnd=mulberry32(rs.length*7919 + Math.round(riskPct*100));
+  const hits={20:0,30:0,50:0}, dds=[];
+  for(let s=0;s<runs;s++){
+    let eq=1, peak=1, mdd=0;
+    for(let i=0;i<len;i++){
+      eq *= 1 + rs[Math.floor(rnd()*rs.length)]*riskPct/100;
+      if(eq>peak) peak=eq;
+      const dd=1-eq/peak; if(dd>mdd) mdd=dd;
+      if(eq<=0){ mdd=1; break; }
+    }
+    dds.push(mdd);
+    if(mdd>=.2) hits[20]++; if(mdd>=.3) hits[30]++; if(mdd>=.5) hits[50]++;
+  }
+  dds.sort((a,b)=>a-b);
+  return {p20:hits[20]/runs, p30:hits[30]/runs, p50:hits[50]/runs, median:dds[Math.floor(runs/2)], p90:dds[Math.floor(runs*.9)]};
+}
+function renderDrawdownRisk(list){
+  const el=document.getElementById('ddCard'); if(!el) return;
+  const rs=list.map(tradeR).filter(r=>r!==null);
+  const risk=getRiskPct();
+  if(rs.length<20){
+    el.innerHTML=`<p class="tt-empty">${L(`Прогноз появится после 20 сделок с результатом и R:R. Сейчас: ${rs.length}.`,`The forecast appears after 20 trades with a result and R:R. Now: ${rs.length}.`)}</p>`;
+    return;
+  }
+  const r=simulateDrawdown(rs, risk);
+  const pct=v=>(v*100<1&&v>0?'<1':Math.round(v*100))+'%';
+  const tone=v=>v>=.25?'var(--negative)':v>=.1?'var(--warning)':'var(--positive)';
+  el.innerHTML=`
+    <p class="dd-lead">${L(`Если следующие 100 сделок будут похожи на ваши ${rs.length} и риск ${risk}% на сделку:`,`If your next 100 trades look like your last ${rs.length} at ${risk}% risk per trade:`)}</p>
+    <div class="dd-grid">
+      ${[[20,r.p20],[30,r.p30],[50,r.p50]].map(([k,v])=>`<div><b style="color:${tone(v)}">${pct(v)}</b><span>${L(`шанс просадки ${k}%`,`chance of a ${k}% drawdown`)}</span></div>`).join('')}
+    </div>
+    <p class="tt-foot">${L(`Типичная максимальная просадка ${Math.round(r.median*100)}%, в худших 10% случаев — от ${Math.round(r.p90*100)}%. Это расчёт по вашей истории (2000 прогонов), а не прогноз рынка. Риск на сделку меняется в настройках.`,`Typical max drawdown ${Math.round(r.median*100)}%, worst 10% of runs from ${Math.round(r.p90*100)}%. Based on your history (2000 runs), not a market forecast. Change risk per trade in settings.`)}</p>`;
+}
+
+// ── 4. Sessions × setups, entry hour × weekday ─────────
+const SESS_COLS=['Asia','London','Overlap','New York'];
+function tradeSession(t){ return t.time ? getSession(t.time) : (t.session||'Unknown'); }
+function renderSessionSetups(list){
+  const el=document.getElementById('ssCard'); if(!el) return;
+  const withSetup=list.filter(t=>t.setup);
+  if(withSetup.length<3){ el.innerHTML=`<p class="tt-empty">${L('Нужно хотя бы 3 сделки с сетапом.','Needs at least 3 trades with a setup.')}</p>`; return; }
+  const bySetup={}; withSetup.forEach(t=>(bySetup[t.setup]=bySetup[t.setup]||[]).push(t));
+  const setups=Object.keys(bySetup).sort((a,b)=>bySetup[b].length-bySetup[a].length).slice(0,6);
+  const cell=arr=>{
+    if(!arr.length) return `<td class="ss-empty">·</td>`;
+    const w=arr.filter(t=>t.result==='win').length, wr=w/arr.length*100;
+    const ex=calcExpStats(arr), r=ex.expR;
+    const a=Math.min(.32, .08+arr.length*.03);
+    const bg = r===null ? 'var(--surface-2)' : r>0 ? `rgba(79,209,165,${a})` : r<0 ? `rgba(255,107,107,${a})` : 'var(--surface-2)';
+    return `<td style="background:${bg}" title="${arr.length} ${L('сд.','tr.')}"><b>${Math.round(wr)}%</b><i>${r!==null?(r>0?'+':r<0?'−':'')+Math.abs(r).toFixed(1)+'R':'—'}, ${arr.length}</i></td>`;
+  };
+  let best=null;
+  setups.forEach(s=>SESS_COLS.forEach(c=>{
+    const arr=bySetup[s].filter(t=>tradeSession(t)===c);
+    if(arr.length>=3){ const r=calcExpStats(arr).expR; if(r!==null && (!best||r>best.r)) best={s,c,r,n:arr.length}; }
+  }));
+  // hour × weekday P&L
+  const grid=Array.from({length:7},()=>Array(24).fill(null));
+  list.forEach(t=>{
+    if(!t.time||!t.date) return;
+    const h=parseInt(t.time.split(':')[0],10); if(isNaN(h)) return;
+    let d=new Date(t.date+'T12:00:00').getDay(); d=d===0?6:d-1;
+    grid[d][h]=(grid[d][h]||0)+(parseFloat(t.pnl)||0);
+  });
+  const maxAbs=Math.max(1,...grid.flat().filter(v=>v!==null).map(Math.abs));
+  const dows=lang==='ru'?['Пн','Вт','Ср','Чт','Пт','Сб','Вс']:['Mo','Tu','We','Th','Fr','Sa','Su'];
+  const hasHours=grid.flat().some(v=>v!==null);
+  el.innerHTML=`
+    ${best?`<p class="ss-best">${L('Лучшее сочетание','Best combination')}: <b>${escapeHtml(setupDisplayName(best.s))}</b> ${L('в сессию','in')} <b>${sessLabel(best.c)}</b>, ${(best.r>0?'+':'')+best.r.toFixed(2)}R ${L('на сделку','per trade')} (${best.n} ${L('сд.','tr.')})</p>`:''}
+    <div class="ss-scroll"><table class="ss-table">
+      <thead><tr><th></th>${SESS_COLS.map(c=>`<th>${c==='Overlap'?'Overlap':sessLabel(c)}</th>`).join('')}</tr></thead>
+      <tbody>${setups.map(s=>`<tr><th>${escapeHtml(setupDisplayName(s))}</th>${SESS_COLS.map(c=>cell(bySetup[s].filter(t=>tradeSession(t)===c))).join('')}</tr>`).join('')}</tbody>
+    </table></div>
+    <p class="tt-foot">${L('В ячейке: винрейт, матожидание в R и число сделок.','Each cell: win rate, expectancy in R, number of trades.')}</p>
+    ${hasHours?`<div class="hw-title">${L('Час входа и день недели','Entry hour and weekday')}</div>
+    <div class="hw">
+      ${grid.map((row,d)=>`<div class="hw-row"><span>${dows[d]}</span>${row.map((v,h)=>`<i title="${dows[d]} ${String(h).padStart(2,'0')}:00${v!==null?', '+money(v,0):''}" style="${v===null?'':`background:${v>=0?'rgba(79,209,165,':'rgba(255,107,107,'}${(.18+Math.abs(v)/maxAbs*.72).toFixed(2)})`}"></i>`).join('')}</div>`).join('')}
+      <div class="hw-row hw-axis"><span></span>${Array.from({length:24},(_,h)=>`<em>${h%6===0?String(h).padStart(2,'0'):''}</em>`).join('')}</div>
+    </div>`:''}`;
+}
+
+function renderTradingAnalytics(){
+  const list = typeof getFiltered==='function' ? trades : trades;
+  const set=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
+  set('expTitle', L('Матожидание и R','Expectancy and R'));
+  set('ddTitle', L('Риск просадки','Drawdown risk'));
+  set('ssTitle', L('Сессии и сетапы','Sessions and setups'));
+  renderExpectancy(list); renderDrawdownRisk(list); renderSessionSetups(list);
+}
+
+// ── 5. P&L calendar (Trades tab) ───────────────────────
+const pnlCal={y:new Date().getFullYear(), m:new Date().getMonth()};
+function pnlCalNav(d){ pnlCal.m+=d; if(pnlCal.m<0){pnlCal.m=11;pnlCal.y--;} if(pnlCal.m>11){pnlCal.m=0;pnlCal.y++;} renderPnlCalendar(); }
+function pnlCalPick(ds){
+  const cur=calState.trades.date;
+  selectCalDay('trades', cur===ds ? '' : ds);
+  renderPnlCalendar();
+}
+function renderPnlCalendar(){
+  const el=document.getElementById('pnlCal'); if(!el) return;
+  const ru=lang==='ru';
+  const byDay={};
+  trades.forEach(t=>{ if(!t.date) return; const d=byDay[t.date]||(byDay[t.date]={pnl:0,n:0}); d.pnl+=parseFloat(t.pnl)||0; d.n++; });
+  const first=new Date(pnlCal.y,pnlCal.m,1), lead=(first.getDay()+6)%7, days=new Date(pnlCal.y,pnlCal.m+1,0).getDate();
+  const today=new Date().toISOString().split('T')[0], sel=calState.trades.date;
+  const title=first.toLocaleDateString(ru?'ru-RU':'en-GB',{month:'long',year:'numeric'}).replace(' г.','');
+  const vals=Object.entries(byDay).filter(([k])=>k.startsWith(pnlCal.y+'-'+String(pnlCal.m+1).padStart(2,'0'))).map(([,v])=>Math.abs(v.pnl));
+  const maxAbs=Math.max(1,...vals);
+  let monthPnl=0, monthN=0, cells=[];
+  for(let i=0;i<lead;i++) cells.push(null);
+  for(let d=1;d<=days;d++){
+    const ds=pnlCal.y+'-'+String(pnlCal.m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const v=byDay[ds]; if(v){ monthPnl+=v.pnl; monthN+=v.n; }
+    cells.push({d,ds,v});
+  }
+  while(cells.length%7) cells.push(null);
+  const short=v=>{ const a=Math.abs(v); return (v>0?'+':v<0?'−':'')+(a>=1000?(a/1000).toFixed(1)+'k':a.toFixed(0)); };
+  let rows='';
+  for(let i=0;i<cells.length;i+=7){
+    const wk=cells.slice(i,i+7); const wsum=wk.reduce((s,c)=>s+(c&&c.v?c.v.pnl:0),0), wn=wk.reduce((s,c)=>s+(c&&c.v?c.v.n:0),0);
+    rows+=wk.map(c=>{
+      if(!c) return '<div class="pc-cell pc-blank"></div>';
+      const a=c.v?(.12+Math.abs(c.v.pnl)/maxAbs*.5).toFixed(2):0;
+      const bg=c.v?(c.v.pnl>0?`rgba(79,209,165,${a})`:c.v.pnl<0?`rgba(255,107,107,${a})`:'var(--surface-3)'):'';
+      return `<button type="button" class="pc-cell${c.ds===today?' today':''}${c.ds===sel?' sel':''}${c.v?'':' none'}" ${c.v?`onclick="pnlCalPick('${c.ds}')"`:'disabled'} style="${bg?'background:'+bg:''}" aria-label="${c.ds}${c.v?', '+money(c.v.pnl):''}"><span>${c.d}</span>${c.v?`<b>${short(c.v.pnl)}</b>`:''}</button>`;
+    }).join('') + `<div class="pc-week ${wsum>0?'green':wsum<0?'red':''}">${wn?short(wsum):''}</div>`;
+  }
+  const wd=ru?['Пн','Вт','Ср','Чт','Пт','Сб','Вс']:['Mo','Tu','We','Th','Fr','Sa','Su'];
+  el.innerHTML=`
+    <div class="pcal-head">
+      <button type="button" class="dp-nav" onclick="pnlCalNav(-1)" aria-label="${ru?'Предыдущий месяц':'Previous month'}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="pcal-title"><b>${title}</b><span class="${monthPnl>0?'green':monthPnl<0?'red':''}">${monthN?money(monthPnl)+', '+monthN+' '+(ru?plural(monthN,'сделка','сделки','сделок'):(monthN===1?'trade':'trades')):(ru?'нет сделок':'no trades')}</span></div>
+      <button type="button" class="dp-nav" onclick="pnlCalNav(1)" aria-label="${ru?'Следующий месяц':'Next month'}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    <div class="pcal-grid">${wd.map(x=>`<div class="pc-wd">${x}</div>`).join('')}<div class="pc-wd pc-week-h">${ru?'Нед.':'Week'}</div>${rows}</div>
+    ${sel?`<p class="tt-foot">${ru?'Показаны сделки за выбранный день. Нажмите на день ещё раз, чтобы сбросить.':'Showing trades for the selected day. Tap it again to clear.'}</p>`:''}`;
+}
+
+// ── 6. Levels ruler for the trade card ─────────────────
+function levelsRulerHTML(t){
+  const e=parseFloat(t.entry), sl=parseFloat(t.sl), tp=parseFloat(t.tp);
+  if(isNaN(e)||isNaN(sl)||e===sl) return '';
+  const hasTp=!isNaN(tp)&&tp!==e;
+  const lo=Math.min(e,sl,hasTp?tp:e), hi=Math.max(e,sl,hasTp?tp:e), span=hi-lo||1;
+  const pos=v=>((v-lo)/span*100).toFixed(2);
+  const rr=hasTp?Math.abs(tp-e)/Math.abs(e-sl):null;
+  const exit = t.result==='win'&&hasTp ? tp : t.result==='loss' ? sl : t.result==='be' ? e : null;
+  const lbl=(v,txt,cls,raw)=>`<div class="lr-mark ${cls}" style="left:${pos(v)}%"><i></i><span>${txt}</span><em>${escapeHtml(String(raw))}</em></div>`;
+  return `<div class="lr">
+    <div class="lr-title">${L('Уровни','Levels')}${rr?` <span>1:${fmtRR(rr)}</span>`:''}</div>
+    <div class="lr-track">
+      <div class="lr-zone loss" style="left:${Math.min(pos(e),pos(sl))}%;width:${Math.abs(pos(e)-pos(sl))}%"></div>
+      ${hasTp?`<div class="lr-zone win" style="left:${Math.min(pos(e),pos(tp))}%;width:${Math.abs(pos(tp)-pos(e))}%"></div>`:''}
+      ${exit!==null?`<div class="lr-exit" style="left:${pos(exit)}%" title="${L('Выход','Exit')}"></div>`:''}
+    </div>
+    <div class="lr-marks">${[[sl,'SL','m-sl',t.sl],[e,'Entry','m-e',t.entry]].concat(hasTp?[[tp,'TP','m-tp',t.tp]]:[]).sort((a,b)=>a[0]-b[0]).map(m=>lbl(...m)).join('')}</div>
+    ${exit!==null?`<p class="tt-foot">${t.result==='win'?L('Закрыта по тейку.','Closed at take profit.'):t.result==='loss'?L('Закрыта по стопу.','Closed at stop loss.'):L('Закрыта в безубыток.','Closed at break-even.')}</p>`:''}
+  </div>`;
+}
+
+// ── 7. Weekly summary card ─────────────────────────────
+function weekRange(offset=0){
+  const now=new Date(); const d=(now.getDay()+6)%7;
+  const mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-d+offset*7);
+  const sun=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+6);
+  const iso=x=>x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+  return {from:iso(mon),to:iso(sun),mon,sun};
+}
+let weekOffset=0;
+function weekStats(){
+  const w=weekRange(weekOffset);
+  const list=trades.filter(t=>t.date&&t.date>=w.from&&t.date<=w.to);
+  const pnl=list.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const wins=list.filter(t=>t.result==='win').length;
+  const ex=calcExpStats(list);
+  const best=list.slice().sort((a,b)=>(parseFloat(b.pnl)||0)-(parseFloat(a.pnl)||0))[0];
+  const days=new Set(list.map(t=>t.date)).size;
+  const bySet={}; list.forEach(t=>{ if(t.setup){ bySet[t.setup]=(bySet[t.setup]||0)+(parseFloat(t.pnl)||0); } });
+  const topSetup=Object.entries(bySet).sort((a,b)=>b[1]-a[1])[0];
+  return {w,list,pnl,wins,wr:list.length?wins/list.length*100:null,expR:ex.expR,best,days,topSetup};
+}
+function weekLabel(w){
+  const o={day:'numeric',month:'short'}, loc=lang==='ru'?'ru-RU':'en-GB';
+  return w.mon.toLocaleDateString(loc,o).replace('.','')+' – '+w.sun.toLocaleDateString(loc,o).replace('.','');
+}
+function renderWeekCard(){
+  const el=document.getElementById('weekCard'); if(!el) return;
+  const set=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
+  set('weekTitle', L('Итоги недели','Week in review'));
+  const s=weekStats();
+  el.innerHTML=`
+    <div class="wk-nav">
+      <button type="button" class="dp-nav" onclick="weekOffset--;renderWeekCard()" aria-label="${L('Прошлая неделя','Previous week')}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
+      <span>${weekLabel(s.w)}</span>
+      <button type="button" class="dp-nav" onclick="weekOffset=Math.min(0,weekOffset+1);renderWeekCard()" ${weekOffset>=0?'disabled':''} aria-label="${L('Следующая неделя','Next week')}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    ${s.list.length?`
+    <div class="wk-card">
+      <div class="wk-hero"><span>P&amp;L</span><b>${money(s.pnl)}</b></div>
+      <div class="wk-grid">
+        <div><b>${s.list.length}</b><span>${L(plural(s.list.length,'сделка','сделки','сделок'),'trades')}</span></div>
+        <div><b>${s.wr!==null?Math.round(s.wr)+'%':'—'}</b><span>${L('винрейт','win rate')}</span></div>
+        <div><b>${s.expR!==null?(s.expR>0?'+':s.expR<0?'−':'')+Math.abs(s.expR).toFixed(2)+'R':'—'}</b><span>${L('на сделку','per trade')}</span></div>
+        <div><b>${s.days}</b><span>${L(plural(s.days,'торговый день','торговых дня','торговых дней'),'trading days')}</span></div>
+      </div>
+      ${s.topSetup?`<p class="wk-line">${L('Лучший сетап','Best setup')}: <b>${escapeHtml(setupDisplayName(s.topSetup[0]))}</b>, ${money(s.topSetup[1])}</p>`:''}
+    </div>
+    <button type="button" class="btn-secondary wk-save" onclick="saveWeekImage()">${L('Сохранить картинкой','Save as image')}</button>`
+    :`<p class="tt-empty">${L('На этой неделе сделок нет.','No trades this week.')}</p>`}`;
+}
+async function saveWeekImage(){
+  const s=weekStats(); if(!s.list.length) return;
+  try{ await document.fonts.ready; }catch(e){}
+  const W=1080,H=1350, c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  const ink='#100E0C', paper='#EFE7DA', muted='#A79E90', lime='#C6FF3D';
+  x.fillStyle=ink; x.fillRect(0,0,W,H);
+  // session strip
+  [['#8E7CF0',0,8],['#4FD1A5',8,16],['#5B8DEF',13,21],['#FFB224',13,16]].forEach(([col,a,b])=>{ x.fillStyle=col; x.fillRect(a/24*W,0,(b-a)/24*W,14); });
+  x.fillStyle=paper; x.font='600 44px Literata, Georgia, serif'; x.fillText('MackH Journal',80,120);
+  x.fillStyle=muted; x.font='400 34px Onest, sans-serif'; x.fillText(L('Итоги недели, ','Week in review, ')+weekLabel(s.w),80,175);
+  // lime hero
+  const r=40, hx=80, hy=240, hw=W-160, hh=380;
+  x.fillStyle=lime; x.beginPath(); x.roundRect ? x.roundRect(hx,hy,hw,hh,r) : x.rect(hx,hy,hw,hh); x.fill();
+  x.fillStyle='#0E1006'; x.font='600 36px Onest, sans-serif'; x.fillText('P&L',hx+56,hy+90);
+  x.font='600 150px Literata, Georgia, serif'; x.fillText(money(s.pnl),hx+50,hy+270);
+  // stats
+  const st=[[String(s.list.length),L('сделок','trades')],[s.wr!==null?Math.round(s.wr)+'%':'—',L('винрейт','win rate')],[s.expR!==null?(s.expR>0?'+':s.expR<0?'−':'')+Math.abs(s.expR).toFixed(2)+'R':'—',L('на сделку','per trade')],[String(s.days),L('дней в рынке','days traded')]];
+  st.forEach(([v,l],i)=>{
+    const cx=80+(i%2)*((W-160)/2), cy=720+Math.floor(i/2)*190;
+    x.fillStyle=paper; x.font='600 88px Literata, Georgia, serif'; x.fillText(v,cx,cy);
+    x.fillStyle=muted; x.font='400 32px Onest, sans-serif'; x.fillText(l,cx,cy+52);
+  });
+  if(s.topSetup){ x.fillStyle=paper; x.font='500 34px Onest, sans-serif'; x.fillText(L('Лучший сетап: ','Best setup: ')+setupDisplayName(s.topSetup[0])+', '+money(s.topSetup[1]),80,1150); }
+  x.fillStyle='rgba(239,231,218,.12)'; x.fillRect(80,1210,W-160,2);
+  x.fillStyle=muted; x.font='400 28px Onest, sans-serif'; x.fillText(L('Торговый журнал в Telegram','Trading journal in Telegram'),80,1265);
+  const blob=await new Promise(res=>c.toBlob(res,'image/png'));
+  const name='mackh-week-'+s.w.from+'.png';
+  const file=new File([blob],name,{type:'image/png'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file]}); return; }catch(e){ if(e.name==='AbortError') return; }
+  }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  showToast(L('Картинка сохранена','Image saved'));
+}
+
+// ── 8. Daily loss limit on the «Сейчас» tile ───────────
+function renderDailyLimit(){
+  const tile=document.getElementById('nowTile'), el=document.getElementById('nowLimit');
+  if(!tile||!el) return;
+  const lim=getDailyLimit();
+  const todayStr=new Date().toISOString().split('T')[0];
+  const pnl=trades.filter(t=>t.date===todayStr).reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  tile.classList.remove('limit-hit','limit-near');
+  if(!lim){ el.textContent=''; el.hidden=true; return; }
+  const loss=Math.max(0,-pnl), share=loss/lim;
+  el.hidden=false;
+  if(share>=1){
+    tile.classList.add('limit-hit');
+    el.textContent=L(`Дневной лимит убытка достигнут: −$${loss.toFixed(2)} из $${lim}. На сегодня всё.`,`Daily loss limit reached: −$${loss.toFixed(2)} of $${lim}. Done for today.`);
+  } else if(share>=.75){
+    tile.classList.add('limit-near');
+    el.textContent=L(`До дневного лимита осталось $${(lim-loss).toFixed(2)}.`,`$${(lim-loss).toFixed(2)} left before the daily loss limit.`);
+  } else {
+    el.textContent=L(`Лимит убытка на сегодня: $${lim}, использовано $${loss.toFixed(2)}.`,`Today's loss limit: $${lim}, used $${loss.toFixed(2)}.`);
+  }
+}
+
+function initTradingTools(){
+  initPositionCalc();
+  initPairSuggest();
+  syncRiskSettings();
+  // Hook the existing renders instead of editing them
+  const hook=(fn,after)=>{ const orig=window[fn]; if(typeof orig!=='function') return; window[fn]=function(...a){ const r=orig.apply(this,a); try{ after(); }catch(e){ console.warn(fn+' hook',e); } return r; }; };
+  hook('renderHome', renderDailyLimit);
+  hook('renderTrades', renderPnlCalendar);
+  hook('renderAnalytics', renderTradingAnalytics);
+  hook('renderProgress', renderWeekCard);
+  hook('openSettings', syncRiskSettings);
+  hook('applyLang', ()=>{ syncRiskSettings(); calcPosition(); });
+}
+
 initStyledSelects();
+initTradingTools();
 updateThemeIcon();
 updateOnlineStatus();
 window.addEventListener('resize',()=>{if(homeCI){homeCI.destroy();homeCI=null;renderHomeChart();}});
