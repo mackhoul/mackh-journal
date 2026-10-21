@@ -2774,7 +2774,7 @@ function setDataOwner(owner){
   ownerEpoch++;
   clearTimeout(syncPendingQueue._retryTimer);
   trades = []; baseCapital = 0; goals = []; ideas = [];
-  _serverIds = null;
+  _serverIds = null; _localChangeAt.clear();
   subState = null;
   if(typeof document!=='undefined' && document.getElementById('subGroup')) renderSubscription();
   resetFormsForAccountSwitch();
@@ -2796,6 +2796,9 @@ function resetFormsForAccountSwitch(){
   });
   ['iImgPreview','imgPreview'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
   editingId = null; tForm = {}; currentImg = null; currentTags = []; currentMistakes = []; checklistState = {};
+  // A pending "Undo" of the previous account is dropped; its deletion stays in that account's queue
+  clearTimeout(undoTimer); undoTrade = null; undoCtx = null;
+  document.getElementById('toast')?.classList.remove('show');
   editingIdeaId = null; ideaForm = {}; ideaCurrentImg = null; ideaFormOwner = null;
 }
 
@@ -2884,6 +2887,8 @@ function patchCachedTrade(owner, id, patch){
 const TOMB_KEY = 'deleted_trades_v1';
 const TOMB_KEEP_MS = 30*24*60*60*1000;   // confirmed deletions are remembered for 30 days
 let _serverIds = null;                    // ids the server returned on the last load; null = unknown
+const _localChangeAt = new Map();         // trade id -> time of the last local save/delete or confirmed save (this session)
+function noteLocalChange(id){ _localChangeAt.set(id, Date.now()); }
 let _syncRun = null;
 let _rejectNotified = false;
 
@@ -2915,6 +2920,7 @@ function updateTomb(owner, id, patch){
 // runner delivers it (after sendAfterMs — the undo window).
 function markTradeDeleted(id, {sendAfterMs=0}={}){
   const owner = dataOwner;
+  noteLocalChange(id);
   trades = trades.filter(t=>t.id!==id);
   if(!owner) return;
   removeFromPendingQueue(id, owner);          // an unsent save must not bring it back
@@ -3016,6 +3022,7 @@ async function syncPass(run){
           return;
         }
         if(_serverIds) _serverIds.add(id);
+        noteLocalChange(id);
         applySaveResult(owner, id, payload, result);
         console.log(`[SYNC] ✓ Trade ${id} saved on server${result.img_failed?' (without photo)':''}`);
       } else {
@@ -3331,6 +3338,7 @@ async function loadData(){
   // Then: try to get fresher data from server in background
   try{
     if(!owner) return;
+    const loadStarted = Date.now();
     const [t,s] = await Promise.all([api('GET','/trades'), api('GET','/settings')]);
     // The account changed while we waited — this answer belongs to someone else's journal
     if(!isCurrentOwner(owner, epoch)){ console.log('[SYNC] Late server answer for a previous account ignored'); return; }
@@ -3360,8 +3368,21 @@ async function loadData(){
       if(localOnlyTrades.length>0) console.log(`[SYNC] ${localOnlyTrades.length} local-only trade(s) not on server:`, localOnlyTrades.map(x=>x.id));
 
       // Merge: server + local-only trades (deduped). A trade deleted on this
-      // device is left out; one with an unsent local edit shows that edit.
-      const fromServer = t.filter(x=>!deleted.has(x.id)).map(x=>waiting.get(x.id) || x);
+      // device is left out; one with an unsent local edit shows that edit; one
+      // saved or confirmed after this request started keeps the newer local copy.
+      const changedSince = id => (_localChangeAt.get(id)||0) >= loadStarted;
+      const fromServer = t.filter(x=>!deleted.has(x.id))
+        .map(x=>waiting.get(x.id) || (changedSince(x.id) && trades.find(m=>m.id===x.id)) || x);
+      // 3. The server still has a trade this device deleted (for example a save
+      //    that timed out on the client and landed after the deletion): reopen
+      //    the deletion so the queue removes it again.
+      const confirmedDeleted = new Set(getTombs(owner).filter(x=>x.done).map(x=>x.id));
+      const reappeared = t.filter(x=>confirmedDeleted.has(x.id)).map(x=>x.id);
+      if(reappeared.length){
+        console.warn('[SYNC] Deleted trade(s) found on the server again — deleting again:', reappeared);
+        reappeared.forEach(id=>updateTomb(owner, id, {done:false, notBefore:0, reopened:true}));
+        setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) syncPendingQueue(); }, 0);
+      }
       trades = [...fromServer, ...localOnlyTrades];
 
       // Save merged result to this account's local copy
@@ -3408,6 +3429,7 @@ async function syncTrade(trade){
   if(!owner) return;
   // 1. This account's local copy and the queue first: nothing typed is lost
   //    if the app closes or the server is down.
+  noteLocalChange(trade.id);
   safeLocalStorageSet('trades_v3', trades, owner);
   addToPendingQueue(trade, owner);
   setSyncStatus('pending');
@@ -5803,6 +5825,7 @@ function deleteTrade(id){
   // Undo support
   if(removed){
     undoTrade=removed;
+    undoCtx={owner:dataOwner, epoch:ownerEpoch};
     clearTimeout(undoTimer);
     const t=document.getElementById('toast');
     const undoLabel=lang==='ru'?'Отменить':'Undo';
@@ -5819,6 +5842,13 @@ function deleteTrade(id){
 
 function undoDelete(){
   if(!undoTrade) return;
+  // An undo left over from another account (or an earlier sign-in) does nothing
+  if(!undoCtx || !isCurrentOwner(undoCtx.owner, undoCtx.epoch)){
+    undoTrade=null; undoCtx=null; clearTimeout(undoTimer);
+    document.getElementById('toast')?.classList.remove('show');
+    return;
+  }
+  undoCtx=null;
   unmarkTradeDeleted(undoTrade.id);
   trades.push(undoTrade);
   syncTrade(undoTrade);
@@ -7099,7 +7129,7 @@ function importJSON(input){
 // ═══════════════════════════════════════════════════════
 //  UNDO DELETE
 // ═══════════════════════════════════════════════════════
-let undoTrade=null, undoTimer=null;
+let undoTrade=null, undoTimer=null, undoCtx=null;   // undoCtx: account the pending undo belongs to
 
 // ═══════════════════════════════════════════════════════
 //  THEME TOGGLE

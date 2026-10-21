@@ -29,7 +29,14 @@
     const key = method + ' ' + u.pathname.replace(/\/trades\/.+/, '/trades/:id');
     M.log.push({ user, method, path: u.pathname, id: body?.id || decodeURIComponent(u.pathname.split('/')[2] || '') || null, pnl: body?.pnl, img_url: body?.img_url, hasImg: !!body?.img, qv: body?.__qv });
     if (M.failPnl && body && body.pnl === M.failPnl) throw new TypeError('Failed to fetch');
+    if (M.lateWrite && method === 'POST' && u.pathname === '/trades' && user) {
+      // the client gives up (timeout), but the server finishes the write later
+      setTimeout(() => { const S = (M.srv[user] ||= {}); const t = { ...body }; delete t.img; S[t.id] = t; M.order.push(user + ' POST(late) ' + t.id); }, M.lateWrite);
+      throw new TypeError('timeout');
+    }
+    const snap = (M.snapshotGet && method === 'GET' && u.pathname === '/trades' && user) ? Object.values(M.srv[user] || {}).map(x => JSON.parse(JSON.stringify(x))) : null;
     if (M.delay[key]) await new Promise(r => setTimeout(r, M.delay[key]));
+    if (snap && !M.down) return json(snap);
     if (M.down) throw new TypeError('Failed to fetch');
     if (!user) return json({ error: 'No auth header' }, 401);
     const S = (M.srv[user] ||= {});
@@ -57,7 +64,7 @@
   const tombs = () => typeof getTombs === 'function' ? getTombs() : [];
   const login = async (who = 'A') => { saveWebSession({ access_token: TOK[who], refresh_token: 'r' + who, email: who.toLowerCase() + '@test' }); document.getElementById('authGate').classList.remove('show'); await startApp(); };
   const reload = async (who = 'A') => { clearTimeout(undoTimer); clearTimeout(syncPendingQueue._retryTimer); undoTrade = null; setDataOwner(null); await login(who); };
-  const fresh = (srvA = {}, srvB = {}) => { localStorage.clear(); Object.assign(M, { srv: { A: JSON.parse(JSON.stringify(srvA)), B: JSON.parse(JSON.stringify(srvB)) }, log: [], order: [], delay: {}, down: false, failPnl: null, allowAnyId: false }); };
+  const fresh = (srvA = {}, srvB = {}) => { localStorage.clear(); Object.assign(M, { srv: { A: JSON.parse(JSON.stringify(srvA)), B: JSON.parse(JSON.stringify(srvB)) }, log: [], order: [], delay: {}, down: false, failPnl: null, allowAnyId: false, lateWrite: 0, snapshotGet: false }); };
   const T1 = (id, extra = {}) => ({ id, pair: 'EURUSD', market: 'forex', result: 'win', pnl: '10', date: '2026-10-20', notes: 'n', ...extra });
   const ids = () => trades.map(t => t.id).sort();
   const cacheIds = () => lsJSON('trades_v3', []).map(t => t.id).sort();
@@ -209,6 +216,39 @@
   const n18 = T1('1018'); trades.push(n18); await syncTrade(n18);
   const e18 = { ...n18, pnl: '25' }; trades[0] = e18; await syncTrade(e18); await reload();
   check('normal save and edit', M.srv.A['1018']?.pnl === '25' && trades.find(t => t.id === '1018')?.pnl === '25' && !queue().length);
+
+  // 19. (review 1) "Undo" left over from A must not restore A's trade into B
+  fresh({ '1019': T1('1019', { pair: 'A_PRIVATE' }) }); await login('A');
+  deleteTrade('1019'); await sleep(200);
+  await login('B');                                   // same page, the undo toast is still there
+  undoDelete(); await sleep(300); await syncPendingQueue();
+  check('undo after switch: nothing of A restored or sent under B',
+    !M.log.some(x => x.user === 'B' && x.method === 'POST' && x.id === '1019') && !Object.keys(M.srv.B || {}).includes('1019') && !ids().includes('1019')
+    && !document.getElementById('toast').classList.contains('show'), { b: Object.keys(M.srv.B || {}), ids: ids() });
+  await reload('A'); await sleep(5500); await syncPendingQueue();
+  check('undo after switch: A still delivers its own deletion', !srvA().includes('1019'), M.order);
+
+  // 20. (review 2) a load that started before a confirmed edit must not roll it back
+  fresh({ '1020': T1('1020') }); await login();
+  M.snapshotGet = true; M.delay = { 'GET /trades': 900 };
+  const load20 = loadData(); await sleep(100);       // GET took its snapshot (pnl 10)
+  M.delay = {};
+  const e20 = { ...T1('1020'), pnl: '99' }; trades[trades.findIndex(t => t.id === '1020')] = e20; await syncTrade(e20);
+  const queuedBefore = queue().length;
+  await load20; M.snapshotGet = false;
+  check('late load after confirmed edit: journal and cache keep the edit', queuedBefore === 0 && M.srv.A['1020']?.pnl === '99'
+    && trades.find(t => t.id === '1020')?.pnl === '99' && lsJSON('trades_v3', []).find(t => t.id === '1020')?.pnl === '99',
+    { queuedBefore, srv: M.srv.A['1020']?.pnl, mem: trades.find(t => t.id === '1020')?.pnl });
+
+  // 21. (review 3) a save the client gave up on lands on the server after the deletion
+  fresh(); await login();
+  const t21 = T1('1021'); trades.push(t21);
+  M.lateWrite = 600; await syncTrade(t21); M.lateWrite = 0;
+  await deleteTradeSync('1021');
+  await sleep(900);
+  const ghost = srvA().includes('1021');
+  await loadData(); await syncPendingQueue();
+  check('late save after delete: re-created copy is deleted again', ghost && !srvA().includes('1021') && !ids().includes('1021'), { ghost, order: M.order, srv: srvA() });
 
   localStorage.clear();
   console.table(results);
