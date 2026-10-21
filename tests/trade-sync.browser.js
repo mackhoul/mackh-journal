@@ -250,6 +250,22 @@
   await loadData(); await syncPendingQueue();
   check('late save after delete: re-created copy is deleted again', ghost && !srvA().includes('1021') && !ids().includes('1021'), { ghost, order: M.order, srv: srvA() });
 
+  // 22. (review) a local-only trade confirmed during a slow load, after another trade was deleted
+  fresh({ '1022': T1('1022', { pair: 'Y' }) });
+  lsSet('trades_v3', JSON.stringify([T1('1021x', { pnl: '10' }), T1('1022', { pair: 'Y' })]), 'web:uid-A');
+  await login();                                       // X (1021x) is local-only, Y is on the server
+  M.snapshotGet = true; M.delay = { 'GET /trades': 900 };
+  const load22 = loadData(); await sleep(100);         // snapshot without X
+  M.delay = {};
+  await deleteTradeSync('1022');                       // replaces the trades array
+  const x99 = { ...trades.find(t => t.id === '1021x'), pnl: '99' };
+  trades[trades.findIndex(t => t.id === '1021x')] = x99; await syncTrade(x99);
+  const q22 = queue().length;
+  await load22; M.snapshotGet = false;
+  check('late load, local-only trade confirmed meanwhile: keeps 99', q22 === 0 && M.srv.A['1021x']?.pnl === '99'
+    && trades.find(t => t.id === '1021x')?.pnl === '99' && lsJSON('trades_v3', []).find(t => t.id === '1021x')?.pnl === '99' && !ids().includes('1022'),
+    { q22, srv: M.srv.A['1021x']?.pnl, mem: trades.find(t => t.id === '1021x')?.pnl, cache: lsJSON('trades_v3', []).find(t => t.id === '1021x')?.pnl });
+
   localStorage.clear();
   console.table(results);
   const failed = results.filter(r => r.result === 'FAIL').length;

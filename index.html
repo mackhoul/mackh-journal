@@ -3358,9 +3358,12 @@ async function loadData(){
       // start can take 20-30 s). The original localTrades snapshot would not
       // contain that new trade, so we'd wipe it from localStorage on merge.
       const freshLocal = lsJSON('trades_v3', [], owner);
-      // Build a deduplicated map of all local sources (snapshot + fresh read + memory)
+      // Build a deduplicated map of all local sources. Newest first: current
+      // memory, then the cache as it is now, then the snapshot taken when this
+      // load started — so an edit saved or confirmed meanwhile is never replaced
+      // by the older copy (even after the trades array was replaced by a delete).
       const allLocalMap = {};
-      [...localTrades, ...freshLocal, ...trades].forEach(x=>{
+      [...trades, ...freshLocal, ...localTrades].forEach(x=>{
         if(x && x.id && !allLocalMap[x.id]) allLocalMap[x.id] = x;
       });
       const localOnlyTrades = Object.values(allLocalMap).filter(lt=>!serverIds.has(lt.id) && !deleted.has(lt.id))
