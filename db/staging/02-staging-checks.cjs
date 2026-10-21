@@ -22,15 +22,20 @@
  * No request follows a redirect.
  *
  * Writes only made-up trades of the two test accounts and removes exactly the
- * rows this run created (in `finally`, verified by reading back). The restore
- * rehearsal touches only the (id, user_id) pairs listed in the CSV, and only
- * if the test database holds exactly those rows. The test auth users and their
+ * rows this run created (in `finally`, after every started request settled,
+ * group by group, verified by reading back; anything left or unconfirmed is
+ * listed in full). The restore rehearsal touches only the (id, user_id) pairs
+ * listed in the CSV, and only if the test database holds exactly those rows.
+ * Before deleting them it saves a snapshot outside Git; if the rows cannot be
+ * confirmed back the snapshot stays and can be written back with
+ *   node db/staging/02-staging-checks.cjs --put-back <snapshot.json> The test auth users and their
  * account_links are kept on purpose: the next run signs in with them again.
  * Never prints keys, passwords or tokens. Exit code: 0 all passed, 1 a check
  * failed, 2 stopped before writing anything.
  */
 'use strict';
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 // mackh-journal-test — the only Supabase project this script may touch
@@ -39,6 +44,31 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
 const BACKUP_COLUMNS = ['id', 'user_id', 'data', 'img_url', 'created_at'];
 const GUARD_COLUMNS = ['deleted_at', 'deleted_gen'];
 const REQUEST_TIMEOUT_MS = 30000;
+const CLEANUP_CHUNK = 25;
+const PUT_BACK_ATTEMPTS = 3;
+
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+const errText = e => (e && e.message) || String(e);
+
+// Like Promise.all, but waits for every started operation before reporting the first error,
+// so no request of a group is still writing when the next section or the cleanup starts
+async function settleAll(promises) {
+  const out = await Promise.allSettled(promises);
+  const bad = out.find(o => o.status === 'rejected');
+  if (bad) throw bad.reason;
+  return out.map(o => o.value);
+}
+
+// The restore rehearsal keeps its snapshot outside Git until the rows are
+// confirmed back, so a failed run (or a crash) can be repaired with --put-back.
+const fileSnapshots = {
+  save: rows => {
+    const file = path.join(os.tmpdir(), `mackh-staging-restore-${Date.now()}.json`);
+    fs.writeFileSync(file, JSON.stringify(rows, null, 1));
+    return file;
+  },
+  discard: file => { try { fs.unlinkSync(file); } catch (e) { /* already gone */ } },
+};
 
 // A stop before anything was written: wrong target, bad config or bad CSV
 class Stop extends Error {}
@@ -210,17 +240,27 @@ function sameAsBackup(db, b, withGuard) {
 }
 
 // ── run ──────────────────────────────────────────────────
-async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.fetch, log = console.log }) {
+async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.fetch, log = console.log, snapshots = fileSnapshots, retryDelayMs = 1000 }) {
   const { results, check } = makeReport();
   const runRows = new Map();                       // rows this run may have created: "user|id" → { u, id }
   const track = (u, id) => runRows.set(`${u}|${id}`, { u, id: String(id) });
+  const leftovers = [];                            // full lists for the final message (details are cut at 400 chars)
+  const notRestored = [];
+  let snapshotFile = null;
   let SB = null, SERVER = null, wrote = false;
 
-  const call = async (url, init) => {
-    const r = await fetchImpl(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    const text = await r.text();
-    let body = null; try { body = text ? JSON.parse(text) : null; } catch (e) { body = text; }
-    return { status: r.status, body };
+  // Every request is remembered until it settles; cleanup waits for all of them
+  const inflight = new Set();
+  const call = (url, init) => {
+    const p = (async () => {
+      const r = await fetchImpl(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      const text = await r.text();
+      let body = null; try { body = text ? JSON.parse(text) : null; } catch (e) { body = text; }
+      return { status: r.status, body };
+    })();
+    inflight.add(p);
+    p.then(() => inflight.delete(p), () => inflight.delete(p));
+    return p;
   };
   const api = (tok, method, p, body) => call(SERVER + p, { method, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body ? JSON.stringify(body) : undefined });
   const rest = (h, method, p, body, prefer) => call(`${SB}/rest/v1/${p}`, { method, headers: { ...h, ...(prefer ? { Prefer: prefer } : {}) }, body: body ? JSON.stringify(body) : undefined });
@@ -229,6 +269,7 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
   const anonH = () => headers(env.SUPABASE_ANON_KEY)();
   const userH = tok => headers(env.SUPABASE_ANON_KEY)(tok);
 
+  const key = r => `${r.id}|${r.user_id}`;
   const pairQuery = (id, u) => `trades?id=eq.${encodeURIComponent(id)}&user_id=eq.${u}`;
   const row = async (id, u) => {
     const r = await rest(svcH(), 'GET', `${pairQuery(id, u)}&select=*`);
@@ -358,7 +399,6 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
 
     // 4. real concurrency through PostgREST
     await section('concurrency', async () => {
-      const sleep = ms => new Promise(res => setTimeout(res, ms));
       const raceFails = [];
       for (let round = 0; round < 8; round++) {
         const x = uid();
@@ -369,7 +409,7 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
           ops.push((async () => { await sleep(Math.random() * 40); return save(A, uA, { id: x, pnl: 'p' + i }); })());
           if (i === delAt) ops.push((async () => { await sleep(Math.random() * 40); return api(A, 'DELETE', `/trades/${x}`); })());
         }
-        const res = await Promise.all(ops);
+        const res = await settleAll(ops);
         const rr = await row(x, uA);
         const ok = res.every(o => o.status === 200) && rr?.deleted_at && rr?.data?.pnl === undefined && !(await has(A, x));
         if (!ok) raceFails.push({ round, statuses: res.map(o => o.status), row: rr });
@@ -377,16 +417,16 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
       check('8 rounds: 10 parallel saves + 1 delete → always deleted, never re-created', raceFails.length === 0, raceFails);
       const y = uid();
       await save(A, uA, { id: y, pnl: '1' });
-      const dels = await Promise.all(Array.from({ length: 5 }, () => api(A, 'DELETE', `/trades/${y}`)));
+      const dels = await settleAll(Array.from({ length: 5 }, () => api(A, 'DELETE', `/trades/${y}`)));
       const gens = dels.map(d => d.body?.deletion).sort((a, b) => a - b);
       check('5 parallel deletes get distinct numbers 1..5', JSON.stringify(gens) === '[1,2,3,4,5]' && (await row(y, uA))?.deleted_gen === 5, gens);
       const z = uid();
       await save(A, uA, { id: z, pnl: '1' });
       const gz = (await api(A, 'DELETE', `/trades/${z}`)).body?.deletion;
-      const [undoRes, delRes] = await Promise.all([save(A, uA, { id: z, pnl: 'undo', __restore: gz }), api(A, 'DELETE', `/trades/${z}`)]);
+      const [undoRes, delRes] = await settleAll([save(A, uA, { id: z, pnl: 'undo', __restore: gz }), api(A, 'DELETE', `/trades/${z}`)]);
       check('undo racing a newer delete always ends deleted', !(await has(A, z)) && (await row(z, uA))?.deleted_at, { undoRes: undoRes.body, delRes: delRes.body });
       const many = Array.from({ length: 20 }, () => uid());
-      await Promise.all(many.map((id, i) => save(A, uA, { id, pnl: String(i) })));
+      await settleAll(many.map((id, i) => save(A, uA, { id, pnl: String(i) })));
       const got = await activeIds(A);
       check('20 parallel saves of different trades all stored', many.every(id => got.includes(id)), { missing: many.filter(id => !got.includes(id)).length });
     });
@@ -402,11 +442,33 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
   } catch (e) {
     check(e instanceof Stop ? 'STOP: ' + e.message : 'run aborted', false, e instanceof Stop ? undefined : (e.message || String(e)));
   } finally {
-    if (runRows.size) await cleanup().catch(e => check('cleanup of this run\'s test rows', false, e.message || String(e)));
+    // A request that is still running could write after the cleanup has read back
+    while (inflight.size) await Promise.allSettled([...inflight]);
+    if (runRows.size) await cleanup().catch(e => check('cleanup of this run\'s test rows', false, errText(e)));
+  }
+
+  // Writes the snapshot rows back and reads each one again. A failed write or
+  // read never ends the attempt early; returns the pairs not confirmed back.
+  async function putBack(snapshotRows) {
+    let pending = snapshotRows;
+    const state = new Map();
+    for (let attempt = 1; attempt <= PUT_BACK_ATTEMPTS && pending.length; attempt++) {
+      if (attempt > 1) await sleep(retryDelayMs * (attempt - 1));
+      try { await rest(svcH(), 'POST', 'trades?on_conflict=id,user_id', pending, 'resolution=merge-duplicates,return=minimal'); } catch (e) { /* the read below decides */ }
+      const still = [];
+      for (const r of pending) {
+        try {
+          if (canon(await row(r.id, r.user_id)) === canon(r)) { state.delete(key(r)); continue; }
+          state.set(key(r), 'not back');
+        } catch (e) { state.set(key(r), 'unconfirmed'); }
+        still.push(r);
+      }
+      pending = still;
+    }
+    return pending.map(r => `${key(r)} (${state.get(key(r))})`);
   }
 
   async function restoreRehearsal({ rows, withGuard }) {
-    const key = r => `${r.id}|${r.user_id}`;
     const keys = new Set(rows.map(key));
     const owners = [...new Set(rows.map(r => r.user_id))];
     const othersOf = async () => {
@@ -420,9 +482,11 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
     const differ = rows.filter((b, i) => !sameAsBackup(snapshot[i], b, withGuard)).map(key);
     if (!check(`restore: the test database holds exactly the ${rows.length} CSV rows before deleting`, differ.length === 0, { differ })) return;
     const othersBefore = await othersOf();
+    snapshotFile = snapshots.save(snapshot);
 
+    // From the first DELETE on, every path ends in a put-back unless the restore is confirmed
     const deleted = [];
-    let failure = null;
+    let failure = null, verifyError = null, wrong = [], othersSame = false;
     try {
       for (const b of rows) {
         const r = await rest(svcH(), 'DELETE', pairQuery(b.id, b.user_id), null, 'return=representation');
@@ -432,39 +496,55 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
       const payload = rows.map(b => ({ id: b.id, user_id: b.user_id, data: b.data, img_url: b.img_url, created_at: b.created_at, ...(withGuard ? { deleted_at: b.deleted_at, deleted_gen: b.deleted_gen } : {}) }));
       const ins = await rest(svcH(), 'POST', 'trades', payload, 'return=minimal');
       if (ins.status >= 300) throw new Error(`insert answered HTTP ${ins.status}`);
-    } catch (e) { failure = e.message; }
+    } catch (e) { failure = errText(e); }
 
-    const back = [];
-    for (const b of rows) back.push(await row(b.id, b.user_id));
-    const wrong = rows.filter((b, i) => !sameAsBackup(back[i], b, withGuard)).map(key);
-    const othersSame = canon(await othersOf()) === canon(othersBefore);
-    const ok = check(`restore: ${rows.length} CSV rows deleted and restored identically (all columns incl. created_at)`, !failure && deleted.length === rows.length && wrong.length === 0, { failure, deleted: deleted.length, wrong });
-    check('restore: other trades of the same owners untouched', othersSame);
-    if (ok) return;
+    try {
+      const back = [];
+      for (const b of rows) back.push(await row(b.id, b.user_id));
+      wrong = rows.filter((b, i) => !sameAsBackup(back[i], b, withGuard)).map(key);
+      othersSame = canon(await othersOf()) === canon(othersBefore);
+    } catch (e) { verifyError = errText(e); }
+    const ok = check(`restore: ${rows.length} CSV rows deleted and restored identically (all columns incl. created_at)`,
+      !failure && !verifyError && deleted.length === rows.length && wrong.length === 0,
+      { failure, verifyError, deleted: deleted.length, wrong });
+    check('restore: other trades of the same owners untouched', !verifyError && othersSame, verifyError ? { verifyError } : undefined);
+    if (ok) { snapshots.discard(snapshotFile); snapshotFile = null; return; }
+
     // Put the original rows back exactly as they were before the rehearsal
-    const put = await rest(svcH(), 'POST', 'trades?on_conflict=id,user_id', snapshot, 'resolution=merge-duplicates,return=minimal');
-    const after = [];
-    for (const b of rows) after.push(await row(b.id, b.user_id));
-    const notBack = rows.filter((b, i) => canon(after[i]) !== canon(snapshot[i])).map(key);
-    check('restore: original rows put back after the failed rehearsal', put.status < 300 && notBack.length === 0, { status: put.status, notBack });
+    const notBack = await putBack(snapshot);
+    if (!notBack.length) { snapshots.discard(snapshotFile); snapshotFile = null; }
+    else notRestored.push(...notBack);
+    check('restore: original rows put back after the failed rehearsal', notBack.length === 0,
+      notBack.length ? { not_confirmed: notBack.slice(0, 5), total: notBack.length, snapshot_file: snapshotFile } : undefined);
   }
 
+  // Each group (owner × up to CLEANUP_CHUNK ids) is deleted and read back on its own:
+  // a failed request marks only that group and the other groups still run.
   async function cleanup() {
     const byUser = new Map();
     for (const { u, id } of runRows.values()) byUser.set(u, [...(byUser.get(u) || []), id]);
     const inList = ids => encodeURIComponent(`(${ids.map(id => `"${id.replace(/["\\]/g, '\\$&')}"`).join(',')})`);
     const errors = [], left = [];
     for (const [u, ids] of byUser) {
-      for (let i = 0; i < ids.length; i += 40) {
-        const chunk = ids.slice(i, i + 40);
-        const d = await rest(svcH(), 'DELETE', `trades?user_id=eq.${u}&id=in.${inList(chunk)}`, null, 'return=representation');
-        if (d.status !== 200) errors.push({ user_id: u, status: d.status });
-        const g = await rest(svcH(), 'GET', `trades?user_id=eq.${u}&id=in.${inList(chunk)}&select=id`);
-        if (g.status !== 200 || !Array.isArray(g.body)) { errors.push({ user_id: u, verify: g.status }); left.push(...chunk.map(id => `${u}|${id} (unconfirmed)`)); }
-        else left.push(...g.body.map(x => `${u}|${x.id}`));
+      for (let i = 0; i < ids.length; i += CLEANUP_CHUNK) {
+        const chunk = ids.slice(i, i + CLEANUP_CHUNK);
+        try {
+          const d = await rest(svcH(), 'DELETE', `trades?user_id=eq.${u}&id=in.${inList(chunk)}`, null, 'return=representation');
+          if (d.status !== 200) errors.push({ user_id: u, delete: d.status });
+        } catch (e) { errors.push({ user_id: u, delete: errText(e) }); }
+        try {
+          const g = await rest(svcH(), 'GET', `trades?user_id=eq.${u}&id=in.${inList(chunk)}&select=id`);
+          if (g.status !== 200 || !Array.isArray(g.body)) throw new Error(`HTTP ${g.status}`);
+          left.push(...g.body.map(x => `${u}|${x.id}`));
+        } catch (e) {
+          errors.push({ user_id: u, verify: errText(e) });
+          left.push(...chunk.map(id => `${u}|${id} (unconfirmed)`));
+        }
       }
     }
-    check(`cleanup: the ${runRows.size} test rows of this run are gone (read back)`, errors.length === 0 && left.length === 0, { errors, left_behind: left });
+    leftovers.push(...left);
+    check(`cleanup: the ${runRows.size} test rows of this run are gone (read back)`, errors.length === 0 && left.length === 0,
+      { errors: errors.slice(0, 5), left_behind: left.slice(0, 5), total_left: left.length });
   }
 
   const failed = results.filter(x => x.result === 'FAIL').length;
@@ -473,11 +553,48 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
   log(exitCode === 0 ? `All ${results.length} checks passed`
     : exitCode === 2 ? 'STOPPED before writing anything'
     : `${failed} check(s) FAILED`);
+  if (leftovers.length) log(`Test rows of this run left behind or unconfirmed (user_id|id), ${leftovers.length}:\n` + leftovers.join('\n'));
+  if (notRestored.length) log(`CSV rows NOT confirmed back (id|user_id), ${notRestored.length}:\n` + notRestored.join('\n')
+    + `\nSnapshot kept at ${snapshotFile}\nRepair: node db/staging/02-staging-checks.cjs --put-back "${snapshotFile}"`);
   log('Kept on purpose: the two test auth users and their account_links (reused by the next run).');
-  return { results, exitCode };
+  return { results, exitCode, leftovers, notRestored, snapshotFile };
 }
 
-module.exports = { run, parseCsv, parseBackup, normTimestamp, sameAsBackup, makeReport, ALLOWED_TEST_REF };
+// Repairs a failed restore rehearsal from the snapshot file it kept: writes the
+// rows back into the test project and reads each one again.
+async function putBackFromFile({ env, fileText, fetch: fetchImpl = globalThis.fetch, log = console.log, retryDelayMs = 1000 }) {
+  const SB = checkSupabaseUrl(env.SUPABASE_URL);
+  const c = jwtClaims(env.SUPABASE_SERVICE_ROLE_KEY);
+  if (!c || c.ref !== ALLOWED_TEST_REF || c.role !== 'service_role') throw new Stop('SUPABASE_SERVICE_ROLE_KEY is not the service_role key of the allowed test project');
+  let rows;
+  try { rows = JSON.parse(fileText); } catch (e) { throw new Stop('snapshot file is not JSON'); }
+  if (!Array.isArray(rows) || !rows.length || !rows.every(r => r && isValidTradeId(r.id) && Number.isSafeInteger(r.user_id))) throw new Stop('snapshot file does not hold trade rows');
+  const h = { 'Content-Type': 'application/json', apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY };
+  const req = async (method, p, body, prefer) => {
+    const r = await fetchImpl(`${SB}/rest/v1/${p}`, { method, headers: { ...h, ...(prefer ? { Prefer: prefer } : {}) }, body: body ? JSON.stringify(body) : undefined, redirect: 'error', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    const t = await r.text();
+    return { status: r.status, body: t ? JSON.parse(t) : null };
+  };
+  let pending = rows;
+  for (let attempt = 1; attempt <= PUT_BACK_ATTEMPTS && pending.length; attempt++) {
+    if (attempt > 1) await sleep(retryDelayMs * (attempt - 1));
+    try { await req('POST', 'trades?on_conflict=id,user_id', pending, 'resolution=merge-duplicates,return=minimal'); } catch (e) { /* the read below decides */ }
+    const still = [];
+    for (const r of pending) {
+      try {
+        const g = await req('GET', `trades?id=eq.${encodeURIComponent(r.id)}&user_id=eq.${r.user_id}&select=*`);
+        if (g.status === 200 && Array.isArray(g.body) && canon(g.body[0]) === canon(r)) continue;
+      } catch (e) { /* stays pending */ }
+      still.push(r);
+    }
+    pending = still;
+  }
+  const notBack = pending.map(r => `${r.id}|${r.user_id}`);
+  log(notBack.length ? `NOT confirmed back, ${notBack.length}:\n${notBack.join('\n')}` : `All ${rows.length} rows confirmed back; the snapshot file can be removed.`);
+  return { notBack };
+}
+
+module.exports = { run, putBackFromFile, settleAll, parseCsv, parseBackup, normTimestamp, sameAsBackup, makeReport, ALLOWED_TEST_REF };
 
 if (require.main === module) {
   const env = {};
@@ -485,11 +602,17 @@ if (require.main === module) {
   for (const line of fs.readFileSync(envFile, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/); if (m) env[m[1]] = m[2].trim();
   }
-  const csvPath = process.argv[3] || null;
-  run({
-    env,
-    server: process.argv[2] || 'http://127.0.0.1:3010',
-    csvText: csvPath ? fs.readFileSync(csvPath, 'utf8') : null,
-    log: x => (Array.isArray(x) ? console.table(x) : console.log(x)),
-  }).then(r => process.exit(r.exitCode), e => { console.error('ERROR', e.message); process.exit(1); });
+  const log = x => (Array.isArray(x) ? console.table(x) : console.log(x));
+  if (process.argv[2] === '--put-back') {
+    putBackFromFile({ env, fileText: fs.readFileSync(process.argv[3], 'utf8'), log })
+      .then(r => process.exit(r.notBack.length ? 1 : 0), e => { console.error(e instanceof Stop ? 'STOP: ' + e.message : 'ERROR ' + e.message); process.exit(e instanceof Stop ? 2 : 1); });
+  } else {
+    const csvPath = process.argv[3] || null;
+    run({
+      env,
+      server: process.argv[2] || 'http://127.0.0.1:3010',
+      csvText: csvPath ? fs.readFileSync(csvPath, 'utf8') : null,
+      log,
+    }).then(r => process.exit(r.exitCode), e => { console.error('ERROR', e.message); process.exit(1); });
+  }
 }

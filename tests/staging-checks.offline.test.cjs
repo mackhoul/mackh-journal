@@ -158,7 +158,17 @@ function world(faults = {}) {
   return { fetch, calls, store, initial, snapshot, resp, U };
 }
 
-const go = (w, over = {}) => S.run({ env: { ...baseEnv(), ...(over.env || {}) }, server: over.server || SRV, csvText: 'csv' in over ? over.csv : CSV, fetch: w.fetch, log: () => {} });
+// The restore snapshot is kept in memory here instead of a temp file
+const memSnapshots = () => {
+  const saved = new Map(); let n = 0;
+  return { saved, save: rows => { const f = 'mem-' + (++n); saved.set(f, JSON.parse(JSON.stringify(rows))); return f; }, discard: f => { saved.delete(f); } };
+};
+const go = (w, over = {}) => S.run({
+  env: { ...baseEnv(), ...(over.env || {}) }, server: over.server || SRV, csvText: 'csv' in over ? over.csv : CSV,
+  fetch: over.fetch || w.fetch, snapshots: over.snapshots || memSnapshots(), retryDelayMs: 5, log: () => {},
+});
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+const runRowsLeft = w => [...w.store.values()].filter(r => r.user_id === w.U.A || r.user_id === w.U.B).map(r => `${r.user_id}|${r.id}`).sort();
 const failed = r => r.results.filter(x => x.result === 'FAIL').map(x => x.check);
 const results = [];
 const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PASS' : 'FAIL', detail: ok || detail === undefined ? '' : String(JSON.stringify(detail)).slice(0, 400) });
@@ -304,6 +314,90 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
   w = world();
   r = await S.run({ env: baseEnv(), server: SRV, csvText: null, fetch: async (url, init) => { const res = await w.fetch(url, init); if (url.includes('account_links')) throw new TypeError('fetch failed'); return res; }, log: () => {} });
   check('abort after sign-in still runs cleanup and exits 1', r.exitCode === 1 && r.results.some(x => x.check === 'run aborted'), r.results);
+
+  // ── 0c72f26 review, finding 1: a failed read after the delete never skips the put-back ──
+  const isInsert = (m, u, role) => m === 'POST' && role === 'service' && !u.searchParams.has('on_conflict');
+  const isPutBack = (m, u, role) => m === 'POST' && role === 'service' && u.searchParams.has('on_conflict');
+  let insertFailed = false, readFails = 0, putBackFails = 0;
+  const snaps = memSnapshots();
+  w = world({ trades: (m, u, role) => {
+    if (isInsert(m, u, role) && u.searchParams.size === 0 && !insertFailed) { insertFailed = true; return w.resp(500, { message: 'insert failed' }); }
+    if (insertFailed && m === 'GET' && role === 'service' && readFails < 1) { readFails++; return w.resp(503, { message: 'read failed' }); }
+    if (isPutBack(m, u, role) && putBackFails < 1) { putBackFails++; return Promise.reject(new TypeError('fetch failed')); }
+    return null;
+  } });
+  r = await go(w, { snapshots: snaps });
+  let restoreRow = r.results.find(x => /restored identically/.test(x.check));
+  check('INSERT 500 → read 503 → put-back network error → retry: originals back, nothing lost', w.snapshot() === w.initial && readFails === 1 && putBackFails === 1 && r.results.some(x => /put back/.test(x.check) && x.result === 'PASS'), r.results.filter(x => /restore/.test(x.check)));
+  check('…report keeps the insert failure and the read failure apart', restoreRow?.result === 'FAIL' && /insert answered HTTP 500/.test(restoreRow.detail) && /verifyError/.test(restoreRow.detail) && /503/.test(restoreRow.detail), restoreRow);
+  check('…the snapshot is discarded once the rows are confirmed back', snaps.saved.size === 0 && r.snapshotFile === null && r.notRestored.length === 0);
+
+  let othersReads = 0;
+  w = world({ trades: (m, u, role) => (m === 'GET' && role === 'service' && /user_id=in\./.test(decodeURIComponent(u.search)) && ++othersReads === 2 ? Promise.reject(new TypeError('fetch failed')) : null) });
+  r = await go(w);
+  check('network error while comparing the other rows after the delete → still put back', othersReads >= 2 && w.snapshot() === w.initial && r.results.some(x => /put back/.test(x.check) && x.result === 'PASS') && failed(r).some(x => /untouched/.test(x)), failed(r));
+
+  // the put-back keeps failing → FAIL, every pair listed, snapshot kept; --put-back repairs from it
+  const snaps2 = memSnapshots();
+  const faults2 = { blockPutBack: true };
+  faults2.trades = (m, u, role) => (isInsert(m, u, role) && u.searchParams.size === 0 ? w.resp(500, {}) : isPutBack(m, u, role) && faults2.blockPutBack ? w.resp(503, {}) : null);
+  w = world(faults2);
+  r = await go(w, { snapshots: snaps2 });
+  const putRow = r.results.find(x => /put back/.test(x.check));
+  check('put-back impossible → FAIL, all 4 pairs listed as not back, snapshot kept', putRow?.result === 'FAIL' && r.notRestored.length === 4 && r.notRestored.every(x => /\(not back\)$/.test(x)) && snaps2.saved.size === 1 && r.snapshotFile && /snapshot_file/.test(putRow.detail), { putRow, notRestored: r.notRestored });
+  faults2.blockPutBack = false;
+  const pb = await S.putBackFromFile({ env: baseEnv(), fileText: JSON.stringify(snaps2.saved.get(r.snapshotFile)), fetch: w.fetch, log: () => {}, retryDelayMs: 5 });
+  check('--put-back from the kept snapshot restores the rows exactly', pb.notBack.length === 0 && w.snapshot() === w.initial, pb);
+  let refused = null;
+  try { await S.putBackFromFile({ env: { ...baseEnv(), SUPABASE_URL: 'https://unapprovedref.supabase.co' }, fileText: '[]', fetch: w.fetch, log: () => {} }); } catch (e) { refused = e.message; }
+  check('--put-back refuses another project', /allowed test project/.test(refused || ''), refused);
+
+  // ── finding 2: a failed request in a parallel group does not leave others writing after cleanup ──
+  let lateDone = false, settledAfter = null;
+  try { await S.settleAll([Promise.reject(new Error('first fails')), sleep(80).then(() => { lateDone = true; })]); } catch (e) { settledAfter = lateDone; }
+  check('settleAll reports the first error only after every operation of the group finished', settledAfter === true);
+  let thrown = false;
+  w = world();
+  r = await go(w, { csv: null, fetch: async (url, init) => {
+    const body = init.body && init.method === 'POST' && url === SRV + '/trades' ? JSON.parse(init.body) : null;
+    if (body && /^p\d$/.test(body.pnl)) {
+      if (!thrown && body.pnl === 'p3') { thrown = true; throw new TypeError('fetch failed'); }
+      await sleep(150);                       // still in flight when a plain Promise.all would have given up
+    }
+    return w.fetch(url, init);
+  } });
+  const leftAtReturn = runRowsLeft(w);
+  await sleep(500);
+  check('one request of a parallel group fails → section FAIL, and no row of this run exists after every request finished', thrown && failed(r).includes('concurrency: ran to the end') && leftAtReturn.length === 0 && runRowsLeft(w).length === 0 && r.results.some(x => /^cleanup/.test(x.check) && x.result === 'PASS'), { leftAtReturn, later: runRowsLeft(w), failed: failed(r) });
+
+  // ── finding 3: network errors in one cleanup group do not stop the others; the full list is kept ──
+  let delThrown = false;
+  w = world();
+  const delA = u => decodeURIComponent(u).includes(`user_id=eq.${w.U.A}`) && decodeURIComponent(u).includes('id=in.');
+  r = await go(w, { csv: null, fetch: async (url, init) => {
+    if (init.method === 'DELETE' && url.startsWith(SB) && delA(url) && !delThrown) { delThrown = true; throw new TypeError('fetch failed'); }
+    return w.fetch(url, init);
+  } });
+  const leftA = runRowsLeft(w);
+  // A has two groups (25 + the rest); only rows of the first group may remain, B's group is gone
+  check('DELETE of the first group throws → other groups still cleaned', delThrown && leftA.length > 15 && leftA.length <= 25 && leftA.every(k => k.startsWith(w.U.A + '|')), leftA);
+  check('…every row left behind is listed in full (not cut), exactly matching the database', JSON.stringify([...r.leftovers].sort()) === JSON.stringify(leftA) && r.exitCode === 1, { listed: r.leftovers.length, left: leftA.length });
+
+  w = world();
+  r = await go(w, { csv: null, fetch: async (url, init) => {
+    const s = decodeURIComponent(url);
+    if (init.method === 'GET' && s.includes(`user_id=eq.${w.U.B}`) && s.includes('id=in.')) throw new TypeError('fetch failed');
+    return w.fetch(url, init);
+  } });
+  check('read-back of a group throws → that group listed as unconfirmed, others confirmed', runRowsLeft(w).length === 0 && r.leftovers.length > 0 && r.leftovers.every(k => k.startsWith(w.U.B + '|') && /\(unconfirmed\)$/.test(k)) && r.results.find(x => /^cleanup/.test(x.check)).result === 'FAIL', r.leftovers);
+
+  w = world();
+  r = await go(w, { csv: null, fetch: async (url, init) => {
+    if (url.startsWith(SB) && (init.method === 'DELETE' || init.method === 'GET') && decodeURIComponent(url).includes('id=in.')) throw new TypeError('fetch failed');
+    return w.fetch(url, init);
+  } });
+  const all = runRowsLeft(w);
+  check('every cleanup request throws → every remaining run row listed as unconfirmed, nothing silently dropped', all.length > 30 && all.every(k => r.leftovers.includes(k + ' (unconfirmed)')) && r.leftovers.every(k => /\(unconfirmed\)$/.test(k)), { listed: r.leftovers.length, left: all.length });
 
   console.table(results);
   const bad = results.filter(x => x.result === 'FAIL').length;
