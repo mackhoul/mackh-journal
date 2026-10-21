@@ -30,10 +30,12 @@
     M.log.push({ user, method, path: u.pathname, id: body?.id || decodeURIComponent(u.pathname.split('/')[2] || '') || null, pnl: body?.pnl, img_url: body?.img_url, hasImg: !!body?.img, qv: body?.__qv });
     if (M.failPnl && body && body.pnl === M.failPnl) throw new TypeError('Failed to fetch');
     const D = (M.deleted[user] ||= new Set());
+    const G = (M.gens[user] ||= {});
+    const undoOk = b => Number.isInteger(b.__restore) && b.__restore === G[b.id];
     if (M.lateWrite && method === 'POST' && u.pathname === '/trades' && user) {
       // the client gives up (timeout), but the server finishes the write later
       setTimeout(() => {
-        if (M.guard && D.has(body.id) && body.__restore !== true) { M.order.push(user + ' POST(late,ignored) ' + body.id); return; }
+        if (M.guard && D.has(body.id) && !undoOk(body)) { M.order.push(user + ' POST(late,ignored) ' + body.id); return; }
         const S = (M.srv[user] ||= {}); const t = { ...body }; delete t.img; delete t.__restore; S[t.id] = t; M.order.push(user + ' POST(late) ' + t.id);
       }, M.lateWrite);
       throw new TypeError('timeout');
@@ -46,8 +48,8 @@
     const S = (M.srv[user] ||= {});
     if (u.pathname === '/trades' && method === 'GET') return json(Object.values(S).map(x => JSON.parse(JSON.stringify(x))));
     if (u.pathname === '/trades' && method === 'POST') {
-      if (M.guard && D.has(body.id) && body.__restore !== true) { M.order.push(user + ' POST(ignored) ' + body.id); return json({ ok: true, skipped: 'deleted' }); }
-      if (M.guard && body.__restore === true) D.delete(body.id);
+      if (M.guard && D.has(body.id) && !undoOk(body)) { M.order.push(user + ' POST(ignored) ' + body.id); return json({ ok: true, skipped: 'deleted' }); }
+      if (M.guard && D.has(body.id)) { D.delete(body.id); M.order.push(user + ' RESTORE ' + body.id + ' gen=' + body.__restore); }
       const t = { ...body }; delete t.__restore; let img = t.img_url || null;
       if (t.img && String(t.img).startsWith('data:')) { img = 'https://img.test/' + t.id + '-' + M.order.length + '.jpg'; }
       delete t.img; if (img) t.img_url = img; else delete t.img_url;
@@ -57,7 +59,9 @@
     if (u.pathname.startsWith('/trades/') && method === 'DELETE') {
       const id = decodeURIComponent(u.pathname.split('/')[2]);
       if (!M.guard && !/^\d+$/.test(id) && !M.allowAnyId) return json({ error: 'Invalid trade id' }, 400);   // what the server did before the fix
-      delete S[id]; if (M.guard) D.add(id); M.order.push(user + ' DELETE ' + id); return json({ ok: true });
+      delete S[id]; M.order.push(user + ' DELETE ' + id);
+      if (M.guard) { D.add(id); G[id] = (G[id] || 0) + 1; return json({ ok: true, deletion: G[id] }); }
+      return json({ ok: true });
     }
     if (u.pathname === '/settings') return json({ base_capital: 0, goals: [] });
     if (u.pathname === '/billing/status') return json({ billing_enabled: false });
@@ -70,7 +74,7 @@
   const tombs = () => typeof getTombs === 'function' ? getTombs() : [];
   const login = async (who = 'A') => { saveWebSession({ access_token: TOK[who], refresh_token: 'r' + who, email: who.toLowerCase() + '@test' }); document.getElementById('authGate').classList.remove('show'); await startApp(); };
   const reload = async (who = 'A') => { clearTimeout(undoTimer); clearTimeout(syncPendingQueue._retryTimer); undoTrade = null; setDataOwner(null); await login(who); };
-  const fresh = (srvA = {}, srvB = {}) => { localStorage.clear(); Object.assign(M, { srv: { A: JSON.parse(JSON.stringify(srvA)), B: JSON.parse(JSON.stringify(srvB)) }, log: [], order: [], delay: {}, down: false, failPnl: null, allowAnyId: false, lateWrite: 0, snapshotGet: false, guard: false, deleted: {} }); };
+  const fresh = (srvA = {}, srvB = {}) => { localStorage.clear(); Object.assign(M, { srv: { A: JSON.parse(JSON.stringify(srvA)), B: JSON.parse(JSON.stringify(srvB)) }, log: [], order: [], delay: {}, down: false, failPnl: null, allowAnyId: false, lateWrite: 0, snapshotGet: false, guard: false, deleted: {}, gens: {} }); };
   const T1 = (id, extra = {}) => ({ id, pair: 'EURUSD', market: 'forex', result: 'win', pnl: '10', date: '2026-10-20', notes: 'n', ...extra });
   const ids = () => trades.map(t => t.id).sort();
   const cacheIds = () => lsJSON('trades_v3', []).map(t => t.id).sort();
@@ -317,6 +321,28 @@
   check('guard: delete sent after the window', !srvA().includes('1027') && M.order.some(o => o === 'A DELETE 1027'));
   const n27b = T1('1028'); trades.push(n27b); await syncTrade(n27b); deleteTrade('1028'); await sleep(200); undoDelete(); await sleep(5500); await syncPendingQueue();
   check('guard: undo inside the window keeps the trade', srvA().includes('1028') && ids().includes('1028'));
+
+  // 29. (review 2) an old undo cannot lift a newer deletion
+  fresh({ '1031': T1('1031') }); M.guard = true; await login();
+  const t31 = trades.find(t => t.id === '1031');
+  await deleteTradeSync('1031');                                   // deletion no. 1 delivered from here
+  M.gens.A['1031'] = 2;                                             // meanwhile another device deleted it again (no. 2)
+  undoTrade = t31; undoCtx = { owner: dataOwner, epoch: ownerEpoch };
+  undoDelete(); await sleep(300); await syncPendingQueue();
+  check('guard: old undo (no. 1) does not lift deletion no. 2', !srvA().includes('1031') && !ids().includes('1031') && M.order.some(o => o.includes('POST(ignored) 1031')), M.order);
+
+  // 30. (review 3) an older save's "deleted" answer must not wipe a newer undo from the queue
+  fresh({ '1030': T1('1030') }); M.guard = true; await login();
+  const t30 = trades.find(t => t.id === '1030');
+  await deleteTradeSync('1030');                                   // no. 1 delivered from here
+  lsSet('pending_trades_v3', JSON.stringify([T1('1030', { pnl: 'old' })]), 'web:uid-A');   // an older save still queued
+  M.delay = { 'POST /trades': 600 };
+  const run30 = syncPendingQueue(); await sleep(100);              // the older save is in flight
+  undoTrade = t30; undoCtx = { owner: dataOwner, epoch: ownerEpoch };
+  undoDelete();                                                     // queues the undo of no. 1
+  await run30; M.delay = {}; await sleep(300); await syncPendingQueue();
+  check('guard: newer undo survives the older save\'s answer and is delivered',
+    srvA().includes('1030') && M.srv.A['1030']?.pnl === '10' && ids().includes('1030') && !queue().length && M.order.some(o => o.startsWith('A RESTORE 1030')), { order: M.order, srv: M.srv.A['1030'], q: queue() });
 
   // 28. account isolation with the guard: A's deletion does not affect B's trade with the same id
   fresh({ '1029': T1('1029') }, { '1029': T1('1029', { pair: 'B_OWN' }) }); M.guard = true; await login('A');

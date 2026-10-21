@@ -2834,9 +2834,11 @@ function addToPendingQueue(trade, owner=dataOwner, opts={}){
     // a server answer removes only the version it was sent for.
     const {__restore: _ignored, ...clean} = trade;
     const entry = {...clean, __qv: Date.now().toString(36)+Math.random().toString(36).slice(2,8)};
-    // __restore (explicit "Undo" of a deletion) is sent to the server and kept
-    // when a later edit replaces the queued version before it was delivered
-    if(opts.restore || (idx>=0 && q[idx].__restore===true)) entry.__restore = true;
+    // __restore = number of the delivered deletion this "Undo" lifts. It is sent
+    // to the server and kept when a later edit replaces the queued version.
+    const keep = idx>=0 && Number.isSafeInteger(q[idx].__restore) ? q[idx].__restore : null;
+    const gen = Number.isSafeInteger(opts.restoreGen) ? opts.restoreGen : keep;
+    if(gen) entry.__restore = gen;
     // Always replace if already queued (covers re-edit of a pending trade)
     if(idx>=0) q[idx] = entry;
     else q.push(entry);
@@ -2987,7 +2989,8 @@ async function syncPass(run){
     const res = await api('DELETE', `/trades/${encodeURIComponent(tomb.id)}`);
     const st = api._lastStatus; run.lastStatus = st;
     if(res){
-      updateTomb(owner, tomb.id, {done:true, doneAt:Date.now(), rejected:false});
+      updateTomb(owner, tomb.id, {done:true, doneAt:Date.now(), rejected:false,
+                                  ...(Number.isSafeInteger(res.deletion) ? {gen:res.deletion} : {})});
       if(isCurrentOwner(owner, epoch) && _serverIds) _serverIds.delete(tomb.id);
       delivered++;
       console.log(`[SYNC] ✓ Deletion of ${tomb.id} confirmed`);
@@ -3016,9 +3019,13 @@ async function syncPass(run){
       const result = await api('POST', '/trades', payload);
       const st = api._lastStatus; run.lastStatus = st;
       if(result && result.skipped==='deleted'){
-        // Deleted on the server (this or another device): the deletion wins
-        applyServerDeleted(owner, id, isCurrentOwner(owner, epoch));
+        // The server refused this version because the trade is deleted there.
+        // Drop only the version that was sent: a newer queued save (e.g. an
+        // explicit undo) goes next and gets its own answer.
+        removeFromPendingQueue(id, owner, entry.__qv===undefined ? null : entry.__qv);
         delivered++;
+        if(getQueue(owner).some(q=>q.id===id)){ run.again = true; continue; }
+        applyServerDeleted(owner, id, isCurrentOwner(owner, epoch));
         if(!isCurrentOwner(owner, epoch)) return;
         continue;
       }
@@ -3469,7 +3476,7 @@ async function syncTrade(trade, opts={}){
   //    if the app closes or the server is down.
   noteLocalChange(trade.id);
   safeLocalStorageSet('trades_v3', trades, owner);
-  addToPendingQueue(trade, owner, {restore: !!opts.restore});
+  addToPendingQueue(trade, owner, {restoreGen: opts.restoreGen});
   setSyncStatus('pending');
   console.log(`[SYNC] Saving trade ${trade.id} (${trade.pair||trade.asset||'?'})...`);
   // 2. The single runner delivers it after anything queued earlier
@@ -5887,10 +5894,13 @@ function undoDelete(){
     return;
   }
   undoCtx=null;
+  // If this device's deletion already reached the server, the undo names that
+  // deletion's number; a newer deletion (another device, later) is not lifted.
+  const tomb = getTombs().find(x=>x.id===undoTrade.id);
+  const restoreGen = tomb && tomb.done && Number.isSafeInteger(tomb.gen) ? tomb.gen : undefined;
   unmarkTradeDeleted(undoTrade.id);
   trades.push(undoTrade);
-  // Explicit undo: if the deletion already reached the server, this save lifts it
-  syncTrade(undoTrade, {restore:true});
+  syncTrade(undoTrade, {restoreGen});
   undoTrade=null;
   clearTimeout(undoTimer);
   document.getElementById('toast').classList.remove('show');
