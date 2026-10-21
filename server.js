@@ -469,11 +469,23 @@ app.get('/trades', auth, async (req, res) => {
   }
 });
 
+// One id rule for saving and deleting, so anything that can be saved can also
+// be deleted. The app creates numeric ids; imported or older trades may carry
+// other text (for example "import.42" or "broker:123"). Any 1–128 characters
+// without control characters are accepted; the DELETE query encodes the id, so
+// characters like & or = cannot add filters to the Supabase request.
+function isValidTradeId(id) {
+  if (typeof id !== 'string' && typeof id !== 'number') return false;
+  const s = String(id);
+  return s.length >= 1 && s.length <= 128 && !/[\u0000-\u001f\u007f]/.test(s);
+}
+
 // POST /trades — create or update a trade (upsert by id + user_id)
 app.post('/trades', auth, async (req, res) => {
   try {
     const trade = { ...req.body };
     if (!trade.id) return res.status(400).json({ error: 'Missing trade id' });
+    if (!isValidTradeId(trade.id)) return res.status(400).json({ error: 'Invalid trade id' });
 
     let imgUrl    = trade.img_url || null;
     let imgFailed = false;
@@ -508,13 +520,10 @@ app.post('/trades', auth, async (req, res) => {
 
 // DELETE /trades/:id — delete a trade
 app.delete('/trades/:id', auth, async (req, res) => {
-  // Validate id. The app creates numeric ids (Date.now() + random digits), but
-  // imported or older trades can carry other ids; allow letters, digits, - and _
-  // so every stored trade can be deleted. The charset keeps the id safe to
-  // place into the Supabase query string below.
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(req.params.id)) return res.status(400).json({ error: 'Invalid trade id' });
+  // Same id rule as POST /trades; the id is URL-encoded inside the query below
+  if (!isValidTradeId(req.params.id)) return res.status(400).json({ error: 'Invalid trade id' });
   try {
-    await supabase('DELETE', `trades?id=eq.${req.params.id}&user_id=eq.${req.userId}`);
+    await supabase('DELETE', `trades?id=eq.${encodeURIComponent(req.params.id)}&user_id=eq.${req.userId}`);
     console.log(`[API] DELETE /trades/${req.params.id} for user ${req.userId}`);
     res.json({ ok: true });
   } catch (e) {
