@@ -1343,6 +1343,8 @@ body.light .now-tile.limit-hit{background:#FF6B6B;color:#1A0606}
 .legacy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .legacy-actions button{padding:9px 14px;border-radius:999px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border-strong);background:transparent;color:var(--text)}
 .legacy-actions .lg-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.legacy-damaged{margin-top:8px;font-size:13px!important;color:var(--warning)!important}
+.legacy-notice>.legacy-damaged:first-child{margin-top:0}
 @media(min-width:1024px){.legacy-notice{margin:12px 0 0;max-width:760px}}
 @media(prefers-reduced-motion:reduce){.ss-now::after{animation:none;opacity:0}}
 </style>
@@ -2481,6 +2483,34 @@ function saveWebSession(s){
   try{ s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); }
   catch(e){}
 }
+// null = no stored session; undefined = storage could not be read
+function readStoredSession(){
+  let raw;
+  try{ raw = localStorage.getItem(SESSION_KEY); }catch(e){ return undefined; }
+  if(raw===null) return null;
+  try{ return JSON.parse(raw); }catch(e){ return null; }
+}
+
+// Tabs of one browser share the stored web session. When another tab signs
+// in to a different account or signs out, this tab stops working for its old
+// account (nothing more is read, sent or saved) and asks for a reload instead
+// of silently becoming the other account. A token refreshed by another tab
+// for the same account is simply picked up.
+window.addEventListener('storage', e=>{
+  if(IN_TELEGRAM || e.key!==SESSION_KEY || !webSession) return;
+  const stored = readStoredSession();
+  const mine = ownerFromIdentity(false, null, webSession);
+  if(stored && ownerFromIdentity(false, null, stored)===mine){ webSession = stored; return; }
+  webSession = null;
+  setDataOwner(null);
+  const gate = document.getElementById('authGate');
+  if(gate){
+    gate.classList.add('show');
+    showAuthMsg(lang==='ru'
+      ? (stored ? 'В другой вкладке выполнен вход в другой аккаунт. Обновите страницу, чтобы продолжить.' : 'В другой вкладке выполнен выход. Войдите снова.')
+      : (stored ? 'Another tab signed in to a different account. Reload the page to continue.' : 'You signed out in another tab. Sign in again.'), 'err');
+  }
+});
 
 async function fetchSupaConfig(){
   if(supaConfig) return supaConfig;
@@ -2599,6 +2629,9 @@ async function refreshWebSession(sess=webSession){
       const uid = data.user?.id || jwtSub(data.access_token);
       const prev = sess.uid || jwtSub(sess.access_token);
       if(prev && uid && uid!==prev) return false;
+      // Another tab signed out or signed in elsewhere meanwhile: do not write this account back
+      const stored = readStoredSession();
+      if(stored!==undefined && (!stored || ownerFromIdentity(false, null, stored)!==ownerFromIdentity(false, null, sess))) return 'stale';
       saveWebSession({
         access_token:  data.access_token,
         refresh_token: data.refresh_token || sess.refresh_token,
@@ -2737,6 +2770,8 @@ function setDataOwner(owner){
   ownerEpoch++;
   clearTimeout(syncPendingQueue._retryTimer);
   trades = []; baseCapital = 0; goals = []; ideas = [];
+  subState = null;
+  if(typeof document!=='undefined' && document.getElementById('subGroup')) renderSubscription();
   resetFormsForAccountSwitch();
   return true;
 }
@@ -2897,16 +2932,38 @@ const LEGACY_CLAIM_KEY = 'mj:legacy_claim';
 let _legacyConfirm = false;
 
 function legacyClaim(){
-  try{ return JSON.parse(localStorage.getItem(LEGACY_CLAIM_KEY)||'null') || {pending:[], ideas:[], draft:false, by:[]}; }
-  catch(e){ return {pending:[], ideas:[], draft:false, by:[]}; }
+  let c = null;
+  try{ c = JSON.parse(localStorage.getItem(LEGACY_CLAIM_KEY)||'null'); }catch(e){ c = null; }
+  if(!c || typeof c!=='object' || Array.isArray(c)) c = {};
+  return {
+    pending: Array.isArray(c.pending) ? c.pending : [],
+    ideas:   Array.isArray(c.ideas)   ? c.ideas   : [],
+    draft:   c.draft===true,
+    by:      Array.isArray(c.by)      ? c.by      : [],
+  };
 }
+// Old keys are only read, never rewritten. A value of the wrong shape is
+// reported as damaged and left exactly as it is.
 function legacyUnclaimed(){
-  const read = k=>{ try{ const v = JSON.parse(localStorage.getItem(k)||'null'); return v; }catch(e){ return null; } };
+  const damaged = [];
+  const readList = k=>{
+    const raw = localStorage.getItem(k); if(raw===null) return [];
+    let v; try{ v = JSON.parse(raw); }catch(e){ damaged.push(k); return []; }
+    if(!Array.isArray(v)){ damaged.push(k); return []; }
+    return v;
+  };
   const claim = legacyClaim();
-  const pend  = (read(PENDING_KEY)||[]).filter(t=>t && t.id && !claim.pending.includes(t.id));
-  const ids   = (read(IDEAS_KEY)||[]).filter(x=>x && x.id && !claim.ideas.includes(x.id));
-  const draft = !claim.draft ? read(IDEA_DRAFT_KEY) : null;
-  return {pending:pend, ideas:ids, draft};
+  const pend  = readList(PENDING_KEY).filter(t=>t && typeof t==='object' && t.id && !claim.pending.includes(t.id));
+  const ids   = readList(IDEAS_KEY).filter(x=>x && typeof x==='object' && x.id && !claim.ideas.includes(x.id));
+  let draft = null;
+  if(!claim.draft){
+    const raw = localStorage.getItem(IDEA_DRAFT_KEY);
+    if(raw!==null){
+      try{ const d = JSON.parse(raw); if(d && typeof d==='object' && !Array.isArray(d)) draft = d; else damaged.push(IDEA_DRAFT_KEY); }
+      catch(e){ damaged.push(IDEA_DRAFT_KEY); }
+    }
+  }
+  return {pending:pend, ideas:ids, draft, damaged};
 }
 function accountLabel(){
   if(IN_TELEGRAM){
@@ -2920,7 +2977,16 @@ function renderLegacyNotice(){
   const ru = lang==='ru';
   const L = legacyUnclaimed();
   const n = L.pending.length, m = L.ideas.length, hasDraft = !!L.draft;
-  if(!dataOwner || (!n && !m && !hasDraft) || lsGet('legacy_notice_hidden')){ el.hidden = true; el.innerHTML=''; _legacyConfirm=false; return; }
+  if(L.damaged.length) console.warn('[LEGACY] Old data with an unexpected format left untouched:', L.damaged);
+  const damagedNote = L.damaged.length
+    ? `<p class="legacy-damaged">${ru ? 'Часть старых данных повреждена и не может быть перенесена. Она остаётся на устройстве без изменений.' : 'Some old data is damaged and cannot be moved. It stays on this device unchanged.'}</p>` : '';
+  if(!dataOwner || lsGet('legacy_notice_hidden')){ el.hidden = true; el.innerHTML=''; _legacyConfirm=false; return; }
+  if(!n && !m && !hasDraft){
+    if(!L.damaged.length){ el.hidden = true; el.innerHTML=''; _legacyConfirm=false; return; }
+    el.hidden = false;
+    el.innerHTML = damagedNote + `<div class="legacy-actions"><button type="button" onclick="hideLegacyNotice()">${ru?'Понятно, скрыть':'Got it, hide'}</button></div>`;
+    return;
+  }
   // The account already has its own idea draft: the old one is never merged
   // silently — only an explicit "replace" moves it.
   const draftConflict = hasDraft && !!lsGet(IDEA_DRAFT_KEY);
@@ -2945,7 +3011,7 @@ function renderLegacyNotice(){
     ? `<p>${ru ? `Перенести в аккаунт <b>${who}</b>: ${what}? Сделки будут отправлены на сервер под этим аккаунтом. Убедитесь, что это ваши записи.${draftNote}` : `Move into <b>${who}</b>: ${what}? The trades will be uploaded under this account. Make sure they are yours.${draftNote}`}</p>
        <div class="legacy-actions"><button type="button" class="lg-primary" onclick="adoptLegacyData()">${ru?'Да, перенести':'Yes, move them'}</button><button type="button" onclick="_legacyConfirm=false;renderLegacyNotice()">${ru?'Отмена':'Cancel'}</button></div>`
     : `<p>${ru ? `На этом устройстве остались данные из прошлой версии, не привязанные к аккаунту: <b>${what}</b>. Они не удалены и не добавлены ни в один аккаунт.` : `This device still has data from the previous version that is not tied to an account: <b>${what}</b>. Nothing was deleted or added to any account.`}</p>
-       <div class="legacy-actions"><button type="button" onclick="_legacyConfirm=true;renderLegacyNotice()">${ru?'Перенести в мой аккаунт':'Move into my account'}</button><button type="button" onclick="hideLegacyNotice()">${ru?'Не мои, скрыть':'Not mine, hide'}</button></div>`;
+       ${damagedNote}<div class="legacy-actions"><button type="button" onclick="_legacyConfirm=true;renderLegacyNotice()">${ru?'Перенести в мой аккаунт':'Move into my account'}</button><button type="button" onclick="hideLegacyNotice()">${ru?'Не мои, скрыть':'Not mine, hide'}</button></div>`;
 }
 function hideLegacyNotice(){
   try{ lsSet('legacy_notice_hidden', '1'); }catch(e){}
@@ -2962,10 +3028,14 @@ function adoptLegacyData(replaceDraft=false){
   const have = new Set(trades.map(t=>t.id));
   addQ.forEach(t=>{ if(!have.has(t.id)) trades.push(t); });
   safeLocalStorageSet('trades_v3', trades, owner);
-  // Ideas and the draft are device-only, so they are copied in as they are
+  // Ideas and the draft are device-only, so they are copied in as they are.
+  // The new list is written first; memory and the claim follow only if it fit.
   const ideaIds = new Set(ideas.map(x=>x.id));
-  L.ideas.forEach(x=>{ if(!ideaIds.has(x.id)) ideas.push(x); });
-  saveIdeasLocal();
+  const mergedIdeas = [...ideas, ...L.ideas.filter(x=>!ideaIds.has(x.id))];
+  let ideasMoved = false;
+  try{ ideasMoved = lsSet(IDEAS_KEY, JSON.stringify(mergedIdeas), owner); }catch(e){ ideasMoved = false; }
+  if(ideasMoved) ideas = mergedIdeas;
+  else if(L.ideas.length) toastWarn(lang==='ru'?'Идеи не поместились в память устройства и не перенесены':'Ideas did not fit in device storage and were not moved');
   let draftMoved = false;
   if(L.draft && (replaceDraft || !lsGet(IDEA_DRAFT_KEY, owner))){
     try{ draftMoved = lsSet(IDEA_DRAFT_KEY, JSON.stringify(L.draft), owner); }catch(e){ draftMoved = false; }
@@ -2973,9 +3043,9 @@ function adoptLegacyData(replaceDraft=false){
   // Record the claim; the old keys stay exactly as they were
   const claim = legacyClaim();
   claim.pending = [...new Set([...claim.pending, ...L.pending.map(t=>t.id)])];
-  claim.ideas   = [...new Set([...claim.ideas, ...L.ideas.map(x=>x.id)])];
+  if(ideasMoved) claim.ideas = [...new Set([...claim.ideas, ...L.ideas.map(x=>x.id)])];
   if(draftMoved) claim.draft = true;
-  claim.by = [...(claim.by||[]), {owner, at:new Date().toISOString(), trades:L.pending.length, ideas:L.ideas.length, draft:draftMoved}];
+  claim.by = [...(claim.by||[]), {owner, at:new Date().toISOString(), trades:L.pending.length, ideas:ideasMoved?L.ideas.length:0, draft:draftMoved}];
   try{ localStorage.setItem(LEGACY_CLAIM_KEY, JSON.stringify(claim)); }catch(e){}
   _legacyConfirm = false;
   renderHome(); renderTrades(); renderIdeas();
@@ -3046,7 +3116,12 @@ async function api(method, path, body, _retried, _ctx){
         const r = await refreshWebSession(ctx.session);
         if(!isCurrentOwner(ctx.owner, ctx.epoch)) return null;
         if(r===true) return api(method, path, body, true, {...ctx, session:webSession});
-        if(r==='stale' || webSession!==ctx.session) return null;      // leave a newer session alone
+        if(r==='stale') return null;
+        if(webSession && webSession!==ctx.session){
+          // Another call renewed the token meanwhile — use it instead of signing out
+          return ownerFromIdentity(false, null, webSession)===ctx.owner
+            ? api(method, path, body, true, {...ctx, session:webSession}) : null;
+        }
         saveWebSession(null);
         setDataOwner(null);
         document.getElementById('authGate')?.classList.add('show');
@@ -5888,9 +5963,12 @@ function compressImageDataURL(srcDataURL, maxDim, targetBytes, cb){
 }
 
 function processImgFile(file){
+  const owner=dataOwner, epoch=ownerEpoch;
   const reader=new FileReader();
   reader.onload=e=>{
+    if(!isCurrentOwner(owner, epoch)) return;
     compressImageDataURL(e.target.result, 1100, 130*1024, dataURL=>{
+      if(!isCurrentOwner(owner, epoch)) return;   // finished after an account switch
       currentImg=dataURL;
       document.getElementById('imgPreviewSrc').src=currentImg;
       document.getElementById('imgPreview').style.display='block';
@@ -6052,9 +6130,12 @@ function handleQImg(input){
 }
 
 function processQImgFile(file){
+  const owner=dataOwner, epoch=ownerEpoch;
   const reader=new FileReader();
   reader.onload=e=>{
+    if(!isCurrentOwner(owner, epoch)) return;
     compressImageDataURL(e.target.result, 1000, 90*1024, dataURL=>{
+      if(!isCurrentOwner(owner, epoch)) return;   // finished after an account switch
       qCurrentImg=dataURL;
       document.getElementById('qImgPreviewSrc').src=qCurrentImg;
       document.getElementById('qImgPreview').style.display='block';
@@ -6212,8 +6293,8 @@ function insertIdeaTag(tag, btn){
 }
 
 function saveIdeasLocal(){
-  try{ lsSet(IDEAS_KEY, JSON.stringify(ideas)); }
-  catch(e){ console.warn('[IDEAS] localStorage save failed:', e.message); }
+  try{ return lsSet(IDEAS_KEY, JSON.stringify(ideas)); }
+  catch(e){ console.warn('[IDEAS] localStorage save failed:', e.message); return false; }
 }
 
 async function loadIdeas(){
@@ -6348,11 +6429,13 @@ function ideaRRPreview(){
 
 function handleIdeaImg(input){ const f=input.files[0]; if(f) processIdeaImgFile(f); }
 function processIdeaImgFile(file){
-  const owner=ideaFormOwner;
+  const owner=ideaFormOwner, epoch=ownerEpoch;
   const reader=new FileReader();
   reader.onload=e=>{
+    if(!owner || !isCurrentOwner(owner, epoch)) return;
     compressImageDataURL(e.target.result, 1000, 90*1024, dataURL=>{
-      if(!owner || owner!==ideaFormOwner || owner!==dataOwner) return; // finished after an account switch
+      // finished after an account switch, or the form was reopened since
+      if(!owner || owner!==ideaFormOwner || !isCurrentOwner(owner, epoch)) return;
       ideaCurrentImg=dataURL;
       document.getElementById('iImgPreviewSrc').src=ideaCurrentImg;
       document.getElementById('iImgPreview').style.display='block';
@@ -6840,13 +6923,19 @@ function exportCSV(){
 
 function importJSON(input){
   const file=input.files[0]; if(!file) return;
+  const owner=dataOwner, epoch=ownerEpoch;
+  if(!owner){ toastWarn(lang==='ru'?'Сначала войдите в аккаунт':'Sign in first'); input.value=''; return; }
   const reader=new FileReader();
   reader.onload=e=>{
+    // The file was chosen for the account signed in at that moment
+    if(!isCurrentOwner(owner, epoch)){ toastWarn(lang==='ru'?'Аккаунт сменился — импорт отменён':'Account changed — import cancelled'); return; }
     try{
       const data=JSON.parse(e.target.result);
       if(data.trades&&Array.isArray(data.trades)){
         const count=data.trades.length;
-        if(!confirm((lang==='ru'?`Импортировать ${count} сделок? Текущие данные будут заменены.`:`Import ${count} trades? Current data will be replaced.`))) return;
+        const who=accountLabel();
+        if(!confirm((lang==='ru'?`Импортировать ${count} сделок в аккаунт ${who}? Текущие данные этого аккаунта на устройстве будут заменены.`:`Import ${count} trades into ${who}? This account's current data on this device will be replaced.`))) return;
+        if(!isCurrentOwner(owner, epoch)) return;
         trades=data.trades;
         if(data.baseCapital!==undefined) baseCapital=data.baseCapital;
         if(data.goals) goals=data.goals;
@@ -8554,7 +8643,10 @@ let subState = null; // { active, status, renews, billing_enabled }
 
 async function loadSubscription(){
   if(IN_TELEGRAM) return null;
-  subState = await api('GET','/billing/status');
+  const owner = dataOwner, epoch = ownerEpoch;
+  const res = await api('GET','/billing/status');
+  if(!isCurrentOwner(owner, epoch)) return null;   // answer for an account that is no longer signed in
+  subState = res;
   renderSubscription();
   return subState;
 }
@@ -8595,7 +8687,9 @@ async function onSubButton(){
   btn.disabled = true;
   btn.textContent = ru?'Секунду...':'One moment...';
 
+  const owner = dataOwner, epoch = ownerEpoch;
   const res = await api('POST', subState?.active ? '/billing/portal' : '/billing/checkout');
+  if(!isCurrentOwner(owner, epoch)) return;   // never open a payment page made for another account
   if(res?.url){
     window.location.href = res.url; // Stripe-hosted page
   } else {

@@ -15,9 +15,9 @@
  */
 (async () => {
   const b64u = o => btoa(JSON.stringify(o)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const TOK = { A: 'e30.' + b64u({ sub: 'uid-A' }) + '.x', B: 'e30.' + b64u({ sub: 'uid-B' }) + '.x' };
+  const TOK = { A: 'e30.' + b64u({ sub: 'uid-A' }) + '.x', B: 'e30.' + b64u({ sub: 'uid-B' }) + '.x', A2: 'e30.' + b64u({ sub: 'uid-A', v: 2 }) + '.y' };
   const M = { users: {}, log: [], delay: {}, down: {}, expired: null, refreshTo: null, imgUrl: null };
-  const userOf = a => a === 'Bearer ' + TOK.A ? 'A' : a === 'Bearer ' + TOK.B ? 'B' : null;
+  const userOf = a => a === 'Bearer ' + TOK.A || a === 'Bearer ' + TOK.A2 ? 'A' : a === 'Bearer ' + TOK.B ? 'B' : null;
   window.fetch = async (url, opt = {}) => {
     const u = new URL(url, location.href), H = opt.headers || {}, method = opt.method || 'GET';
     const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { 'Content-Type': 'application/json' } });
@@ -26,7 +26,13 @@
     if (u.host === 'mock.supabase.test') {
       const b = JSON.parse(opt.body || '{}');
       if (b.refresh_token) {
+        M.refreshCalls = (M.refreshCalls || 0) + 1;
         if (M.refreshDelay) await new Promise(r => setTimeout(r, M.refreshDelay));
+        if (M.rotate) {                       // one-time refresh tokens: a reused one is rejected
+          if (M.usedRefresh.includes(b.refresh_token)) return json({ error: 'refresh token already used' }, 400);
+          M.usedRefresh.push(b.refresh_token);
+          return json({ access_token: TOK.A2, refresh_token: 'rA2' });
+        }
         return M.refreshTo ? json({ access_token: TOK[M.refreshTo], refresh_token: 'r' + M.refreshTo }) : json({ error: 'bad' }, 400);
       }
       const who = (b.email || '').toLowerCase().startsWith('a') ? 'A' : 'B';
@@ -38,7 +44,7 @@
     M.log.push({ user, method, path: u.pathname, id: body?.id || (u.pathname.split('/')[2] || null) });
     if (M.delay[key]) await new Promise(r => setTimeout(r, M.delay[key]));
     // checked after the delay: a token can expire while a request is in flight
-    if (!user || M.expired === user) return json({ error: 'expired' }, 401);
+    if (!user || M.expired === user || (M.expiredToken && H['Authorization'] === 'Bearer ' + M.expiredToken)) return json({ error: 'expired' }, 401);
     if (M.down[user]) throw new TypeError('Failed to fetch');
     const U = (M.users[user] ||= { trades: {}, settings: { base_capital: 0, goals: [] } });
     if (u.pathname === '/trades' && method === 'GET') return json(Object.values(U.trades));
@@ -46,7 +52,8 @@
     if (u.pathname.startsWith('/trades/') && method === 'DELETE') { delete U.trades[u.pathname.split('/')[2]]; return json({ ok: true }); }
     if (u.pathname === '/settings' && method === 'GET') return json(U.settings);
     if (u.pathname === '/settings' && method === 'POST') { U.settings = body; return json({ ok: true }); }
-    if (u.pathname === '/billing/status') return json({ billing_enabled: false });
+    if (u.pathname === '/billing/status') return json(M.billing ? { billing_enabled: true, active: user === 'A', renews: user === 'A' ? '2026-12-01' : null } : { billing_enabled: false });
+    if (u.pathname === '/billing/checkout' || u.pathname === '/billing/portal') return json({ url: '#checkout-' + user });
     return json({ error: 'not found' }, 404);
   };
   // The page asks Render for /config on boot; pin the mock config so a late
@@ -54,7 +61,7 @@
   const MOCK_CFG = { web_auth_ready: true, supabase_url: 'https://mock.supabase.test', supabase_anon_key: 'x' };
   supaConfig = MOCK_CFG;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const reset = (users = {}) => { localStorage.clear(); Object.assign(M, { users, log: [], delay: {}, down: {}, expired: null, refreshTo: null, refreshDelay: 0, imgUrl: null }); supaConfig = MOCK_CFG; };
+  const reset = (users = {}) => { localStorage.clear(); Object.assign(M, { users, log: [], delay: {}, down: {}, expired: null, expiredToken: null, refreshTo: null, refreshDelay: 0, refreshCalls: 0, rotate: false, usedRefresh: [], billing: false, imgUrl: null }); supaConfig = MOCK_CFG; };
   const login = async who => { saveWebSession({ access_token: TOK[who], refresh_token: 'r' + who, email: who.toLowerCase() + '@test' }); document.getElementById('authGate').classList.remove('show'); await startApp(); };
   const posts = () => M.log.filter(x => x.method === 'POST').map(x => x.user + ':' + x.id);
   const notice = () => document.getElementById('legacyNotice');
@@ -186,6 +193,94 @@
   (btn('Заменить') || btn('Replace'))?.click(); (btn('Да') || btn('Yes'))?.click(); await sleep(100);
   const claim2 = JSON.parse(localStorage.getItem('mj:legacy_claim')) || {};
   check('review 4: replace copies, then marks it moved', claim2.draft === true && lsJSON('idea_draft_v1', null)?.pair === 'OLD_DRAFT' && localStorage.getItem('idea_draft_v1') !== null, claim2);
+
+  // 14. (extended 1) another tab changes the shared session
+  reset(); await login('A');
+  localStorage.setItem('web_session_v1', JSON.stringify({ access_token: TOK.A2, refresh_token: 'rA2', email: 'a@test' }));
+  window.dispatchEvent(new StorageEvent('storage', { key: 'web_session_v1' }));
+  check('tabs: same-account token from another tab is picked up', dataOwner === 'web:uid-A' && webSession?.access_token === TOK.A2);
+  localStorage.setItem('web_session_v1', JSON.stringify({ access_token: TOK.B, refresh_token: 'rB', email: 'b@test' }));
+  window.dispatchEvent(new StorageEvent('storage', { key: 'web_session_v1' }));
+  check('tabs: other tab signs in to B — this tab stops, does not become B', dataOwner === null && webSession === null && document.getElementById('authGate').classList.contains('show'));
+  check('tabs: the other tab\'s stored session is left alone', JSON.parse(localStorage.getItem('web_session_v1')).access_token === TOK.B);
+  reset(); await login('A');
+  M.expired = 'A'; M.refreshTo = 'A'; M.refreshDelay = 500;
+  const callR = api('GET', '/trades');
+  await sleep(100);
+  // another tab signs in to B; its storage event has not been delivered yet
+  localStorage.setItem('web_session_v1', JSON.stringify({ access_token: TOK.B, refresh_token: 'rB', email: 'b@test' }));
+  await callR;
+  check('tabs: late refresh does not write A over the stored B', JSON.parse(localStorage.getItem('web_session_v1') || 'null')?.access_token === TOK.B);
+
+  // 15. (extended 2) a file read / image compression finishing after a switch
+  const NativeReader = window.FileReader;
+  class SlowReader extends NativeReader {
+    readAsDataURL(f) { setTimeout(() => super.readAsDataURL(f), 500); }
+    readAsText(f) { setTimeout(() => super.readAsText(f), 500); }
+  }
+  const png = await new Promise(r => { const c = document.createElement('canvas'); c.width = c.height = 4; c.toBlob(r, 'image/png'); });
+  window.FileReader = SlowReader;
+  try {
+    reset({ B: { trades: { 'B-1': { id: 'B-1' } }, settings: { base_capital: 0, goals: [] } } }); await login('A');
+    let confirms = 0; const nativeConfirm = window.confirm; window.confirm = () => { confirms++; return true; };
+    const file = new File([JSON.stringify({ trades: [{ id: 'A-import', pnl: '1' }] })], 'a.json', { type: 'application/json' });
+    importJSON({ files: [file], value: '' });
+    await login('B'); await sleep(800);
+    window.confirm = nativeConfirm;
+    check('import: a file read for A is not applied to B', confirms === 0 && !trades.some(t => t.id === 'A-import') && !lsJSON('trades_v3', [], 'web:uid-B').some(t => t.id === 'A-import'), { confirms });
+    reset(); await login('A');
+    openAddTrade(); processImgFile(new File([png], 'a.png', { type: 'image/png' }));
+    openIdeaModal(); processIdeaImgFile(new File([png], 'b.png', { type: 'image/png' }));
+    openQuickAdd(); processQImgFile(new File([png], 'c.png', { type: 'image/png' }));
+    await login('B'); openAddTrade(); openIdeaModal(); openQuickAdd(); await sleep(1500);
+    check('images: late A images do not land in B forms', currentImg === null && ideaCurrentImg === null && qCurrentImg === null && !lsJSON('idea_draft_v1', null, 'web:uid-B')?.img,
+      { currentImg: !!currentImg, ideaCurrentImg: !!ideaCurrentImg, qCurrentImg: !!qCurrentImg });
+    closeModal('addModal'); closeModal('ideaModal'); closeModal('quickModal');
+  } finally { window.FileReader = NativeReader; }
+
+  // 16. (extended 3) subscription status and checkout answer after a switch
+  reset(); M.billing = true; await login('A'); await sleep(100);
+  M.delay = { 'GET /billing/status A': 600 };
+  const subA = loadSubscription(); await sleep(50); await login('B'); await sleep(100); await subA;
+  check('billing: A status never shown for B', !!subState && subState.active === false, subState);
+  await login('A'); await sleep(100);
+  subState = { billing_enabled: true, active: false };
+  M.delay = { 'POST /billing/checkout A': 600 };
+  const hashBefore = location.hash;
+  const pay = onSubButton(); await sleep(50); await login('B'); await pay; await sleep(100);
+  check('billing: checkout link made for A is not opened after a switch', location.hash === hashBefore, location.hash);
+  if (location.hash !== hashBefore) history.replaceState({}, '', location.pathname + location.search);
+
+  // 17. (extended 4) two parallel 401s with one-time refresh tokens
+  reset(); await login('A');
+  M.rotate = true; M.expiredToken = TOK.A;
+  const [r1, r2] = await Promise.all([api('GET', '/trades'), api('GET', '/settings')]);
+  check('parallel 401: one refresh, both calls retried, session kept',
+    M.refreshCalls === 1 && !!r1 && !!r2 && webSession?.access_token === TOK.A2 && dataOwner === 'web:uid-A',
+    { calls: M.refreshCalls, r1: !!r1, r2: !!r2, renewed: webSession?.access_token === TOK.A2, dataOwner });
+
+  // 18. (extended 5) wrong-shaped old data does not break the home screen
+  reset();
+  localStorage.setItem('pending_trades_v3', '{}'); localStorage.setItem('ideas_v1', '{}'); localStorage.setItem('mj:legacy_claim', '"broken"');
+  let renderError = null;
+  try { await login('A'); renderHome(); } catch (e) { renderError = e.message; }
+  check('damaged old data: home renders', renderError === null, renderError);
+  check('damaged old data: reported and left unchanged', !notice().hidden && /поврежден|damaged/i.test(notice().textContent)
+    && localStorage.getItem('pending_trades_v3') === '{}' && localStorage.getItem('ideas_v1') === '{}');
+
+  // 19. (extended 6) ideas that do not fit are not marked as moved
+  reset();
+  localStorage.setItem('ideas_v1', JSON.stringify([{ id: 'OLD-IDEA', pair: 'EURUSD' }]));
+  await login('A');
+  const nativeSet = Storage.prototype.setItem;
+  Storage.prototype.setItem = function (k, v) {
+    if (k === 'mj:web:uid-A:ideas_v1') { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; }
+    return nativeSet.call(this, k, v);
+  };
+  try { (btn('Перенести') || btn('Move'))?.click(); (btn('Да') || btn('Yes'))?.click(); await sleep(200); }
+  finally { Storage.prototype.setItem = nativeSet; }
+  const claim3 = legacyClaim();
+  check('quota: a failed idea copy is not claimed', !claim3.ideas.includes('OLD-IDEA') && legacyUnclaimed().ideas.some(x => x.id === 'OLD-IDEA'), claim3);
 
   // 8. Owner rule matches the server
   check('owner: telegram', ownerFromIdentity(true, { id: 12345 }, null) === 'tg:12345');
