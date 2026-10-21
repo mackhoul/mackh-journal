@@ -29,9 +29,13 @@
     const key = method + ' ' + u.pathname.replace(/\/trades\/.+/, '/trades/:id');
     M.log.push({ user, method, path: u.pathname, id: body?.id || decodeURIComponent(u.pathname.split('/')[2] || '') || null, pnl: body?.pnl, img_url: body?.img_url, hasImg: !!body?.img, qv: body?.__qv });
     if (M.failPnl && body && body.pnl === M.failPnl) throw new TypeError('Failed to fetch');
+    const D = (M.deleted[user] ||= new Set());
     if (M.lateWrite && method === 'POST' && u.pathname === '/trades' && user) {
       // the client gives up (timeout), but the server finishes the write later
-      setTimeout(() => { const S = (M.srv[user] ||= {}); const t = { ...body }; delete t.img; S[t.id] = t; M.order.push(user + ' POST(late) ' + t.id); }, M.lateWrite);
+      setTimeout(() => {
+        if (M.guard && D.has(body.id) && body.__restore !== true) { M.order.push(user + ' POST(late,ignored) ' + body.id); return; }
+        const S = (M.srv[user] ||= {}); const t = { ...body }; delete t.img; delete t.__restore; S[t.id] = t; M.order.push(user + ' POST(late) ' + t.id);
+      }, M.lateWrite);
       throw new TypeError('timeout');
     }
     const snap = (M.snapshotGet && method === 'GET' && u.pathname === '/trades' && user) ? Object.values(M.srv[user] || {}).map(x => JSON.parse(JSON.stringify(x))) : null;
@@ -42,7 +46,9 @@
     const S = (M.srv[user] ||= {});
     if (u.pathname === '/trades' && method === 'GET') return json(Object.values(S).map(x => JSON.parse(JSON.stringify(x))));
     if (u.pathname === '/trades' && method === 'POST') {
-      const t = { ...body }; let img = t.img_url || null;
+      if (M.guard && D.has(body.id) && body.__restore !== true) { M.order.push(user + ' POST(ignored) ' + body.id); return json({ ok: true, skipped: 'deleted' }); }
+      if (M.guard && body.__restore === true) D.delete(body.id);
+      const t = { ...body }; delete t.__restore; let img = t.img_url || null;
       if (t.img && String(t.img).startsWith('data:')) { img = 'https://img.test/' + t.id + '-' + M.order.length + '.jpg'; }
       delete t.img; if (img) t.img_url = img; else delete t.img_url;
       S[t.id] = t; M.order.push(user + ' POST ' + t.id + ' pnl=' + t.pnl);
@@ -50,8 +56,8 @@
     }
     if (u.pathname.startsWith('/trades/') && method === 'DELETE') {
       const id = decodeURIComponent(u.pathname.split('/')[2]);
-      if (!/^\d+$/.test(id) && !M.allowAnyId) return json({ error: 'Invalid trade id' }, 400);   // what the server did before the fix
-      delete S[id]; M.order.push(user + ' DELETE ' + id); return json({ ok: true });
+      if (!M.guard && !/^\d+$/.test(id) && !M.allowAnyId) return json({ error: 'Invalid trade id' }, 400);   // what the server did before the fix
+      delete S[id]; if (M.guard) D.add(id); M.order.push(user + ' DELETE ' + id); return json({ ok: true });
     }
     if (u.pathname === '/settings') return json({ base_capital: 0, goals: [] });
     if (u.pathname === '/billing/status') return json({ billing_enabled: false });
@@ -64,7 +70,7 @@
   const tombs = () => typeof getTombs === 'function' ? getTombs() : [];
   const login = async (who = 'A') => { saveWebSession({ access_token: TOK[who], refresh_token: 'r' + who, email: who.toLowerCase() + '@test' }); document.getElementById('authGate').classList.remove('show'); await startApp(); };
   const reload = async (who = 'A') => { clearTimeout(undoTimer); clearTimeout(syncPendingQueue._retryTimer); undoTrade = null; setDataOwner(null); await login(who); };
-  const fresh = (srvA = {}, srvB = {}) => { localStorage.clear(); Object.assign(M, { srv: { A: JSON.parse(JSON.stringify(srvA)), B: JSON.parse(JSON.stringify(srvB)) }, log: [], order: [], delay: {}, down: false, failPnl: null, allowAnyId: false, lateWrite: 0, snapshotGet: false }); };
+  const fresh = (srvA = {}, srvB = {}) => { localStorage.clear(); Object.assign(M, { srv: { A: JSON.parse(JSON.stringify(srvA)), B: JSON.parse(JSON.stringify(srvB)) }, log: [], order: [], delay: {}, down: false, failPnl: null, allowAnyId: false, lateWrite: 0, snapshotGet: false, guard: false, deleted: {} }); };
   const T1 = (id, extra = {}) => ({ id, pair: 'EURUSD', market: 'forex', result: 'win', pnl: '10', date: '2026-10-20', notes: 'n', ...extra });
   const ids = () => trades.map(t => t.id).sort();
   const cacheIds = () => lsJSON('trades_v3', []).map(t => t.id).sort();
@@ -265,6 +271,57 @@
   check('late load, local-only trade confirmed meanwhile: keeps 99', q22 === 0 && M.srv.A['1021x']?.pnl === '99'
     && trades.find(t => t.id === '1021x')?.pnl === '99' && lsJSON('trades_v3', []).find(t => t.id === '1021x')?.pnl === '99' && !ids().includes('1022'),
     { q22, srv: M.srv.A['1021x']?.pnl, mem: trades.find(t => t.id === '1021x')?.pnl, cache: lsJSON('trades_v3', []).find(t => t.id === '1021x')?.pnl });
+
+  // ── With the database deletion guard (server after the migration) ──
+  // 23. a late save after a confirmed delete — no reload, no next load
+  fresh(); M.guard = true; await login();
+  const t23 = T1('1023'); trades.push(t23);
+  M.lateWrite = 600; await syncTrade(t23); M.lateWrite = 0;
+  await deleteTradeSync('1023'); await sleep(900); await syncPendingQueue();
+  check('guard: late save after delete does not re-create it (no reload)', !srvA().includes('1023') && M.order.some(o => o.includes('POST(late,ignored) 1023')), M.order);
+  localStorage.clear(); await reload();
+  check('guard: still gone for a device with empty storage', !ids().includes('1023') && !srvA().includes('1023'));
+
+  // 24. an old client's queued save of a trade that is deleted on the server
+  fresh({ '1024': T1('1024') }); M.guard = true; await login();
+  await deleteTradeSync('1024');
+  localStorage.clear(); lsSet('pending_trades_v3', JSON.stringify([T1('1024', { pnl: '55' })]), 'web:uid-A');   // queue written by an older version
+  await reload(); await syncPendingQueue();
+  check('guard: old queued save of a deleted trade is dropped', !srvA().includes('1024') && !queue().length && !ids().includes('1024') && tombs().some(x => x.id === '1024' && x.done), { srv: srvA(), q: queue(), ids: ids() });
+
+  // 25. another device edits a trade this device already deleted: the deletion wins
+  fresh({ '1025': T1('1025') }); M.guard = true; await login();
+  await deleteTradeSync('1025');
+  localStorage.clear(); await reload();                // "second device" never saw the deletion
+  trades.push(T1('1025', { pnl: '77' })); await syncTrade(trades[trades.length - 1]);
+  check('guard: edit of a trade deleted elsewhere is not saved, removed here', !srvA().includes('1025') && !ids().includes('1025') && !queue().length);
+
+  // 26. explicit undo after the deletion already reached the server
+  fresh({ '1026': T1('1026') }); M.guard = true; await login();
+  const t26 = trades.find(t => t.id === '1026');
+  await deleteTradeSync('1026');
+  undoTrade = t26; undoCtx = { owner: dataOwner, epoch: ownerEpoch };   // undo still offered
+  undoDelete(); await sleep(300); await syncPendingQueue();
+  check('guard: explicit undo restores a delivered deletion', srvA().includes('1026') && ids().includes('1026') && !('__restore' in (M.srv.A['1026'] || {})), M.srv.A['1026']);
+  await reload();
+  check('guard: restored trade survives reload, flag not stored', ids().includes('1026') && !('__restore' in (trades.find(t => t.id === '1026') || {})));
+
+  // 27. normal flow with the guard: create, edit, delete with undo window, no early delete
+  fresh(); M.guard = true; await login();
+  const n27 = T1('1027'); trades.push(n27); await syncTrade(n27);
+  const e27 = { ...n27, pnl: '45' }; trades[0] = e27; await syncTrade(e27);
+  check('guard: create and edit', M.srv.A['1027']?.pnl === '45' && !queue().length);
+  M.log = []; deleteTrade('1027'); await sleep(300); await loadData(); await syncPendingQueue();
+  check('guard: no delete sent inside the undo window', !M.log.some(x => x.method === 'DELETE'), M.log.filter(x => x.method === 'DELETE'));
+  await sleep(5400);
+  check('guard: delete sent after the window', !srvA().includes('1027') && M.order.some(o => o === 'A DELETE 1027'));
+  const n27b = T1('1028'); trades.push(n27b); await syncTrade(n27b); deleteTrade('1028'); await sleep(200); undoDelete(); await sleep(5500); await syncPendingQueue();
+  check('guard: undo inside the window keeps the trade', srvA().includes('1028') && ids().includes('1028'));
+
+  // 28. account isolation with the guard: A's deletion does not affect B's trade with the same id
+  fresh({ '1029': T1('1029') }, { '1029': T1('1029', { pair: 'B_OWN' }) }); M.guard = true; await login('A');
+  await deleteTradeSync('1029'); await reload('B'); await syncPendingQueue();
+  check('guard: deletion stays within the account', !srvA().includes('1029') && Object.keys(M.srv.B).includes('1029') && ids().includes('1029'));
 
   localStorage.clear();
   console.table(results);

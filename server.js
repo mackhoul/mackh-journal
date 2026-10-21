@@ -435,6 +435,7 @@ app.get('/health/db', async (req, res) => {
   try {
     await supabase('GET', 'users?select=user_id&limit=1');
     result = { ok: true, ms: Date.now() - t0, checked_at: new Date().toISOString() };
+    try { result.deletion_guard = await hasDeletionGuard(); } catch (e) { result.deletion_guard = 'unknown'; }
   } catch (e) {
     console.error('[HEALTH] db check failed:', e.message);
     result = { ok: false, ms: Date.now() - t0, checked_at: new Date().toISOString(), error: shortErr(e) };
@@ -452,12 +453,39 @@ app.get('/config', (req, res) => res.json({
   web_auth_ready:    !!(SUPABASE_URL && SUPABASE_ANON_KEY),
 }));
 
+// ── Deletion guard (db/migrations/2026-10-21-trade-deletion-guard.sql) ──
+// With the migration applied, deletions are remembered in trades.deleted_at and
+// saves/deletes go through mj_save_trade / mj_delete_trade, so a late save can
+// never re-create a deleted trade. Without it the server works as before.
+// Only a "column does not exist" answer switches the guard off; any other error
+// is re-thrown so a hiccup never silently drops the protection.
+let deletionGuard = null;           // null = not checked yet, true / false = known
+let deletionGuardAt = 0;
+async function hasDeletionGuard() {
+  // ON stays ON; OFF is re-checked every 5 minutes, so running the migration
+  // takes effect without a server restart
+  if (deletionGuard === true) return true;
+  if (deletionGuard === false && Date.now() - deletionGuardAt < 5 * 60 * 1000) return false;
+  try {
+    await supabase('GET', 'trades?select=deleted_at&limit=1');
+    deletionGuard = true;
+  } catch (e) {
+    if (/deleted_at|42703|does not exist/i.test(e.message)) deletionGuard = false;
+    else throw e;
+  }
+  deletionGuardAt = Date.now();
+  console.log(`[DB] deletion guard ${deletionGuard ? 'ON' : 'OFF (migration not applied)'}`);
+  return deletionGuard;
+}
+
 // GET /trades — fetch all trades for authenticated user
 app.get('/trades', auth, async (req, res) => {
   try {
-    const rows   = await supabase('GET', `trades?user_id=eq.${req.userId}&select=*&order=created_at.asc`);
+    const guard  = await hasDeletionGuard();
+    const rows   = await supabase('GET', `trades?user_id=eq.${req.userId}${guard ? '&deleted_at=is.null' : ''}&select=*&order=created_at.asc`);
     const trades = (rows || []).map(r => {
       const t = r.data || {};
+      delete t.__restore;
       if (r.img_url) t.img_url = r.img_url;
       return t;
     });
@@ -486,6 +514,9 @@ app.post('/trades', auth, async (req, res) => {
     const trade = { ...req.body };
     if (!trade.id) return res.status(400).json({ error: 'Missing trade id' });
     if (!isValidTradeId(trade.id)) return res.status(400).json({ error: 'Invalid trade id' });
+    // "Undo" of a deletion is sent as __restore: true; it is a request flag, never stored
+    const restore = trade.__restore === true;
+    delete trade.__restore;
 
     let imgUrl    = trade.img_url || null;
     let imgFailed = false;
@@ -502,13 +533,25 @@ app.post('/trades', auth, async (req, res) => {
       delete trade.img; // never store base64 in the database
     }
 
-    await supabase('POST', 'trades?on_conflict=id,user_id', {
-      id:         trade.id,
-      user_id:    req.userId,
-      data:       trade,
-      img_url:    imgUrl,
-      created_at: new Date().toISOString(),
-    });
+    if (await hasDeletionGuard()) {
+      const outcome = await supabase('POST', 'rpc/mj_save_trade', {
+        p_id: trade.id, p_user_id: req.userId, p_data: trade, p_img_url: imgUrl, p_restore: restore,
+      });
+      if (outcome === 'deleted') {
+        // The trade was deleted (on any device). Answer OK so old clients drop it
+        // from their queue; new clients read `skipped` and remove it locally.
+        console.log(`[API] POST /trades → trade ${trade.id} is deleted, late save ignored for user ${req.userId}`);
+        return res.json({ ok: true, skipped: 'deleted' });
+      }
+    } else {
+      await supabase('POST', 'trades?on_conflict=id,user_id', {
+        id:         trade.id,
+        user_id:    req.userId,
+        data:       trade,
+        img_url:    imgUrl,
+        created_at: new Date().toISOString(),
+      });
+    }
 
     console.log(`[API] POST /trades → trade ${trade.id} saved for user ${req.userId}${imgFailed ? ' (without photo)' : ''}`);
     res.json({ ok: true, img_url: imgUrl, img_failed: imgFailed });
@@ -523,7 +566,11 @@ app.delete('/trades/:id', auth, async (req, res) => {
   // Same id rule as POST /trades; the id is URL-encoded inside the query below
   if (!isValidTradeId(req.params.id)) return res.status(400).json({ error: 'Invalid trade id' });
   try {
-    await supabase('DELETE', `trades?id=eq.${encodeURIComponent(req.params.id)}&user_id=eq.${req.userId}`);
+    if (await hasDeletionGuard()) {
+      await supabase('POST', 'rpc/mj_delete_trade', { p_id: req.params.id, p_user_id: req.userId });
+    } else {
+      await supabase('DELETE', `trades?id=eq.${encodeURIComponent(req.params.id)}&user_id=eq.${req.userId}`);
+    }
     console.log(`[API] DELETE /trades/${req.params.id} for user ${req.userId}`);
     res.json({ ok: true });
   } catch (e) {

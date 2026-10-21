@@ -2825,14 +2825,18 @@ function safeLocalStorageSet(key, value, owner=dataOwner) {
 
 
 
-function addToPendingQueue(trade, owner=dataOwner){
+function addToPendingQueue(trade, owner=dataOwner, opts={}){
   if(!owner) return;
   try{
     const q = getQueue(owner);
     const idx = q.findIndex(t=>t.id===trade.id);
     // Every save gets its own queue version (__qv, never sent to the server);
     // a server answer removes only the version it was sent for.
-    const entry = {...trade, __qv: Date.now().toString(36)+Math.random().toString(36).slice(2,8)};
+    const {__restore: _ignored, ...clean} = trade;
+    const entry = {...clean, __qv: Date.now().toString(36)+Math.random().toString(36).slice(2,8)};
+    // __restore (explicit "Undo" of a deletion) is sent to the server and kept
+    // when a later edit replaces the queued version before it was delivered
+    if(opts.restore || (idx>=0 && q[idx].__restore===true)) entry.__restore = true;
     // Always replace if already queued (covers re-edit of a pending trade)
     if(idx>=0) q[idx] = entry;
     else q.push(entry);
@@ -3011,6 +3015,13 @@ async function syncPass(run){
       api._lastStatus = null;
       const result = await api('POST', '/trades', payload);
       const st = api._lastStatus; run.lastStatus = st;
+      if(result && result.skipped==='deleted'){
+        // Deleted on the server (this or another device): the deletion wins
+        applyServerDeleted(owner, id, isCurrentOwner(owner, epoch));
+        delivered++;
+        if(!isCurrentOwner(owner, epoch)) return;
+        continue;
+      }
       if(result){
         // Remove exactly the version that was sent; a newer edit stays queued
         removeFromPendingQueue(id, owner, entry.__qv===undefined ? null : entry.__qv);
@@ -3066,6 +3077,29 @@ async function syncPass(run){
   }
   if(wait!==null){
     syncPendingQueue._retryTimer = setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) syncPendingQueue(); }, wait);
+  }
+}
+
+// The server refused a save because the trade is deleted there. Every queued
+// version goes, the deletion is recorded as confirmed, the trade leaves the journal.
+let _serverDeletedNotified = 0;
+function applyServerDeleted(owner, id, isCurrent){
+  removeFromPendingQueue(id, owner);
+  const list = getTombs(owner).filter(x=>x.id!==id);
+  list.push({id, at:Date.now(), notBefore:0, done:true, doneAt:Date.now(), byServer:true});
+  setTombs(list, owner);
+  if(isCurrent){
+    trades = trades.filter(t=>t.id!==id);
+    safeLocalStorageSet('trades_v3', trades, owner);
+    if(_serverIds) _serverIds.delete(id);
+    noteLocalChange(id);
+    if(Date.now() - _serverDeletedNotified > 3000){
+      _serverDeletedNotified = Date.now();
+      showSyncStatus(lang==='ru' ? 'Сделка уже удалена (возможно, на другом устройстве) — изменения не сохранены'
+                                 : 'The trade was already deleted (maybe on another device) — changes not saved', 'pending');
+    }
+  } else {
+    safeLocalStorageSet('trades_v3', lsJSON('trades_v3', [], owner).filter(t=>t.id!==id), owner);
   }
 }
 
@@ -3347,6 +3381,7 @@ async function loadData(){
       // CRITICAL MERGE: take server data as base, then add anything
       // that's in localStorage but NOT yet confirmed on server.
       // This covers both pending queue AND trades saved while server was starting.
+      t.forEach(x=>{ if(x && typeof x==='object') delete x.__restore; });
       const serverIds = new Set(t.map(x=>x.id));
       _serverIds = new Set(serverIds);
       // Read at merge time: deletions and edits made while the request was out count
@@ -3427,14 +3462,14 @@ function showSyncStatus(msg, type){
   setTimeout(()=>el.remove(), 3000);
 }
 
-async function syncTrade(trade){
+async function syncTrade(trade, opts={}){
   const owner = dataOwner, epoch = ownerEpoch;
   if(!owner) return;
   // 1. This account's local copy and the queue first: nothing typed is lost
   //    if the app closes or the server is down.
   noteLocalChange(trade.id);
   safeLocalStorageSet('trades_v3', trades, owner);
-  addToPendingQueue(trade, owner);
+  addToPendingQueue(trade, owner, {restore: !!opts.restore});
   setSyncStatus('pending');
   console.log(`[SYNC] Saving trade ${trade.id} (${trade.pair||trade.asset||'?'})...`);
   // 2. The single runner delivers it after anything queued earlier
@@ -5854,7 +5889,8 @@ function undoDelete(){
   undoCtx=null;
   unmarkTradeDeleted(undoTrade.id);
   trades.push(undoTrade);
-  syncTrade(undoTrade);
+  // Explicit undo: if the deletion already reached the server, this save lifts it
+  syncTrade(undoTrade, {restore:true});
   undoTrade=null;
   clearTimeout(undoTimer);
   document.getElementById('toast').classList.remove('show');
