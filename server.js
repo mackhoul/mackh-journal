@@ -164,7 +164,10 @@ async function supabase(method, path, body) {
   });
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Supabase ${method} ${path}: ${err}`);
+    const e = new Error(`Supabase ${method} ${path}: ${err}`);
+    e.status = res.status;                       // HTTP status from PostgREST
+    try { e.pg = JSON.parse(err); } catch {}     // { code, message, ... } from Postgres/PostgREST
+    throw e;
   }
   const text = await res.text();
   return text ? JSON.parse(text) : null;
@@ -436,6 +439,7 @@ app.get('/health/db', async (req, res) => {
     await supabase('GET', 'users?select=user_id&limit=1');
     result = { ok: true, ms: Date.now() - t0, checked_at: new Date().toISOString() };
     try { result.deletion_guard = await hasDeletionGuard(); } catch (e) { result.deletion_guard = 'unknown'; }
+    if (result.deletion_guard === true) result.deletion_guard_selftest = await checkGuardSelftest();
   } catch (e) {
     console.error('[HEALTH] db check failed:', e.message);
     result = { ok: false, ms: Date.now() - t0, checked_at: new Date().toISOString(), error: shortErr(e) };
@@ -461,21 +465,41 @@ app.get('/config', (req, res) => res.json({
 // is re-thrown so a hiccup never silently drops the protection.
 let deletionGuard = null;           // null = not checked yet, true / false = known
 let deletionGuardAt = 0;
+// Legacy mode only when Postgres itself says the migration's column is missing
+// (error 42703 naming deleted_gen in its own message — not in the request URL).
+// Timeouts, 5xx, permission errors and anything unknown fail the request, so a
+// write is never made unprotected because of a hiccup.
+function isMissingGuardColumn(e) {
+  return !!(e && e.pg && e.pg.code === '42703' && /deleted_gen/.test(String(e.pg.message || '')));
+}
 async function hasDeletionGuard() {
-  // ON stays ON; OFF is re-checked every 5 minutes, so running the migration
-  // takes effect without a server restart
+  // ON stays ON. OFF is trusted for 10 s only, so writes switch to the guarded
+  // path almost immediately after the migration is run (no unprotected window
+  // of minutes) and without a server restart.
   if (deletionGuard === true) return true;
-  if (deletionGuard === false && Date.now() - deletionGuardAt < 5 * 60 * 1000) return false;
+  if (deletionGuard === false && Date.now() - deletionGuardAt < 10 * 1000) return false;
   try {
-    await supabase('GET', 'trades?select=deleted_at&limit=1');
+    await supabase('GET', 'trades?select=deleted_gen&limit=1');
     deletionGuard = true;
   } catch (e) {
-    if (/deleted_at|42703|does not exist/i.test(e.message)) deletionGuard = false;
-    else throw e;
+    if (!isMissingGuardColumn(e)) throw e;
+    deletionGuard = false;
   }
   deletionGuardAt = Date.now();
   console.log(`[DB] deletion guard ${deletionGuard ? 'ON' : 'OFF (migration not applied)'}`);
   return deletionGuard;
+}
+
+// The database proves the guard works: mj_guard_selftest runs save / delete /
+// late save / old undo / undo on a made-up row and rolls it all back. Cached.
+let guardSelftest = { at: 0, result: null };
+async function checkGuardSelftest() {
+  if (guardSelftest.result && Date.now() - guardSelftest.at < 10 * 60 * 1000) return guardSelftest.result;
+  let result;
+  try { result = await supabase('POST', 'rpc/mj_guard_selftest', {}); }
+  catch (e) { result = { ok: false, error: shortErr(e) }; }
+  guardSelftest = { at: Date.now(), result };
+  return result;
 }
 
 // GET /trades — fetch all trades for authenticated user
@@ -514,8 +538,9 @@ app.post('/trades', auth, async (req, res) => {
     const trade = { ...req.body };
     if (!trade.id) return res.status(400).json({ error: 'Missing trade id' });
     if (!isValidTradeId(trade.id)) return res.status(400).json({ error: 'Invalid trade id' });
-    // "Undo" of a deletion is sent as __restore: true; it is a request flag, never stored
-    const restore = trade.__restore === true;
+    // "Undo" of a delivered deletion sends __restore = that deletion's number.
+    // It is a request field only, never stored with the trade.
+    const restoreGen = Number.isSafeInteger(trade.__restore) && trade.__restore > 0 ? trade.__restore : null;
     delete trade.__restore;
 
     let imgUrl    = trade.img_url || null;
@@ -535,7 +560,7 @@ app.post('/trades', auth, async (req, res) => {
 
     if (await hasDeletionGuard()) {
       const outcome = await supabase('POST', 'rpc/mj_save_trade', {
-        p_id: trade.id, p_user_id: req.userId, p_data: trade, p_img_url: imgUrl, p_restore: restore,
+        p_id: trade.id, p_user_id: req.userId, p_data: trade, p_img_url: imgUrl, p_restore_gen: restoreGen,
       });
       if (outcome === 'deleted') {
         // The trade was deleted (on any device). Answer OK so old clients drop it
@@ -566,13 +591,15 @@ app.delete('/trades/:id', auth, async (req, res) => {
   // Same id rule as POST /trades; the id is URL-encoded inside the query below
   if (!isValidTradeId(req.params.id)) return res.status(400).json({ error: 'Invalid trade id' });
   try {
+    let deletion = null;
     if (await hasDeletionGuard()) {
-      await supabase('POST', 'rpc/mj_delete_trade', { p_id: req.params.id, p_user_id: req.userId });
+      // The deletion's number lets an "Undo" lift exactly this deletion later
+      deletion = Number(await supabase('POST', 'rpc/mj_delete_trade', { p_id: req.params.id, p_user_id: req.userId }));
     } else {
       await supabase('DELETE', `trades?id=eq.${encodeURIComponent(req.params.id)}&user_id=eq.${req.userId}`);
     }
     console.log(`[API] DELETE /trades/${req.params.id} for user ${req.userId}`);
-    res.json({ ok: true });
+    res.json(deletion ? { ok: true, deletion } : { ok: true });
   } catch (e) {
     console.error('[API] DELETE /trades error:', e.message);
     res.status(500).json({ error: 'Failed to delete trade' });
