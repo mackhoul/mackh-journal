@@ -1346,6 +1346,10 @@ body.light .now-tile.limit-hit{background:#FF6B6B;color:#1A0606}
 .legacy-damaged{margin-top:8px;font-size:13px!important;color:var(--warning)!important}
 .legacy-notice>.legacy-damaged:first-child{margin-top:0}
 @media(min-width:1024px){.legacy-notice{margin:12px 0 0;max-width:760px}}
+
+/* not yet delivered to the server */
+.tc-sync{display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:var(--warning)}
+.tc-sync.local{color:var(--text-muted)}
 @media(prefers-reduced-motion:reduce){.ss-now::after{animation:none;opacity:0}}
 </style>
 </head>
@@ -2770,6 +2774,7 @@ function setDataOwner(owner){
   ownerEpoch++;
   clearTimeout(syncPendingQueue._retryTimer);
   trades = []; baseCapital = 0; goals = []; ideas = [];
+  _serverIds = null;
   subState = null;
   if(typeof document!=='undefined' && document.getElementById('subGroup')) renderSubscription();
   resetFormsForAccountSwitch();
@@ -2820,11 +2825,14 @@ function safeLocalStorageSet(key, value, owner=dataOwner) {
 function addToPendingQueue(trade, owner=dataOwner){
   if(!owner) return;
   try{
-    const q = lsJSON(PENDING_KEY, [], owner);
+    const q = getQueue(owner);
     const idx = q.findIndex(t=>t.id===trade.id);
+    // Every save gets its own queue version (__qv, never sent to the server);
+    // a server answer removes only the version it was sent for.
+    const entry = {...trade, __qv: Date.now().toString(36)+Math.random().toString(36).slice(2,8)};
     // Always replace if already queued (covers re-edit of a pending trade)
-    if(idx>=0) q[idx] = trade;
-    else q.push(trade);
+    if(idx>=0) q[idx] = entry;
+    else q.push(entry);
     try{
       lsSet(PENDING_KEY, JSON.stringify(q), owner);
     }catch(quotaErr){
@@ -2841,11 +2849,14 @@ function addToPendingQueue(trade, owner=dataOwner){
   }catch(e){ console.error('[SYNC] addToPendingQueue error:', e.message); }
 }
 
-function removeFromPendingQueue(id, owner=dataOwner){
+// With qv: remove the entry only if it is still that exact version.
+function removeFromPendingQueue(id, owner=dataOwner, qv){
   if(!owner) return;
   try{
-    const q = lsJSON(PENDING_KEY, [], owner);
-    lsSet(PENDING_KEY, JSON.stringify(q.filter(t=>t.id!==id)), owner);
+    const q = getQueue(owner);
+    // qv undefined: any version; null: only an entry written before versions existed
+    const match = t=> t.id===id && (qv===undefined || (qv===null ? t.__qv===undefined : t.__qv===qv));
+    lsSet(PENDING_KEY, JSON.stringify(q.filter(t=>!match(t))), owner);
   }catch(e){}
 }
 
@@ -2860,63 +2871,220 @@ function patchCachedTrade(owner, id, patch){
   safeLocalStorageSet('trades_v3', cached, owner);
 }
 
-async function syncPendingQueue(){
-  const owner = dataOwner, epoch = ownerEpoch;
+// ═══════════════════════════════════════════════════════
+//  SAVE / DELETE DELIVERY
+//  Every save and every deletion is written to this account's local storage
+//  first and then delivered by one runner, strictly one request at a time:
+//  deletions first (oldest first), then saves (each trade's newest version).
+//  So a delete never overtakes the save of the same trade, an older version
+//  never lands after a newer one, and nothing is lost if the app closes.
+//  Deletions are remembered (deleted_trades_v1) so a server answer, an old
+//  local copy or a queued save can never bring a deleted trade back.
+// ═══════════════════════════════════════════════════════
+const TOMB_KEY = 'deleted_trades_v1';
+const TOMB_KEEP_MS = 30*24*60*60*1000;   // confirmed deletions are remembered for 30 days
+let _serverIds = null;                    // ids the server returned on the last load; null = unknown
+let _syncRun = null;
+let _rejectNotified = false;
+
+function getQueue(owner=dataOwner){
+  const q = lsJSON(PENDING_KEY, [], owner);
+  return Array.isArray(q) ? q.filter(x=>x && typeof x==='object' && x.id) : [];
+}
+function stripQueueFields(entry){ const {__qv, ...rest} = entry; return rest; }
+let _queueIdsMemo = {owner:null, raw:null, ids:new Set()};
+function queuedIds(owner=dataOwner){
+  const raw = lsGet(PENDING_KEY, owner);
+  if(_queueIdsMemo.owner===owner && _queueIdsMemo.raw===raw) return _queueIdsMemo.ids;
+  _queueIdsMemo = {owner, raw, ids:new Set(getQueue(owner).map(q=>q.id))};
+  return _queueIdsMemo.ids;
+}
+function getTombs(owner=dataOwner){
+  const v = lsJSON(TOMB_KEY, [], owner);
+  return Array.isArray(v) ? v.filter(x=>x && typeof x==='object' && x.id) : [];
+}
+function setTombs(list, owner=dataOwner){
+  try{ return lsSet(TOMB_KEY, JSON.stringify(list), owner); }catch(e){ return false; }
+}
+function tombIds(owner=dataOwner){ return new Set(getTombs(owner).map(x=>x.id)); }
+function updateTomb(owner, id, patch){
+  setTombs(getTombs(owner).map(x=>x.id===id ? {...x, ...patch} : x), owner);
+}
+
+// Deletes a trade on this device right away and records the deletion so the
+// runner delivers it (after sendAfterMs — the undo window).
+function markTradeDeleted(id, {sendAfterMs=0}={}){
+  const owner = dataOwner;
+  trades = trades.filter(t=>t.id!==id);
   if(!owner) return;
-  try{
-    const q = lsJSON(PENDING_KEY, [], owner);
-    if(!q.length) return;
-    console.log(`[SYNC] Pending queue: ${q.length} trade(s) to sync`);
-    let synced = 0;
-    for(const trade of q){
-      // Never send one account's queue with another account's credentials
-      if(!isCurrentOwner(owner, epoch)){ console.log('[SYNC] Account changed — queue run stopped'); return; }
-      api._lastStatus = null;
-      const result = await api('POST','/trades', trade);
-      if(result){
-        removeFromPendingQueue(trade.id, owner);
-        synced++;
-        if(!isCurrentOwner(owner, epoch)){
-          if(result.img_url) patchCachedTrade(owner, trade.id, {img_url: result.img_url});
-          return;
-        }
-        if(result.img_url){
-          const idx = trades.findIndex(t=>t.id===trade.id);
-          if(idx>=0){ trades[idx].img_url = result.img_url; delete trades[idx].img; }
-        } else if(result.img_failed){
-          showToast(lang==='ru'
-            ? 'Сделка сохранена, но фото не загрузилось. Переприкрепите фото.'
-            : 'Trade saved, but photo upload failed. Re-attach the photo.');
-          console.warn(`[SYNC] ⚠️ Pending trade ${trade.id} synced without photo`);
-        }
-        console.log(`[SYNC] ✓ Pending trade ${trade.id} synced${result.img_failed?' (without photo)':''}`);
-      } else {
-        const s = api._lastStatus;
-        console.warn(`[SYNC] ⚠️ Pending trade ${trade.id} failed (HTTP ${s||'network'})`);
-        // Stop retrying on auth errors — no point re-sending if access is denied
-        if(s === 401 || s === 403) break;
-      }
+  removeFromPendingQueue(id, owner);          // an unsent save must not bring it back
+  const list = getTombs(owner).filter(x=>x.id!==id);
+  list.push({id, at:Date.now(), notBefore:Date.now()+sendAfterMs});
+  if(!setTombs(list, owner)){
+    toastWarn(lang==='ru' ? 'Не хватило памяти устройства: удаление может не сохраниться после перезапуска'
+                          : 'Device storage is full: the deletion may not survive a restart');
+  }
+  safeLocalStorageSet('trades_v3', trades, owner);
+  setSyncStatus('pending');
+}
+function unmarkTradeDeleted(id){
+  const owner = dataOwner; if(!owner) return;
+  setTombs(getTombs(owner).filter(x=>x.id!==id), owner);
+}
+
+// "Not sent" / "Not on server" note next to a trade in the lists
+function syncLabelHTML(id){
+  if(!dataOwner) return '';
+  if(queuedIds().has(id)) return `<span class="tc-sync">${lang==='ru'?'Не отправлено':'Not sent'}</span>`;
+  if(_serverIds && !_serverIds.has(id)) return `<span class="tc-sync local">${lang==='ru'?'Нет на сервере':'Not on server'}</span>`;
+  return '';
+}
+
+// One runner per account at a time. A call while it runs asks for one more
+// pass and waits for the same run. Resolves with the last HTTP status seen.
+function syncPendingQueue(opts={}){
+  const owner = dataOwner, epoch = ownerEpoch;
+  if(!owner) return Promise.resolve(null);
+  if(_syncRun && _syncRun.owner===owner && _syncRun.epoch===epoch){
+    _syncRun.again = true;
+    if(!opts.quiet) _syncRun.quiet = false;
+    return _syncRun.promise;
+  }
+  const run = {owner, epoch, again:false, quiet:!!opts.quiet, lastStatus:null, delivered:0};
+  run.promise = (async()=>{
+    try{
+      do{ run.again = false; await syncPass(run); }
+      while(run.again && isCurrentOwner(owner, epoch));
+    }catch(e){ console.error('[SYNC] queue run error:', e.message); }
+    finally{ if(_syncRun===run) _syncRun = null; }
+    return run.lastStatus;
+  })();
+  _syncRun = run;
+  return run.promise;
+}
+
+async function syncPass(run){
+  const {owner, epoch} = run;
+  let blocked = false, delivered = 0;
+
+  // 1. Deletions, oldest first
+  const tombs = getTombs(owner).filter(x=>!x.done).sort((a,b)=>(a.at||0)-(b.at||0));
+  for(const tomb of tombs){
+    if(!isCurrentOwner(owner, epoch)) return;
+    if((tomb.notBefore||0) > Date.now()) continue;                          // still inside the undo window
+    if(!getTombs(owner).some(x=>x.id===tomb.id && !x.done)) continue;        // undone meanwhile
+    api._lastStatus = null;
+    const res = await api('DELETE', `/trades/${encodeURIComponent(tomb.id)}`);
+    const st = api._lastStatus; run.lastStatus = st;
+    if(res){
+      updateTomb(owner, tomb.id, {done:true, doneAt:Date.now(), rejected:false});
+      if(isCurrentOwner(owner, epoch) && _serverIds) _serverIds.delete(tomb.id);
+      delivered++;
+      console.log(`[SYNC] ✓ Deletion of ${tomb.id} confirmed`);
+      continue;
     }
     if(!isCurrentOwner(owner, epoch)) return;
-    if(synced>0){
-      safeLocalStorageSet('trades_v3', trades, owner);
-      lsSet('last_sync_time', new Date().toISOString(), owner);
-      showSyncStatus(lang==='ru'?`Досинхронизировано: ${synced} сделок`:`Synced ${synced} pending trades`);
-      // Re-render so uploaded img_url values appear without requiring a reload
-      renderHome(); renderTrades();
+    if(st===400 || st===404){
+      // The server refuses this id (for example a non-numeric one). It stays
+      // deleted on this device and is retried on later runs.
+      updateTomb(owner, tomb.id, {rejected:true});
+      continue;
     }
-    const remaining = lsJSON(PENDING_KEY, [], owner);
-    setSyncStatus(remaining.length>0 ? 'pending' : 'synced');
-    // If items are still pending (server was down), schedule one retry in 30 s
-    if(remaining.length>0){
-      const lastStatus = api._lastStatus;
-      if(lastStatus!==401 && lastStatus!==403){
-        console.log(`[SYNC] ${remaining.length} trade(s) still pending — will retry in 30 s`);
-        clearTimeout(syncPendingQueue._retryTimer);
-        syncPendingQueue._retryTimer = setTimeout(syncPendingQueue, 30000);
+    blocked = true; break;                                                  // offline / auth / server error
+  }
+
+  // 2. Saves, in queue order; always the newest queued version of each trade
+  if(!blocked){
+    const ids = [...new Set(getQueue(owner).map(q=>q.id))];
+    for(const id of ids){
+      if(!isCurrentOwner(owner, epoch)) return;
+      if(tombIds(owner).has(id)){ removeFromPendingQueue(id, owner); continue; }
+      const entry = getQueue(owner).find(q=>q.id===id);
+      if(!entry) continue;
+      const payload = stripQueueFields(entry);
+      api._lastStatus = null;
+      const result = await api('POST', '/trades', payload);
+      const st = api._lastStatus; run.lastStatus = st;
+      if(result){
+        // Remove exactly the version that was sent; a newer edit stays queued
+        removeFromPendingQueue(id, owner, entry.__qv===undefined ? null : entry.__qv);
+        delivered++;
+        if(result.img_url) carryImgUrlToQueue(owner, id, payload, result.img_url);
+        if(getQueue(owner).some(q=>q.id===id)) run.again = true;
+        if(!isCurrentOwner(owner, epoch)){
+          if(result.img_url) patchCachedTrade(owner, id, {img_url: result.img_url});
+          return;
+        }
+        if(_serverIds) _serverIds.add(id);
+        applySaveResult(owner, id, payload, result);
+        console.log(`[SYNC] ✓ Trade ${id} saved on server${result.img_failed?' (without photo)':''}`);
+      } else {
+        if(!isCurrentOwner(owner, epoch)) return;                            // stays in its own account's queue
+        if(st===401 || st===403 || !st){ blocked = true; break; }           // retry later, keep the order
+        console.warn(`[SYNC] Trade ${id} not saved (HTTP ${st}) — stays queued`);
       }
     }
-  }catch(e){ console.error('[SYNC] syncPendingQueue error:', e.message); }
+  }
+
+  if(!isCurrentOwner(owner, epoch)) return;
+  // Forget confirmed deletions after a while
+  const keep = getTombs(owner).filter(x=>!(x.done && Date.now()-(x.doneAt||0) > TOMB_KEEP_MS));
+  if(keep.length !== getTombs(owner).length) setTombs(keep, owner);
+
+  run.delivered += delivered;
+  if(delivered>0){
+    lsSet('last_sync_time', new Date().toISOString(), owner);
+    renderHome(); renderTrades();
+  }
+  const open = getTombs(owner).filter(x=>!x.done);
+  const rejected = open.filter(x=>x.rejected).length;
+  const left = getQueue(owner).length + open.length;
+  setSyncStatus(left>0 ? 'pending' : 'synced');
+  if(!run.again && delivered>0 && !run.quiet){
+    showSyncStatus(lang==='ru' ? `Досинхронизировано: ${run.delivered}` : `Synced ${run.delivered} pending change(s)`);
+  }
+  if(rejected && !_rejectNotified){
+    _rejectNotified = true;
+    showSyncStatus(lang==='ru' ? `Сервер не принял удаление ${rejected} ${plural(rejected,'сделки','сделок','сделок')}. На этом устройстве они удалены.`
+                               : `The server did not accept ${rejected} deletion(s). They stay deleted on this device.`, 'pending');
+  }
+
+  // Next attempt: when an undo window ends, or in 30 s while something is waiting
+  clearTimeout(syncPendingQueue._retryTimer);
+  let wait = null;
+  const undoEnds = open.filter(x=>(x.notBefore||0) > Date.now()).map(x=>x.notBefore - Date.now() + 50);
+  if(undoEnds.length) wait = Math.min(...undoEnds);
+  if(left>0 && run.lastStatus!==401 && run.lastStatus!==403 && (blocked || rejected || getQueue(owner).length)){
+    wait = wait===null ? 30000 : Math.min(wait, 30000);
+  }
+  if(wait!==null){
+    syncPendingQueue._retryTimer = setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) syncPendingQueue(); }, wait);
+  }
+}
+
+// After an upload, a newer queued version that still carries the same picture
+// points at the uploaded file instead of uploading it again.
+function carryImgUrlToQueue(owner, id, payload, imgUrl){
+  if(!payload.img) return;
+  const q = getQueue(owner);
+  const i = q.findIndex(x=>x.id===id && x.img===payload.img);
+  if(i<0) return;
+  q[i] = {...q[i], img_url: imgUrl}; delete q[i].img;
+  try{ lsSet(PENDING_KEY, JSON.stringify(q), owner); }catch(e){}
+}
+
+function applySaveResult(owner, id, payload, result){
+  const idx = trades.findIndex(t=>t.id===id);
+  if(result.img_url && idx>=0){
+    trades[idx].img_url = result.img_url;
+    // Drop the picture's data only if it is the one that was just uploaded
+    if(payload.img && trades[idx].img===payload.img) delete trades[idx].img;
+    safeLocalStorageSet('trades_v3', trades, owner);
+  } else if(result.img_failed){
+    showToast(lang==='ru'
+      ? 'Сделка сохранена, но фото не загрузилось. Зайдите в сделку и переприкрепите фото.'
+      : 'Trade saved, but photo upload failed. Re-attach the photo in the trade.');
+  }
 }
 
 
@@ -3172,6 +3340,10 @@ async function loadData(){
       // that's in localStorage but NOT yet confirmed on server.
       // This covers both pending queue AND trades saved while server was starting.
       const serverIds = new Set(t.map(x=>x.id));
+      _serverIds = new Set(serverIds);
+      // Read at merge time: deletions and edits made while the request was out count
+      const deleted = tombIds(owner);
+      const waiting = new Map(getQueue(owner).map(q=>[q.id, stripQueueFields(q)]));
 
       // Re-read localStorage at merge time — covers the race condition where
       // user added a trade WHILE the server fetch was in progress (Render cold
@@ -3183,11 +3355,14 @@ async function loadData(){
       [...localTrades, ...freshLocal, ...trades].forEach(x=>{
         if(x && x.id && !allLocalMap[x.id]) allLocalMap[x.id] = x;
       });
-      const localOnlyTrades = Object.values(allLocalMap).filter(lt=>!serverIds.has(lt.id));
+      const localOnlyTrades = Object.values(allLocalMap).filter(lt=>!serverIds.has(lt.id) && !deleted.has(lt.id))
+        .map(lt=>waiting.get(lt.id) || lt);
       if(localOnlyTrades.length>0) console.log(`[SYNC] ${localOnlyTrades.length} local-only trade(s) not on server:`, localOnlyTrades.map(x=>x.id));
 
-      // Merge: server + local-only trades (deduped)
-      trades = [...t, ...localOnlyTrades];
+      // Merge: server + local-only trades (deduped). A trade deleted on this
+      // device is left out; one with an unsent local edit shows that edit.
+      const fromServer = t.filter(x=>!deleted.has(x.id)).map(x=>waiting.get(x.id) || x);
+      trades = [...fromServer, ...localOnlyTrades];
 
       // Save merged result to this account's local copy
       safeLocalStorageSet('trades_v3', trades, owner);
@@ -3196,7 +3371,7 @@ async function loadData(){
 
       // Always re-render with fresh merged data
       if(localOnlyTrades.length>0){
-        showSyncStatus(lang==='ru'?`${localOnlyTrades.length} сделок ещё не в облаке`:`${localOnlyTrades.length} trades pending upload`,'pending');
+        showSyncStatus(lang==='ru'?`${localOnlyTrades.length} ${plural(localOnlyTrades.length,'сделка','сделки','сделок')} ещё не на сервере`:`${localOnlyTrades.length} ${localOnlyTrades.length===1?'trade':'trades'} not on the server yet`,'pending');
       } else if(t.length !== localTrades.length){
         showSyncStatus(lang==='ru'?`Синхронизировано: ${trades.length} сделок`:`Synced: ${trades.length} trades`);
       }
@@ -3213,7 +3388,7 @@ async function loadData(){
     // Server failed — local data already shown, nothing to do
   }
 
-  // Sync pending trades (5s delay gives Render cold start time to wake up)
+  // Sync pending saves and deletions (5s delay gives Render cold start time to wake up)
   setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) syncPendingQueue(); }, 5000);
 }
 
@@ -3230,64 +3405,31 @@ function showSyncStatus(msg, type){
 
 async function syncTrade(trade){
   const owner = dataOwner, epoch = ownerEpoch;
-  // 1. Save to this account's local copy immediately (strips base64 automatically)
+  if(!owner) return;
+  // 1. This account's local copy and the queue first: nothing typed is lost
+  //    if the app closes or the server is down.
   safeLocalStorageSet('trades_v3', trades, owner);
-  // 2. Add to pending queue
   addToPendingQueue(trade, owner);
   setSyncStatus('pending');
-  // 3. Try server
   console.log(`[SYNC] Saving trade ${trade.id} (${trade.pair||trade.asset||'?'})...`);
-  api._lastStatus = null;
-  const result = await api('POST','/trades', trade);
-  if(result){
-    removeFromPendingQueue(trade.id, owner);
-    lsSet('last_sync_time', new Date().toISOString(), owner);
-    if(!isCurrentOwner(owner, epoch)){
-      if(result.img_url) patchCachedTrade(owner, trade.id, {img_url: result.img_url});
-      return;
-    }
-    // If server returned img_url (uploaded to Storage), update trade object
-    if(result.img_url){
-      const idx = trades.findIndex(t=>t.id===trade.id);
-      if(idx>=0){
-        trades[idx].img_url = result.img_url;
-        // Remove base64 from memory now that it's in Storage
-        delete trades[idx].img;
-        safeLocalStorageSet('trades_v3', trades, owner);
-      }
-    } else if(result.img_failed){
-      // Trade saved OK but image upload failed on server side — tell user explicitly
-      showToast(lang==='ru'
-        ? 'Сделка сохранена, но фото не загрузилось. Зайдите в сделку и переприкрепите фото.'
-        : 'Trade saved, but photo upload failed. Re-attach the photo in the trade.');
-      console.warn(`[SYNC] ⚠️ Trade ${trade.id} saved without photo (storage upload failed on server)`);
-    }
-    const remaining = lsJSON(PENDING_KEY, [], owner);
-    setSyncStatus(remaining.length>0 ? 'pending' : 'synced');
-    console.log(`[SYNC] ✓ Trade ${trade.id} saved on server${result.img_failed?' (without photo)':''}`);
+  // 2. The single runner delivers it after anything queued earlier
+  const status = await syncPendingQueue({quiet:true});
+  if(!isCurrentOwner(owner, epoch)) return;
+  if(!getQueue(owner).some(q=>q.id===trade.id)) return;      // delivered
+  // 3. Still waiting — say so plainly
+  if(status === 401 || status === 403){
+    setSyncStatus('offline');
+    toastError(lang==='ru' ? 'Нет доступа к серверу. Сделка сохранена на устройстве и будет отправлена позже.' : 'Server access denied. Trade saved on this device and will be sent later.');
+  } else if(!status){
+    toastWarn(lang==='ru' ? 'Нет соединения. Сделка сохранена на устройстве и будет отправлена позже.' : 'No connection. Trade saved on this device and will be sent later.');
   } else {
-    if(!isCurrentOwner(owner, epoch)) return;   // the trade stays in its own account's queue
-    // Show user a clear error — don't pretend everything is fine
-    const status = api._lastStatus;
-    if(status === 401 || status === 403){
-      setSyncStatus('offline');
-      toastError(lang==='ru' ? 'Нет доступа к серверу. Сделка сохранена локально.' : 'Server access denied. Trade saved locally.');
-      console.error(`[SYNC] ❌ Auth error (HTTP ${status}) — trade ${trade.id} stays in pending queue`);
-    } else if(!status || status === 0){
-      toastWarn(lang==='ru' ? 'Нет соединения. Сделка сохранена локально.' : 'No connection. Trade saved locally.');
-      console.warn(`[SYNC] ⚠️ Network/timeout error — trade ${trade.id} stays in pending queue`);
-    } else {
-      toastWarn(lang==='ru' ? `Ошибка сервера (${status}). Сделка сохранена локально.` : `Server error (${status}). Trade saved locally.`);
-      console.error(`[SYNC] ❌ Server error (HTTP ${status}) — trade ${trade.id} stays in pending queue`);
-    }
+    toastWarn(lang==='ru' ? `Ошибка сервера (${status}). Сделка сохранена на устройстве и будет отправлена позже.` : `Server error (${status}). Trade saved on this device and will be sent later.`);
   }
 }
+// Kept for callers that delete without an undo window
 async function deleteTradeSync(id){
-  const owner = dataOwner, epoch = ownerEpoch;
-  safeLocalStorageSet('trades_v3', trades, owner);
-  const result = await api('DELETE',`/trades/${id}`);
-  // The retry only goes out while the same account is signed in
-  if(!result) setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) api('DELETE',`/trades/${id}`); }, 3000);
+  markTradeDeleted(id);
+  return syncPendingQueue();
 }
 async function syncSettings(){
   const owner = dataOwner;
@@ -5036,10 +5178,8 @@ function bulkDelete(){
   if(!bulkSelected.size) return;
   const count=bulkSelected.size;
   if(!confirm(lang==='ru'?`Удалить ${count} сделок?`:`Delete ${count} trades?`)) return;
-  bulkSelected.forEach(id=>{
-    trades=trades.filter(t=>t.id!==id);
-    deleteTradeSync(id);
-  });
+  bulkSelected.forEach(id=>markTradeDeleted(id));
+  syncPendingQueue();
   bulkSelected.clear();
   toggleBulkMode();
   renderHome(); renderTrades();
@@ -5454,7 +5594,7 @@ function tcHTML(t){
       ${dateCol}
       <div class="tc-text">
         <div class="tc-row1"><span class="tc-pair">${escapeHtml(t.pair||t.asset||'—')}</span>${pnlDisplay}</div>
-        <div class="tc-row2"><span class="tc-meta">${m.label}</span><span class="res-badge ${resBadgeCls}">${resText}</span></div>
+        <div class="tc-row2"><span class="tc-meta">${m.label}${syncLabelHTML(t.id)}</span><span class="res-badge ${resBadgeCls}">${resText}</span></div>
         ${row3}
         <div class="tc-row4">${rrHTML}${qualityHTML}</div>
       </div>
@@ -5479,7 +5619,7 @@ function tradeRowHTML(t){
   const pnlHTML = hasPnl ? `<span class="mono" style="color:${pnlCol};font-weight:600">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</span>` : '—';
   return `<tr class="tt-row ${resCls}" data-id="${t.id}" onclick="bulkMode?toggleBulkItem('${t.id}',event):openDetail('${t.id}')">
     <td class="mono">${ds}</td>
-    <td class="tt-pair">${escapeHtml(t.pair||t.asset||'—')}</td>
+    <td class="tt-pair">${escapeHtml(t.pair||t.asset||'—')}${syncLabelHTML(t.id)}</td>
     <td class="tt-muted">${m.label}</td>
     <td>${dirHTML}</td>
     <td><span class="res-badge ${resBadgeCls}">${resText}</span></td>
@@ -5656,7 +5796,8 @@ function openDetail(id){
 
 function deleteTrade(id){
   const removed=trades.find(t=>t.id===id);
-  trades=trades.filter(t=>t.id!==id);
+  // Recorded right away, so closing the app during the undo window keeps it deleted
+  markTradeDeleted(id, {sendAfterMs:5000});
   closeModal('detailModal');
   renderHome(); renderTrades();
   // Undo support
@@ -5669,15 +5810,16 @@ function deleteTrade(id){
     t.classList.add('show');
     undoTimer=setTimeout(()=>{
       t.classList.remove('show');
-      // Only sync delete after undo window expires
-      deleteTradeSync(id);
+      // Undo window is over — the queue now delivers the deletion
       undoTrade=null;
+      syncPendingQueue();
     },5000);
   }
 }
 
 function undoDelete(){
   if(!undoTrade) return;
+  unmarkTradeDeleted(undoTrade.id);
   trades.push(undoTrade);
   syncTrade(undoTrade);
   undoTrade=null;
@@ -6656,14 +6798,14 @@ function openEditTrade(id){
     pnl:    t.pnl||'',           date:   t.date||new Date().toISOString().split('T')[0],
     result: t.result||'win',     setup:  t.setup||null,
     notes:  t.notes||'',         tags:   t.tags?[...t.tags]:[],
-    img:    t.img||null,         byPlan: t.byPlan,
+    img:    t.img||t.img_url||null, byPlan: t.byPlan,
     emotional:t.emotional,       checklistScore:t.checklistScore,
     checklistDetail:t.checklistDetail||{},
     mistakes:t.mistakes?[...t.mistakes]:[],
     rrCalc: t.rr||null,
   };
   currentTags=[...(t.tags||[])];
-  currentImg=t.img||null;
+  currentImg=t.img||t.img_url||null;
   currentMistakes=[...(t.mistakes||[])];
   checklistState={...(t.checklistDetail||{})};
   currentStep=0;
@@ -6749,7 +6891,10 @@ function saveTrade(){
     setup:tForm.setup||null,
     notes:tForm.notes||'',
     tags:[...currentTags],
-    img:currentImg,
+    // A new picture is a data: URL and gets uploaded; an http(s) link is the
+    // screenshot already in storage and is kept; null means it was removed.
+    ...(currentImg && String(currentImg).startsWith('data:') ? {img:currentImg}
+        : currentImg ? {img_url:currentImg} : {img:null, img_url:null}),
     byPlan:tForm.byPlan,
     emotional:tForm.emotional,
     checklistScore:tForm.checklistScore,
@@ -6998,9 +7143,9 @@ function updateOnlineStatus(){
 window.addEventListener('online',()=>{
   updateOnlineStatus();
   // When network restores, retry any pending trades that failed while offline
-  const pending = lsJSON(PENDING_KEY, []);
+  const pending = [...getQueue(), ...getTombs().filter(x=>!x.done)];
   if(pending.length>0){
-    console.log(`[SYNC] Network restored — retrying ${pending.length} pending trade(s)`);
+    console.log(`[SYNC] Network restored — retrying ${pending.length} pending operation(s)`);
     clearTimeout(syncPendingQueue._retryTimer);
     setTimeout(syncPendingQueue, 1500); // small delay for connection to stabilise
   }
