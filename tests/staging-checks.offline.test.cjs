@@ -352,6 +352,49 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
   try { await S.putBackFromFile({ env: { ...baseEnv(), SUPABASE_URL: 'https://unapprovedref.supabase.co' }, fileText: '[]', fetch: w.fetch, log: () => {} }); } catch (e) { refused = e.message; }
   check('--put-back refuses another project', /allowed test project/.test(refused || ''), refused);
 
+  // ── e0e0541 review: --put-back checks the whole snapshot before any request ──
+  const putBack = async (w0, rows) => {
+    const before = w0.calls.length;
+    let stop = null, res = null;
+    try { res = await S.putBackFromFile({ env: baseEnv(), fileText: typeof rows === 'string' ? rows : JSON.stringify(rows), fetch: w0.fetch, log: () => {}, retryDelayMs: 5 }); } catch (e) { stop = e.message; }
+    return { stop, res, requests: w0.calls.length - before };
+  };
+  const full = r => JSON.parse(JSON.stringify(r));
+  const existing = full(FIXTURES[0]);
+  w = world();
+  let pr = await putBack(w, [{ id: existing.id, user_id: existing.user_id, data: { replaced: 'incomplete file' } }]);
+  check('incomplete snapshot with keys of an existing trade → STOP, zero requests, row unchanged', /missing img_url, created_at, deleted_at, deleted_gen/.test(pr.stop || '') && pr.requests === 0 && w.snapshot() === w.initial, pr);
+  const badSnapshots = {
+    'unsupported column': [{ ...existing, owner: 'x' }],
+    'user_id as text': [{ ...existing, user_id: '900001' }],
+    'invalid id': [{ ...existing, id: '' }],
+    'img_url not text': [{ ...existing, img_url: 5 }],
+    'created_at not a timestamp': [{ ...existing, created_at: 'yesterday' }],
+    'deleted_at not a timestamptz': [{ ...existing, deleted_at: '2026-10-21T12:00:00' }],
+    'deleted_gen null': [{ ...existing, deleted_gen: null }],
+    'deleted_gen negative': [{ ...existing, deleted_gen: -1 }],
+    'deleted_gen as text': [{ ...existing, deleted_gen: '0' }],
+    'duplicate (id, user_id)': [existing, existing],
+    'row that is not an object': [existing, null],
+    'not an array': existing,
+    'empty array': [],
+    'not JSON': '{oops',
+  };
+  for (const [name, rows] of Object.entries(badSnapshots)) {
+    w = world();
+    pr = await putBack(w, rows);
+    check(`bad snapshot → STOP, zero requests: ${name}`, pr.stop && pr.requests === 0 && w.snapshot() === w.initial, pr);
+  }
+  check('nullable columns accepted: data, img_url, created_at, deleted_at null', S.parseSnapshot(JSON.stringify([{ ...existing, data: null, img_url: null, created_at: null, deleted_at: null }])).length === 1);
+  // a correct full snapshot (incl. a deletion marker) repairs damaged and missing rows exactly
+  const markerRow = { id: 'm-1', user_id: 900002, data: { id: 'm-1', deleted: true }, img_url: null, created_at: '2026-10-21T20:12:31.254071', deleted_at: '2026-10-21T20:30:00.123456+00:00', deleted_gen: 3 };
+  w = world({ extraRows: [markerRow] });
+  const fullSnapshot = [...w.store.values()].filter(r => r.user_id === 900001 || r.user_id === 900002).map(full);
+  w.store.get('1700000000001|900001').data = { damaged: true };
+  w.store.delete('m-1|900002');
+  pr = await putBack(w, fullSnapshot);
+  check('correct full snapshot → rows restored exactly, nothing reported', !pr.stop && pr.res.notBack.length === 0 && w.snapshot() === w.initial, pr);
+
   // ── finding 2: a failed request in a parallel group does not leave others writing after cleanup ──
   let lateDone = false, settledAfter = null;
   try { await S.settleAll([Promise.reject(new Error('first fails')), sleep(80).then(() => { lateDone = true; })]); } catch (e) { settledAfter = lateDone; }

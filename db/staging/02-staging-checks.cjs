@@ -482,6 +482,7 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
     const differ = rows.filter((b, i) => !sameAsBackup(snapshot[i], b, withGuard)).map(key);
     if (!check(`restore: the test database holds exactly the ${rows.length} CSV rows before deleting`, differ.length === 0, { differ })) return;
     const othersBefore = await othersOf();
+    parseSnapshot(JSON.stringify(snapshot));         // the kept file must be usable by --put-back
     snapshotFile = snapshots.save(snapshot);
 
     // From the first DELETE on, every path ends in a put-back unless the restore is confirmed
@@ -560,15 +561,47 @@ async function run({ env, server, csvText = null, fetch: fetchImpl = globalThis.
   return { results, exitCode, leftovers, notRestored, snapshotFile };
 }
 
+// Every column of public.trades (test schema + deletion-guard migration), as the
+// restore rehearsal saves them with select=*. A snapshot row must hold exactly these.
+const SNAPSHOT_COLUMNS = ['id', 'user_id', 'data', 'img_url', 'created_at', 'deleted_at', 'deleted_gen'];
+
+// Checks the whole snapshot file before any request: a partial or foreign file
+// would otherwise overwrite existing rows with missing or wrong columns.
+function parseSnapshot(fileText) {
+  let rows;
+  try { rows = JSON.parse(fileText); } catch (e) { throw new Stop('snapshot file is not JSON'); }
+  if (!Array.isArray(rows) || !rows.length) throw new Stop('snapshot file must be a non-empty array of trade rows');
+  const problems = [], seen = new Set();
+  rows.forEach((r, i) => {
+    const at = `row ${i + 1}`;
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return problems.push(`${at}: not an object`);
+    const missing = SNAPSHOT_COLUMNS.filter(c => !(c in r));
+    const extra = Object.keys(r).filter(c => !SNAPSHOT_COLUMNS.includes(c));
+    if (missing.length) problems.push(`${at}: missing ${missing.join(', ')}`);
+    if (extra.length) problems.push(`${at}: unsupported ${extra.join(', ')}`);
+    if (missing.length || extra.length) return;
+    if (!isValidTradeId(r.id)) problems.push(`${at}: invalid id`);
+    if (!Number.isSafeInteger(r.user_id)) problems.push(`${at}: user_id must be an integer`);
+    // data is jsonb (any JSON value or null); the other nullable columns: img_url, created_at, deleted_at
+    if (r.img_url !== null && typeof r.img_url !== 'string') problems.push(`${at}: img_url must be text or null`);
+    if (r.created_at !== null && !normTimestamp(r.created_at)) problems.push(`${at}: invalid created_at`);
+    if (r.deleted_at !== null && !normTimestamptz(r.deleted_at)) problems.push(`${at}: invalid deleted_at`);
+    if (!Number.isSafeInteger(r.deleted_gen) || r.deleted_gen < 0) problems.push(`${at}: deleted_gen must be an integer ≥ 0`);
+    const k = `${r.id}|${r.user_id}`;
+    if (seen.has(k)) problems.push(`${at}: duplicate (id, user_id)`);
+    seen.add(k);
+  });
+  if (problems.length) throw new Stop('snapshot file: ' + problems.slice(0, 5).join('; ') + (problems.length > 5 ? ` (+${problems.length - 5} more)` : ''));
+  return rows;
+}
+
 // Repairs a failed restore rehearsal from the snapshot file it kept: writes the
 // rows back into the test project and reads each one again.
 async function putBackFromFile({ env, fileText, fetch: fetchImpl = globalThis.fetch, log = console.log, retryDelayMs = 1000 }) {
   const SB = checkSupabaseUrl(env.SUPABASE_URL);
   const c = jwtClaims(env.SUPABASE_SERVICE_ROLE_KEY);
   if (!c || c.ref !== ALLOWED_TEST_REF || c.role !== 'service_role') throw new Stop('SUPABASE_SERVICE_ROLE_KEY is not the service_role key of the allowed test project');
-  let rows;
-  try { rows = JSON.parse(fileText); } catch (e) { throw new Stop('snapshot file is not JSON'); }
-  if (!Array.isArray(rows) || !rows.length || !rows.every(r => r && isValidTradeId(r.id) && Number.isSafeInteger(r.user_id))) throw new Stop('snapshot file does not hold trade rows');
+  const rows = parseSnapshot(fileText);
   const h = { 'Content-Type': 'application/json', apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: 'Bearer ' + env.SUPABASE_SERVICE_ROLE_KEY };
   const req = async (method, p, body, prefer) => {
     const r = await fetchImpl(`${SB}/rest/v1/${p}`, { method, headers: { ...h, ...(prefer ? { Prefer: prefer } : {}) }, body: body ? JSON.stringify(body) : undefined, redirect: 'error', signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
@@ -594,7 +627,7 @@ async function putBackFromFile({ env, fileText, fetch: fetchImpl = globalThis.fe
   return { notBack };
 }
 
-module.exports = { run, putBackFromFile, settleAll, parseCsv, parseBackup, normTimestamp, sameAsBackup, makeReport, ALLOWED_TEST_REF };
+module.exports = { run, putBackFromFile, parseSnapshot, settleAll, parseCsv, parseBackup, normTimestamp, sameAsBackup, makeReport, ALLOWED_TEST_REF };
 
 if (require.main === module) {
   const env = {};
