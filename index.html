@@ -2573,32 +2573,44 @@ async function doAuth(){
   }
 }
 
-// Exchanges the refresh token for a fresh access token when it expires.
-async function refreshWebSession(){
-  if(!webSession?.refresh_token) return false;
-  const cfg = await fetchSupaConfig();
-  if(!cfg?.web_auth_ready) return false;
-  try{
-    const res = await fetch(`${cfg.supabase_url}/auth/v1/token?grant_type=refresh_token`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':cfg.supabase_anon_key},
-      body: JSON.stringify({refresh_token: webSession.refresh_token}),
-    });
-    if(!res.ok) return false;
-    const data = await res.json();
-    if(!data.access_token) return false;
-    // A refreshed token must still belong to the same account
-    const uid = data.user?.id || jwtSub(data.access_token);
-    const prev = webSession.uid || jwtSub(webSession.access_token);
-    if(prev && uid && uid!==prev) return false;
-    saveWebSession({
-      access_token:  data.access_token,
-      refresh_token: data.refresh_token || webSession.refresh_token,
-      email:         webSession.email,
-      uid:           uid || prev,
-    });
-    return true;
-  }catch(e){ return false; }
+// Exchanges the refresh token of one session for a fresh access token.
+// Returns true (renewed), false (could not renew) or 'stale' (a different
+// session became active while waiting — its state is left untouched).
+// Parallel 401s for the same session share one refresh.
+async function refreshWebSession(sess=webSession){
+  if(!sess?.refresh_token) return false;
+  if(refreshWebSession._for===sess && refreshWebSession._p) return refreshWebSession._p;
+  const run = (async()=>{
+    const cfg = await fetchSupaConfig();
+    if(webSession!==sess) return 'stale';
+    if(!cfg?.web_auth_ready) return false;
+    try{
+      const res = await fetch(`${cfg.supabase_url}/auth/v1/token?grant_type=refresh_token`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':cfg.supabase_anon_key},
+        body: JSON.stringify({refresh_token: sess.refresh_token}),
+      });
+      if(webSession!==sess) return 'stale';
+      if(!res.ok) return false;
+      const data = await res.json();
+      if(webSession!==sess) return 'stale';
+      if(!data.access_token) return false;
+      // A refreshed token must still belong to the same account
+      const uid = data.user?.id || jwtSub(data.access_token);
+      const prev = sess.uid || jwtSub(sess.access_token);
+      if(prev && uid && uid!==prev) return false;
+      saveWebSession({
+        access_token:  data.access_token,
+        refresh_token: data.refresh_token || sess.refresh_token,
+        email:         sess.email,
+        uid:           uid || prev,
+      });
+      return true;
+    }catch(e){ return webSession!==sess ? 'stale' : false; }
+  })();
+  refreshWebSession._for = sess; refreshWebSession._p = run;
+  try{ return await run; }
+  finally{ if(refreshWebSession._p===run){ refreshWebSession._p = null; refreshWebSession._for = null; } }
 }
 
 function signOut(){
@@ -2725,7 +2737,26 @@ function setDataOwner(owner){
   ownerEpoch++;
   clearTimeout(syncPendingQueue._retryTimer);
   trades = []; baseCapital = 0; goals = []; ideas = [];
+  resetFormsForAccountSwitch();
   return true;
+}
+
+// Whatever the previous account had open or half-typed must not survive into
+// the next account: close every sheet and empty the entry forms. Setting
+// .value does not fire input events, so no draft is written while clearing.
+function resetFormsForAccountSwitch(){
+  if(typeof document==='undefined') return;
+  document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));
+  document.getElementById('fullscreen')?.classList.remove('open');
+  ['addModal','quickModal','ideaModal','capModal','goalsModal'].forEach(id=>{
+    document.querySelectorAll('#'+id+' input, #'+id+' textarea').forEach(el=>{
+      if(el.type==='button'||el.type==='checkbox'||el.type==='radio') return;
+      el.value='';
+    });
+  });
+  ['iImgPreview','imgPreview'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+  editingId = null; tForm = {}; currentImg = null; currentTags = []; currentMistakes = []; checklistState = {};
+  editingIdeaId = null; ideaForm = {}; ideaCurrentImg = null; ideaFormOwner = null;
 }
 
 // Safe localStorage write — strips base64 images, handles quota errors
@@ -2890,15 +2921,28 @@ function renderLegacyNotice(){
   const L = legacyUnclaimed();
   const n = L.pending.length, m = L.ideas.length, hasDraft = !!L.draft;
   if(!dataOwner || (!n && !m && !hasDraft) || lsGet('legacy_notice_hidden')){ el.hidden = true; el.innerHTML=''; _legacyConfirm=false; return; }
+  // The account already has its own idea draft: the old one is never merged
+  // silently — only an explicit "replace" moves it.
+  const draftConflict = hasDraft && !!lsGet(IDEA_DRAFT_KEY);
+  if(draftConflict && !n && !m){
+    el.hidden = false;
+    el.innerHTML = _legacyConfirm==='draft'
+      ? `<p>${ru ? 'Заменить ваш текущий черновик идеи старым? Текущий черновик будет потерян.' : 'Replace your current idea draft with the old one? The current draft will be lost.'}</p>
+         <div class="legacy-actions"><button type="button" class="lg-primary" onclick="adoptLegacyData(true)">${ru?'Да, заменить':'Yes, replace'}</button><button type="button" onclick="_legacyConfirm=false;renderLegacyNotice()">${ru?'Отмена':'Cancel'}</button></div>`
+      : `<p>${ru ? 'На устройстве остался черновик идеи из прошлой версии. У вас уже есть свой черновик, поэтому старый не перенесён.' : 'An idea draft from the previous version is still on this device. You already have your own draft, so the old one was not moved.'}</p>
+         <div class="legacy-actions"><button type="button" onclick="_legacyConfirm='draft';renderLegacyNotice()">${ru?'Заменить мой черновик старым':'Replace my draft with the old one'}</button><button type="button" onclick="hideLegacyNotice()">${ru?'Не нужен, скрыть':'Not needed, hide'}</button></div>`;
+    return;
+  }
   const parts = [];
   if(n) parts.push(ru ? `${n} ${plural(n,'неотправленная сделка','неотправленные сделки','неотправленных сделок')}` : `${n} unsent ${n===1?'trade':'trades'}`);
   if(m) parts.push(ru ? `${m} ${plural(m,'идея','идеи','идей')}` : `${m} ${m===1?'idea':'ideas'}`);
-  if(hasDraft) parts.push(ru ? 'черновик идеи' : 'an idea draft');
+  if(hasDraft && !draftConflict) parts.push(ru ? 'черновик идеи' : 'an idea draft');
   const what = parts.join(', ');
+  const draftNote = draftConflict ? (ru ? ' Старый черновик идеи не перенесётся: у вас уже есть свой.' : ' The old idea draft will not be moved: you already have one.') : '';
   const who = escapeHtml(accountLabel());
   el.hidden = false;
   el.innerHTML = _legacyConfirm
-    ? `<p>${ru ? `Перенести в аккаунт <b>${who}</b>: ${what}? Сделки будут отправлены на сервер под этим аккаунтом. Убедитесь, что это ваши записи.` : `Move into <b>${who}</b>: ${what}? The trades will be uploaded under this account. Make sure they are yours.`}</p>
+    ? `<p>${ru ? `Перенести в аккаунт <b>${who}</b>: ${what}? Сделки будут отправлены на сервер под этим аккаунтом. Убедитесь, что это ваши записи.${draftNote}` : `Move into <b>${who}</b>: ${what}? The trades will be uploaded under this account. Make sure they are yours.${draftNote}`}</p>
        <div class="legacy-actions"><button type="button" class="lg-primary" onclick="adoptLegacyData()">${ru?'Да, перенести':'Yes, move them'}</button><button type="button" onclick="_legacyConfirm=false;renderLegacyNotice()">${ru?'Отмена':'Cancel'}</button></div>`
     : `<p>${ru ? `На этом устройстве остались данные из прошлой версии, не привязанные к аккаунту: <b>${what}</b>. Они не удалены и не добавлены ни в один аккаунт.` : `This device still has data from the previous version that is not tied to an account: <b>${what}</b>. Nothing was deleted or added to any account.`}</p>
        <div class="legacy-actions"><button type="button" onclick="_legacyConfirm=true;renderLegacyNotice()">${ru?'Перенести в мой аккаунт':'Move into my account'}</button><button type="button" onclick="hideLegacyNotice()">${ru?'Не мои, скрыть':'Not mine, hide'}</button></div>`;
@@ -2907,7 +2951,7 @@ function hideLegacyNotice(){
   try{ lsSet('legacy_notice_hidden', '1'); }catch(e){}
   renderLegacyNotice();
 }
-function adoptLegacyData(){
+function adoptLegacyData(replaceDraft=false){
   const owner = dataOwner; if(!owner) return;
   const L = legacyUnclaimed();
   // Unsent trades join this account's queue and journal (existing entries win)
@@ -2922,13 +2966,16 @@ function adoptLegacyData(){
   const ideaIds = new Set(ideas.map(x=>x.id));
   L.ideas.forEach(x=>{ if(!ideaIds.has(x.id)) ideas.push(x); });
   saveIdeasLocal();
-  if(L.draft && !lsGet(IDEA_DRAFT_KEY, owner)){ try{ lsSet(IDEA_DRAFT_KEY, JSON.stringify(L.draft), owner); }catch(e){} }
+  let draftMoved = false;
+  if(L.draft && (replaceDraft || !lsGet(IDEA_DRAFT_KEY, owner))){
+    try{ draftMoved = lsSet(IDEA_DRAFT_KEY, JSON.stringify(L.draft), owner); }catch(e){ draftMoved = false; }
+  }
   // Record the claim; the old keys stay exactly as they were
   const claim = legacyClaim();
   claim.pending = [...new Set([...claim.pending, ...L.pending.map(t=>t.id)])];
   claim.ideas   = [...new Set([...claim.ideas, ...L.ideas.map(x=>x.id)])];
-  if(L.draft) claim.draft = true;
-  claim.by = [...(claim.by||[]), {owner, at:new Date().toISOString(), trades:L.pending.length, ideas:L.ideas.length, draft:!!L.draft}];
+  if(draftMoved) claim.draft = true;
+  claim.by = [...(claim.by||[]), {owner, at:new Date().toISOString(), trades:L.pending.length, ideas:L.ideas.length, draft:draftMoved}];
   try{ localStorage.setItem(LEGACY_CLAIM_KEY, JSON.stringify(claim)); }catch(e){}
   _legacyConfirm = false;
   renderHome(); renderTrades(); renderIdeas();
@@ -2959,14 +3006,17 @@ function show401Banner(){
   }
 }
 
-async function api(method, path, body, _retried){
+async function api(method, path, body, _retried, _ctx){
+  // The account and web session this request belongs to. A retry after a
+  // token refresh keeps the same owner; it is never re-sent as someone else.
+  const ctx = _ctx || {owner:dataOwner, epoch:ownerEpoch, session:webSession};
   let timer;
   try{
     // Auth header: Telegram initData inside the Mini App, Supabase bearer
     // token in the browser.
     const headers = {'Content-Type':'application/json'};
-    if(IN_TELEGRAM)                 headers['x-telegram-init-data'] = INIT_DATA;
-    else if(webSession?.access_token) headers['Authorization'] = 'Bearer '+webSession.access_token;
+    if(IN_TELEGRAM)                      headers['x-telegram-init-data'] = INIT_DATA;
+    else if(ctx.session?.access_token)   headers['Authorization'] = 'Bearer '+ctx.session.access_token;
 
     // Timeout via Promise.race instead of AbortController.signal —
     // some embedded webviews can't structured-clone an AbortSignal across
@@ -2983,9 +3033,20 @@ async function api(method, path, body, _retried){
     ]);
     clearTimeout(timer);
     if(!res.ok){
-      // Web session expired — refresh once and retry the same call.
-      if(res.status === 401 && !IN_TELEGRAM && webSession && !_retried){
-        if(await refreshWebSession()) return api(method, path, body, true);
+      // Web session expired — refresh once and retry the same call, but only
+      // for the account that sent it.
+      if(res.status === 401 && !IN_TELEGRAM && ctx.session && !_retried){
+        clearTimeout(timer);
+        if(!isCurrentOwner(ctx.owner, ctx.epoch)) return null;          // another account is signed in now
+        if(webSession && webSession!==ctx.session){
+          // A parallel call already renewed the token: retry only if it is still the same account
+          return ownerFromIdentity(false, null, webSession)===ctx.owner
+            ? api(method, path, body, true, {...ctx, session:webSession}) : null;
+        }
+        const r = await refreshWebSession(ctx.session);
+        if(!isCurrentOwner(ctx.owner, ctx.epoch)) return null;
+        if(r===true) return api(method, path, body, true, {...ctx, session:webSession});
+        if(r==='stale' || webSession!==ctx.session) return null;      // leave a newer session alone
         saveWebSession(null);
         setDataOwner(null);
         document.getElementById('authGate')?.classList.add('show');
@@ -6078,6 +6139,7 @@ let ideas = [];
 let ideaForm = {};
 let ideaCurrentImg = null;
 let editingIdeaId = null;
+let ideaFormOwner = null;   // account the open idea form belongs to — drafts are written only there
 let _ideasShowArchive = false;
 const IDEAS_KEY = 'ideas_v1';
 const IDEA_DRAFT_KEY = 'idea_draft_v1';
@@ -6088,12 +6150,14 @@ const IDEA_DRAFT_KEY = 'idea_draft_v1';
 function _v(id){ const el=document.getElementById(id); return el?el.value:''; }
 function saveIdeaDraft(){
   if(editingIdeaId) return; // drafts are only for brand-new ideas
+  const owner = ideaFormOwner;
+  if(!owner || owner!==dataOwner) return; // the form belongs to an account that is no longer signed in
   const d = {
     pair:_v('iPair'), market:_v('iMarket'), entry:_v('iEntry'), sl:_v('iSL'), tp:_v('iTP'),
     note:_v('iNote'), dir:ideaForm.dir||null, conviction:ideaForm.conviction||null, img:ideaCurrentImg||null,
   };
   const empty = !d.pair && !d.note && !d.entry && !d.sl && !d.tp && !d.dir && !d.conviction && !d.img;
-  try{ empty ? lsRemove(IDEA_DRAFT_KEY) : lsSet(IDEA_DRAFT_KEY, JSON.stringify(d)); }
+  try{ empty ? lsRemove(IDEA_DRAFT_KEY, owner) : lsSet(IDEA_DRAFT_KEY, JSON.stringify(d), owner); }
   catch(e){ /* quota — ignore, keep what we can */ }
 }
 function clearIdeaDraft(){ lsRemove(IDEA_DRAFT_KEY); }
@@ -6206,6 +6270,7 @@ function applyIdeaModalLang(){
 }
 
 function openIdeaModal(editId){
+  ideaFormOwner = dataOwner;
   editingIdeaId = editId || null;
   ideaForm = {dir:null, conviction:null};
   ideaCurrentImg = null;
@@ -6283,9 +6348,11 @@ function ideaRRPreview(){
 
 function handleIdeaImg(input){ const f=input.files[0]; if(f) processIdeaImgFile(f); }
 function processIdeaImgFile(file){
+  const owner=ideaFormOwner;
   const reader=new FileReader();
   reader.onload=e=>{
     compressImageDataURL(e.target.result, 1000, 90*1024, dataURL=>{
+      if(!owner || owner!==ideaFormOwner || owner!==dataOwner) return; // finished after an account switch
       ideaCurrentImg=dataURL;
       document.getElementById('iImgPreviewSrc').src=ideaCurrentImg;
       document.getElementById('iImgPreview').style.display='block';

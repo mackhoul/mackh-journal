@@ -25,7 +25,10 @@
     if (u.pathname === '/health') return json({ status: 'ok' });
     if (u.host === 'mock.supabase.test') {
       const b = JSON.parse(opt.body || '{}');
-      if (b.refresh_token) return M.refreshTo ? json({ access_token: TOK[M.refreshTo], refresh_token: 'r' }) : json({ error: 'bad' }, 400);
+      if (b.refresh_token) {
+        if (M.refreshDelay) await new Promise(r => setTimeout(r, M.refreshDelay));
+        return M.refreshTo ? json({ access_token: TOK[M.refreshTo], refresh_token: 'r' + M.refreshTo }) : json({ error: 'bad' }, 400);
+      }
       const who = (b.email || '').toLowerCase().startsWith('a') ? 'A' : 'B';
       return json({ access_token: TOK[who], refresh_token: 'r' + who, user: { id: 'uid-' + who, email: b.email } });
     }
@@ -33,8 +36,9 @@
     const body = opt.body ? JSON.parse(opt.body) : null;
     const key = method + ' ' + u.pathname.replace(/\/trades\/.+/, '/trades/:id') + ' ' + user;
     M.log.push({ user, method, path: u.pathname, id: body?.id || (u.pathname.split('/')[2] || null) });
-    if (!user || M.expired === user) return json({ error: 'expired' }, 401);
     if (M.delay[key]) await new Promise(r => setTimeout(r, M.delay[key]));
+    // checked after the delay: a token can expire while a request is in flight
+    if (!user || M.expired === user) return json({ error: 'expired' }, 401);
     if (M.down[user]) throw new TypeError('Failed to fetch');
     const U = (M.users[user] ||= { trades: {}, settings: { base_capital: 0, goals: [] } });
     if (u.pathname === '/trades' && method === 'GET') return json(Object.values(U.trades));
@@ -50,7 +54,7 @@
   const MOCK_CFG = { web_auth_ready: true, supabase_url: 'https://mock.supabase.test', supabase_anon_key: 'x' };
   supaConfig = MOCK_CFG;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const reset = (users = {}) => { localStorage.clear(); Object.assign(M, { users, log: [], delay: {}, down: {}, expired: null, refreshTo: null, imgUrl: null }); };
+  const reset = (users = {}) => { localStorage.clear(); Object.assign(M, { users, log: [], delay: {}, down: {}, expired: null, refreshTo: null, refreshDelay: 0, imgUrl: null }); supaConfig = MOCK_CFG; };
   const login = async who => { saveWebSession({ access_token: TOK[who], refresh_token: 'r' + who, email: who.toLowerCase() + '@test' }); document.getElementById('authGate').classList.remove('show'); await startApp(); };
   const posts = () => M.log.filter(x => x.method === 'POST').map(x => x.user + ':' + x.id);
   const notice = () => document.getElementById('legacyNotice');
@@ -134,6 +138,54 @@
   const ac = lsJSON('trades_v3', [], 'web:uid-A').find(x => x.id === 'A-img');
   check('late save: B memory untouched', !trades.some(x => x.id === 'A-img'));
   check('late save: img_url lands in A cache', ac && ac.img_url === M.imgUrl && !ac.img, ac);
+
+  // 10. (review 1) A's save is in flight, B signs in, then the old request gets 401
+  reset(); await login('A');
+  M.delay = { 'POST /trades A': 800 }; M.refreshTo = 'B';
+  const pt = { id: 'A-private-401', pair: 'A_PRIVATE', pnl: '42' };
+  trades.push(pt); const save401 = syncTrade(pt);
+  await sleep(100); M.expired = 'A'; await login('B'); await save401; await sleep(300);
+  check('review 1: late 401 for A never re-sent under B', !posts().some(p => p.startsWith('B:A-')) && !(M.users.B?.trades || {})['A-private-401'], { posts: posts(), b: M.users.B?.trades });
+  check('review 1: A trade stays in A queue', lsJSON('pending_trades_v3', [], 'web:uid-A').some(t => t.id === 'A-private-401'));
+  check('review 1: B stays signed in', dataOwner === 'web:uid-B' && !!webSession);
+
+  // 11. (review 3) A's token refresh finishes after B signed in
+  reset(); await login('A');
+  M.expired = 'A'; M.refreshTo = 'A'; M.refreshDelay = 800;
+  const callA = api('GET', '/trades');
+  await sleep(200); M.expired = null; await login('B'); await callA; await sleep(200);
+  check('review 3: stale A refresh leaves B signed in', dataOwner === 'web:uid-B' && !!webSession && ownerFromIdentity(false, null, webSession) === 'web:uid-B', { dataOwner, hasSession: !!webSession });
+
+  // 12. (review 2) an idea form opened in A cannot write its draft into B
+  reset(); await login('A');
+  openIdeaModal(); openModal('ideaModal');
+  const ip = document.getElementById('iPair'); ip.value = 'A_PRIVATE_DRAFT'; ip.dispatchEvent(new Event('input'));
+  check('review 2: A draft saved for A', lsJSON('idea_draft_v1', null, 'web:uid-A')?.pair === 'A_PRIVATE_DRAFT');
+  M.expired = 'A'; await api('GET', '/trades');               // A's session dies, refresh fails
+  M.expired = null; supaConfig = MOCK_CFG;
+  document.getElementById('authEmail').value = 'b@test'; document.getElementById('authPass').value = 'secret1';
+  await doAuth();
+  ip.dispatchEvent(new Event('input')); saveIdeaDraft();       // stray events after the switch
+  check('review 2: A form closed and emptied', !document.getElementById('ideaModal').classList.contains('open') && ip.value === '');
+  check('review 2: B has no draft from A form', dataOwner === 'web:uid-B' && lsGet('idea_draft_v1', 'web:uid-B') === null);
+  check('review 2: A draft kept for A', lsJSON('idea_draft_v1', null, 'web:uid-A')?.pair === 'A_PRIVATE_DRAFT');
+  openIdeaModal(); ip.value = 'B_DRAFT'; ip.dispatchEvent(new Event('input'));
+  check('review 2: B can still save its own draft', lsJSON('idea_draft_v1', null, 'web:uid-B')?.pair === 'B_DRAFT');
+  closeModal('ideaModal');
+
+  // 13. (review 4) old draft vs. the account's own draft
+  reset();
+  localStorage.setItem('idea_draft_v1', JSON.stringify({ pair: 'OLD_DRAFT' }));
+  localStorage.setItem('pending_trades_v3', JSON.stringify([{ id: 'L-1', pair: 'X', pnl: '1', result: 'win' }]));
+  await login('A');
+  lsSet('idea_draft_v1', JSON.stringify({ pair: 'A_OWN' })); renderLegacyNotice();
+  (btn('Перенести') || btn('Move')).click(); (btn('Да') || btn('Yes')).click(); await sleep(300);
+  const claim1 = JSON.parse(localStorage.getItem('mj:legacy_claim'));
+  check('review 4: draft not marked moved when not copied', claim1.draft === false && lsJSON('idea_draft_v1', null)?.pair === 'A_OWN', claim1);
+  check('review 4: old draft still offered with explicit replace', !notice().hidden && !!(btn('Заменить') || btn('Replace')));
+  (btn('Заменить') || btn('Replace'))?.click(); (btn('Да') || btn('Yes'))?.click(); await sleep(100);
+  const claim2 = JSON.parse(localStorage.getItem('mj:legacy_claim')) || {};
+  check('review 4: replace copies, then marks it moved', claim2.draft === true && lsJSON('idea_draft_v1', null)?.pair === 'OLD_DRAFT' && localStorage.getItem('idea_draft_v1') !== null, claim2);
 
   // 8. Owner rule matches the server
   check('owner: telegram', ownerFromIdentity(true, { id: 12345 }, null) === 'tg:12345');
