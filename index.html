@@ -1335,6 +1335,15 @@ body.light .wk-hero{background:#C6FF3D;color:#0E1006}
 body.light .now-tile.limit-hit{background:#FF6B6B;color:#1A0606}
 .now-tile.limit-hit .now-limit{background:rgba(26,6,6,.12)}
 .now-tile.limit-hit .kz-seg,.now-tile.limit-hit .kz-marker{background:#1A0606!important}
+
+/* data left by an older version on this device */
+.legacy-notice{margin:12px 16px 0;padding:14px 16px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--border-strong)}
+.legacy-notice p{font-size:14px;color:var(--text-secondary);line-height:1.5}
+.legacy-notice p b{color:var(--text);font-weight:600}
+.legacy-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.legacy-actions button{padding:9px 14px;border-radius:999px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border-strong);background:transparent;color:var(--text)}
+.legacy-actions .lg-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+@media(min-width:1024px){.legacy-notice{margin:12px 0 0;max-width:760px}}
 @media(prefers-reduced-motion:reduce){.ss-now::after{animation:none;opacity:0}}
 </style>
 </head>
@@ -1473,6 +1482,7 @@ body.light .now-tile.limit-hit{background:#FF6B6B;color:#1A0606}
   </div>
   </div><!-- /home-hero -->
 
+  <div id="legacyNotice" class="legacy-notice" hidden></div>
   <div class="home-cols">
   <div class="home-col">
   <!-- Streak -->
@@ -2553,6 +2563,7 @@ async function doAuth(){
       access_token:  data.access_token,
       refresh_token: data.refresh_token,
       email:         data.user?.email || email,
+      uid:           data.user?.id || jwtSub(data.access_token),
     });
     document.getElementById('authGate').classList.remove('show');
     await startApp();
@@ -2576,10 +2587,15 @@ async function refreshWebSession(){
     if(!res.ok) return false;
     const data = await res.json();
     if(!data.access_token) return false;
+    // A refreshed token must still belong to the same account
+    const uid = data.user?.id || jwtSub(data.access_token);
+    const prev = webSession.uid || jwtSub(webSession.access_token);
+    if(prev && uid && uid!==prev) return false;
     saveWebSession({
       access_token:  data.access_token,
       refresh_token: data.refresh_token || webSession.refresh_token,
       email:         webSession.email,
+      uid:           uid || prev,
     });
     return true;
   }catch(e){ return false; }
@@ -2587,6 +2603,7 @@ async function refreshWebSession(){
 
 function signOut(){
   saveWebSession(null);
+  setDataOwner(null);
   location.reload();
 }
 
@@ -2654,8 +2671,65 @@ const PENDING_KEY = 'pending_trades_v3';
   }catch(e){}
 })();
 
+// ═══════════════════════════════════════════════════════
+//  PER-ACCOUNT LOCAL STORAGE
+//  Journal data on this device is stored under the signed-in account as
+//  mj:<owner>:<key>, so two accounts in one browser never see or upload each
+//  other's trades. Keys written before this change (no prefix) are left where
+//  they are; nothing is moved into an account without the person confirming it.
+//  ownerEpoch changes on every account switch: async work that started for an
+//  earlier account checks it and never applies its result to the new one.
+// ═══════════════════════════════════════════════════════
+let dataOwner  = null;   // 'tg:<telegram user id>' | 'web:<auth user id>' | null
+let ownerEpoch = 0;
+
+function jwtSub(token){
+  try{
+    const part = String(token||'').split('.')[1];
+    if(!part) return null;
+    const json = atob(part.replace(/-/g,'+').replace(/_/g,'/'));
+    return JSON.parse(json).sub || null;
+  }catch(e){ return null; }
+}
+// Same identity the server uses: the Telegram user id from initData, or the
+// auth user id inside the web session token.
+function ownerFromIdentity(inTelegram, tgUser, session){
+  if(inTelegram) return tgUser && tgUser.id ? 'tg:'+tgUser.id : null;
+  const uid = session && (session.uid || jwtSub(session.access_token));
+  return uid ? 'web:'+uid : null;
+}
+function currentIdentityOwner(){ return ownerFromIdentity(IN_TELEGRAM, tg?.initDataUnsafe?.user, webSession); }
+function scopedKey(key, owner=dataOwner){ return owner ? 'mj:'+owner+':'+key : null; }
+function lsGet(key, owner=dataOwner){
+  const k = scopedKey(key, owner); if(!k) return null;
+  try{ return localStorage.getItem(k); }catch(e){ return null; }
+}
+// May throw QuotaExceededError — callers that care already catch it
+function lsSet(key, value, owner=dataOwner){
+  const k = scopedKey(key, owner); if(!k) return false;
+  localStorage.setItem(k, value); return true;
+}
+function lsRemove(key, owner=dataOwner){
+  const k = scopedKey(key, owner); if(!k) return;
+  try{ localStorage.removeItem(k); }catch(e){}
+}
+function lsJSON(key, fallback, owner=dataOwner){
+  try{ const v = lsGet(key, owner); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; }
+}
+function isCurrentOwner(owner, epoch){ return owner===dataOwner && epoch===ownerEpoch; }
+
+// Points the in-memory journal at another account (or at nobody after sign-out).
+function setDataOwner(owner){
+  if(owner===dataOwner) return false;
+  dataOwner = owner;
+  ownerEpoch++;
+  clearTimeout(syncPendingQueue._retryTimer);
+  trades = []; baseCapital = 0; goals = []; ideas = [];
+  return true;
+}
+
 // Safe localStorage write — strips base64 images, handles quota errors
-function safeLocalStorageSet(key, value) {
+function safeLocalStorageSet(key, value, owner=dataOwner) {
   try {
     let data = value;
     // If saving trades array — strip base64 to save space (keep img_url)
@@ -2666,7 +2740,7 @@ function safeLocalStorageSet(key, value) {
         return rest;                // img_url stays if present
       });
     }
-    localStorage.setItem(key, JSON.stringify(data));
+    lsSet(key, JSON.stringify(data), owner);
   } catch(e) {
     console.error('localStorage write failed:', e.message);
     if (e.name === 'QuotaExceededError') {
@@ -2677,15 +2751,16 @@ function safeLocalStorageSet(key, value) {
 
 
 
-function addToPendingQueue(trade){
+function addToPendingQueue(trade, owner=dataOwner){
+  if(!owner) return;
   try{
-    const q = JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
+    const q = lsJSON(PENDING_KEY, [], owner);
     const idx = q.findIndex(t=>t.id===trade.id);
     // Always replace if already queued (covers re-edit of a pending trade)
     if(idx>=0) q[idx] = trade;
     else q.push(trade);
     try{
-      localStorage.setItem(PENDING_KEY, JSON.stringify(q));
+      lsSet(PENDING_KEY, JSON.stringify(q), owner);
     }catch(quotaErr){
       if(quotaErr.name==='QuotaExceededError'){
         // Strip base64 images from every queued trade and retry
@@ -2693,32 +2768,52 @@ function addToPendingQueue(trade){
           if(!t.img||!t.img.startsWith('data:')) return t;
           const {img,...rest}=t; return rest;
         });
-        try{ localStorage.setItem(PENDING_KEY, JSON.stringify(slim)); }catch(e2){}
+        try{ lsSet(PENDING_KEY, JSON.stringify(slim), owner); }catch(e2){}
         console.warn('[SYNC] Quota exceeded — base64 stripped from pending queue');
       }
     }
   }catch(e){ console.error('[SYNC] addToPendingQueue error:', e.message); }
 }
 
-function removeFromPendingQueue(id){
+function removeFromPendingQueue(id, owner=dataOwner){
+  if(!owner) return;
   try{
-    const q = JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
-    localStorage.setItem(PENDING_KEY, JSON.stringify(q.filter(t=>t.id!==id)));
+    const q = lsJSON(PENDING_KEY, [], owner);
+    lsSet(PENDING_KEY, JSON.stringify(q.filter(t=>t.id!==id)), owner);
   }catch(e){}
 }
 
+// Writes a server-assigned image URL into an account's cached copy of a trade,
+// used when that account is no longer the one on screen.
+function patchCachedTrade(owner, id, patch){
+  const cached = lsJSON('trades_v3', [], owner);
+  const i = cached.findIndex(t=>t.id===id);
+  if(i<0) return;
+  Object.assign(cached[i], patch);
+  if(patch.img_url) delete cached[i].img;
+  safeLocalStorageSet('trades_v3', cached, owner);
+}
+
 async function syncPendingQueue(){
+  const owner = dataOwner, epoch = ownerEpoch;
+  if(!owner) return;
   try{
-    const q = JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
+    const q = lsJSON(PENDING_KEY, [], owner);
     if(!q.length) return;
     console.log(`[SYNC] Pending queue: ${q.length} trade(s) to sync`);
     let synced = 0;
     for(const trade of q){
+      // Never send one account's queue with another account's credentials
+      if(!isCurrentOwner(owner, epoch)){ console.log('[SYNC] Account changed — queue run stopped'); return; }
       api._lastStatus = null;
       const result = await api('POST','/trades', trade);
       if(result){
-        removeFromPendingQueue(trade.id);
+        removeFromPendingQueue(trade.id, owner);
         synced++;
+        if(!isCurrentOwner(owner, epoch)){
+          if(result.img_url) patchCachedTrade(owner, trade.id, {img_url: result.img_url});
+          return;
+        }
         if(result.img_url){
           const idx = trades.findIndex(t=>t.id===trade.id);
           if(idx>=0){ trades[idx].img_url = result.img_url; delete trades[idx].img; }
@@ -2736,14 +2831,15 @@ async function syncPendingQueue(){
         if(s === 401 || s === 403) break;
       }
     }
+    if(!isCurrentOwner(owner, epoch)) return;
     if(synced>0){
-      safeLocalStorageSet('trades_v3', trades);
-      localStorage.setItem('last_sync_time', new Date().toISOString());
+      safeLocalStorageSet('trades_v3', trades, owner);
+      lsSet('last_sync_time', new Date().toISOString(), owner);
       showSyncStatus(lang==='ru'?`Досинхронизировано: ${synced} сделок`:`Synced ${synced} pending trades`);
       // Re-render so uploaded img_url values appear without requiring a reload
       renderHome(); renderTrades();
     }
-    const remaining = JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
+    const remaining = lsJSON(PENDING_KEY, [], owner);
     setSyncStatus(remaining.length>0 ? 'pending' : 'synced');
     // If items are still pending (server was down), schedule one retry in 30 s
     if(remaining.length>0){
@@ -2755,6 +2851,89 @@ async function syncPendingQueue(){
       }
     }
   }catch(e){ console.error('[SYNC] syncPendingQueue error:', e.message); }
+}
+
+
+// ═══════════════════════════════════════════════════════
+//  DATA FROM BEFORE PER-ACCOUNT STORAGE
+//  Older versions kept unsynced trades, ideas and the idea draft in shared
+//  keys. Those keys are never deleted and never attached to an account on
+//  their own: the signed-in person sees what is there and decides. A claim
+//  marker records what was taken, so a second account is not offered the
+//  same items again.
+// ═══════════════════════════════════════════════════════
+const LEGACY_CLAIM_KEY = 'mj:legacy_claim';
+let _legacyConfirm = false;
+
+function legacyClaim(){
+  try{ return JSON.parse(localStorage.getItem(LEGACY_CLAIM_KEY)||'null') || {pending:[], ideas:[], draft:false, by:[]}; }
+  catch(e){ return {pending:[], ideas:[], draft:false, by:[]}; }
+}
+function legacyUnclaimed(){
+  const read = k=>{ try{ const v = JSON.parse(localStorage.getItem(k)||'null'); return v; }catch(e){ return null; } };
+  const claim = legacyClaim();
+  const pend  = (read(PENDING_KEY)||[]).filter(t=>t && t.id && !claim.pending.includes(t.id));
+  const ids   = (read(IDEAS_KEY)||[]).filter(x=>x && x.id && !claim.ideas.includes(x.id));
+  const draft = !claim.draft ? read(IDEA_DRAFT_KEY) : null;
+  return {pending:pend, ideas:ids, draft};
+}
+function accountLabel(){
+  if(IN_TELEGRAM){
+    const u = tg?.initDataUnsafe?.user;
+    return u ? ('Telegram' + (u.username ? ' @'+u.username : u.first_name ? ' · '+u.first_name : '')) : 'Telegram';
+  }
+  return webSession?.email || (lang==='ru' ? 'текущий аккаунт' : 'this account');
+}
+function renderLegacyNotice(){
+  const el = document.getElementById('legacyNotice'); if(!el) return;
+  const ru = lang==='ru';
+  const L = legacyUnclaimed();
+  const n = L.pending.length, m = L.ideas.length, hasDraft = !!L.draft;
+  if(!dataOwner || (!n && !m && !hasDraft) || lsGet('legacy_notice_hidden')){ el.hidden = true; el.innerHTML=''; _legacyConfirm=false; return; }
+  const parts = [];
+  if(n) parts.push(ru ? `${n} ${plural(n,'неотправленная сделка','неотправленные сделки','неотправленных сделок')}` : `${n} unsent ${n===1?'trade':'trades'}`);
+  if(m) parts.push(ru ? `${m} ${plural(m,'идея','идеи','идей')}` : `${m} ${m===1?'idea':'ideas'}`);
+  if(hasDraft) parts.push(ru ? 'черновик идеи' : 'an idea draft');
+  const what = parts.join(', ');
+  const who = escapeHtml(accountLabel());
+  el.hidden = false;
+  el.innerHTML = _legacyConfirm
+    ? `<p>${ru ? `Перенести в аккаунт <b>${who}</b>: ${what}? Сделки будут отправлены на сервер под этим аккаунтом. Убедитесь, что это ваши записи.` : `Move into <b>${who}</b>: ${what}? The trades will be uploaded under this account. Make sure they are yours.`}</p>
+       <div class="legacy-actions"><button type="button" class="lg-primary" onclick="adoptLegacyData()">${ru?'Да, перенести':'Yes, move them'}</button><button type="button" onclick="_legacyConfirm=false;renderLegacyNotice()">${ru?'Отмена':'Cancel'}</button></div>`
+    : `<p>${ru ? `На этом устройстве остались данные из прошлой версии, не привязанные к аккаунту: <b>${what}</b>. Они не удалены и не добавлены ни в один аккаунт.` : `This device still has data from the previous version that is not tied to an account: <b>${what}</b>. Nothing was deleted or added to any account.`}</p>
+       <div class="legacy-actions"><button type="button" onclick="_legacyConfirm=true;renderLegacyNotice()">${ru?'Перенести в мой аккаунт':'Move into my account'}</button><button type="button" onclick="hideLegacyNotice()">${ru?'Не мои, скрыть':'Not mine, hide'}</button></div>`;
+}
+function hideLegacyNotice(){
+  try{ lsSet('legacy_notice_hidden', '1'); }catch(e){}
+  renderLegacyNotice();
+}
+function adoptLegacyData(){
+  const owner = dataOwner; if(!owner) return;
+  const L = legacyUnclaimed();
+  // Unsent trades join this account's queue and journal (existing entries win)
+  const q = lsJSON(PENDING_KEY, [], owner);
+  const qIds = new Set(q.map(t=>t.id));
+  const addQ = L.pending.filter(t=>!qIds.has(t.id));
+  try{ lsSet(PENDING_KEY, JSON.stringify([...q, ...addQ]), owner); }catch(e){ toastWarn(lang==='ru'?'Не хватило места на устройстве':'Not enough storage on this device'); return; }
+  const have = new Set(trades.map(t=>t.id));
+  addQ.forEach(t=>{ if(!have.has(t.id)) trades.push(t); });
+  safeLocalStorageSet('trades_v3', trades, owner);
+  // Ideas and the draft are device-only, so they are copied in as they are
+  const ideaIds = new Set(ideas.map(x=>x.id));
+  L.ideas.forEach(x=>{ if(!ideaIds.has(x.id)) ideas.push(x); });
+  saveIdeasLocal();
+  if(L.draft && !lsGet(IDEA_DRAFT_KEY, owner)){ try{ lsSet(IDEA_DRAFT_KEY, JSON.stringify(L.draft), owner); }catch(e){} }
+  // Record the claim; the old keys stay exactly as they were
+  const claim = legacyClaim();
+  claim.pending = [...new Set([...claim.pending, ...L.pending.map(t=>t.id)])];
+  claim.ideas   = [...new Set([...claim.ideas, ...L.ideas.map(x=>x.id)])];
+  if(L.draft) claim.draft = true;
+  claim.by = [...(claim.by||[]), {owner, at:new Date().toISOString(), trades:L.pending.length, ideas:L.ideas.length, draft:!!L.draft}];
+  try{ localStorage.setItem(LEGACY_CLAIM_KEY, JSON.stringify(claim)); }catch(e){}
+  _legacyConfirm = false;
+  renderHome(); renderTrades(); renderIdeas();
+  showToast(lang==='ru' ? 'Данные перенесены в аккаунт' : 'Data moved into your account');
+  if(addQ.length) syncPendingQueue();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2808,6 +2987,7 @@ async function api(method, path, body, _retried){
       if(res.status === 401 && !IN_TELEGRAM && webSession && !_retried){
         if(await refreshWebSession()) return api(method, path, body, true);
         saveWebSession(null);
+        setDataOwner(null);
         document.getElementById('authGate')?.classList.add('show');
         return null;
       }
@@ -2830,12 +3010,13 @@ async function api(method, path, body, _retried){
 }
 
 async function loadData(){
+  const owner = dataOwner, epoch = ownerEpoch;
   showLoader(true);
 
-  // First: always load from localStorage instantly (guaranteed to work)
-  const localTrades   = JSON.parse(localStorage.getItem('trades_v3')||'[]');
-  const localCapital  = parseFloat(localStorage.getItem('baseCapital_v3')||'0');
-  const localGoals    = JSON.parse(localStorage.getItem('goals_v1')||'[]');
+  // First: always load this account's local copy instantly
+  const localTrades   = lsJSON('trades_v3', [], owner);
+  const localCapital  = parseFloat(lsGet('baseCapital_v3', owner)||'0');
+  const localGoals    = lsJSON('goals_v1', [], owner);
 
   trades = localTrades;
   baseCapital = localCapital;
@@ -2845,7 +3026,10 @@ async function loadData(){
 
   // Then: try to get fresher data from server in background
   try{
+    if(!owner) return;
     const [t,s] = await Promise.all([api('GET','/trades'), api('GET','/settings')]);
+    // The account changed while we waited — this answer belongs to someone else's journal
+    if(!isCurrentOwner(owner, epoch)){ console.log('[SYNC] Late server answer for a previous account ignored'); return; }
 
     if(t && Array.isArray(t)){
       // CRITICAL MERGE: take server data as base, then add anything
@@ -2857,7 +3041,7 @@ async function loadData(){
       // user added a trade WHILE the server fetch was in progress (Render cold
       // start can take 20-30 s). The original localTrades snapshot would not
       // contain that new trade, so we'd wipe it from localStorage on merge.
-      const freshLocal = JSON.parse(localStorage.getItem('trades_v3')||'[]');
+      const freshLocal = lsJSON('trades_v3', [], owner);
       // Build a deduplicated map of all local sources (snapshot + fresh read + memory)
       const allLocalMap = {};
       [...localTrades, ...freshLocal, ...trades].forEach(x=>{
@@ -2869,9 +3053,9 @@ async function loadData(){
       // Merge: server + local-only trades (deduped)
       trades = [...t, ...localOnlyTrades];
 
-      // Save merged result to localStorage
-      safeLocalStorageSet('trades_v3', trades);
-      localStorage.setItem('last_sync_time', new Date().toISOString());
+      // Save merged result to this account's local copy
+      safeLocalStorageSet('trades_v3', trades, owner);
+      lsSet('last_sync_time', new Date().toISOString(), owner);
       setSyncStatus(localOnlyTrades.length>0 ? 'pending' : 'synced');
 
       // Always re-render with fresh merged data
@@ -2886,15 +3070,15 @@ async function loadData(){
     if(s){
       baseCapital = s.base_capital||0;
       goals = s.goals||[];
-      localStorage.setItem('baseCapital_v3', String(baseCapital));
-      localStorage.setItem('goals_v1', JSON.stringify(goals));
+      lsSet('baseCapital_v3', String(baseCapital), owner);
+      lsSet('goals_v1', JSON.stringify(goals), owner);
     }
   }catch(e){
     // Server failed — local data already shown, nothing to do
   }
 
   // Sync pending trades (5s delay gives Render cold start time to wake up)
-  setTimeout(syncPendingQueue, 5000);
+  setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) syncPendingQueue(); }, 5000);
 }
 
 function showSyncStatus(msg, type){
@@ -2909,18 +3093,23 @@ function showSyncStatus(msg, type){
 }
 
 async function syncTrade(trade){
-  // 1. Save to localStorage immediately (strips base64 automatically)
-  safeLocalStorageSet('trades_v3', trades);
+  const owner = dataOwner, epoch = ownerEpoch;
+  // 1. Save to this account's local copy immediately (strips base64 automatically)
+  safeLocalStorageSet('trades_v3', trades, owner);
   // 2. Add to pending queue
-  addToPendingQueue(trade);
+  addToPendingQueue(trade, owner);
   setSyncStatus('pending');
   // 3. Try server
   console.log(`[SYNC] Saving trade ${trade.id} (${trade.pair||trade.asset||'?'})...`);
   api._lastStatus = null;
   const result = await api('POST','/trades', trade);
   if(result){
-    removeFromPendingQueue(trade.id);
-    localStorage.setItem('last_sync_time', new Date().toISOString());
+    removeFromPendingQueue(trade.id, owner);
+    lsSet('last_sync_time', new Date().toISOString(), owner);
+    if(!isCurrentOwner(owner, epoch)){
+      if(result.img_url) patchCachedTrade(owner, trade.id, {img_url: result.img_url});
+      return;
+    }
     // If server returned img_url (uploaded to Storage), update trade object
     if(result.img_url){
       const idx = trades.findIndex(t=>t.id===trade.id);
@@ -2928,7 +3117,7 @@ async function syncTrade(trade){
         trades[idx].img_url = result.img_url;
         // Remove base64 from memory now that it's in Storage
         delete trades[idx].img;
-        safeLocalStorageSet('trades_v3', trades);
+        safeLocalStorageSet('trades_v3', trades, owner);
       }
     } else if(result.img_failed){
       // Trade saved OK but image upload failed on server side — tell user explicitly
@@ -2937,10 +3126,11 @@ async function syncTrade(trade){
         : 'Trade saved, but photo upload failed. Re-attach the photo in the trade.');
       console.warn(`[SYNC] ⚠️ Trade ${trade.id} saved without photo (storage upload failed on server)`);
     }
-    const remaining = JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
+    const remaining = lsJSON(PENDING_KEY, [], owner);
     setSyncStatus(remaining.length>0 ? 'pending' : 'synced');
     console.log(`[SYNC] ✓ Trade ${trade.id} saved on server${result.img_failed?' (without photo)':''}`);
   } else {
+    if(!isCurrentOwner(owner, epoch)) return;   // the trade stays in its own account's queue
     // Show user a clear error — don't pretend everything is fine
     const status = api._lastStatus;
     if(status === 401 || status === 403){
@@ -2957,13 +3147,17 @@ async function syncTrade(trade){
   }
 }
 async function deleteTradeSync(id){
-  safeLocalStorageSet('trades_v3', trades);
+  const owner = dataOwner, epoch = ownerEpoch;
+  safeLocalStorageSet('trades_v3', trades, owner);
   const result = await api('DELETE',`/trades/${id}`);
-  if(!result) setTimeout(()=>api('DELETE',`/trades/${id}`), 3000);
+  // The retry only goes out while the same account is signed in
+  if(!result) setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) api('DELETE',`/trades/${id}`); }, 3000);
 }
 async function syncSettings(){
-  localStorage.setItem('baseCapital_v3', baseCapital);
-  localStorage.setItem('goals_v1', JSON.stringify(goals));
+  const owner = dataOwner;
+  if(!owner) return;
+  lsSet('baseCapital_v3', String(baseCapital), owner);
+  lsSet('goals_v1', JSON.stringify(goals), owner);
   await api('POST','/settings',{base_capital:baseCapital, goals});
 }
 
@@ -3426,14 +3620,14 @@ function calcStreaks(){
 // ═══════════════════════════════════════════════════════
 function getDismissedInsights(){
   try{
-    const raw = JSON.parse(localStorage.getItem('dismissed_insights_v1')||'{}');
+    const raw = lsJSON('dismissed_insights_v1', {});
     // TTL: drop entries older than 90 days so dismissed insights eventually resurface
     const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
     let changed = false;
     for(const k of Object.keys(raw)){
       if((raw[k].ts||0) < cutoff){ delete raw[k]; changed = true; }
     }
-    if(changed) localStorage.setItem('dismissed_insights_v1', JSON.stringify(raw));
+    if(changed) lsSet('dismissed_insights_v1', JSON.stringify(raw));
     return raw;
   }catch{ return {}; }
 }
@@ -3448,13 +3642,13 @@ function dismissInsight(id, currentCount){
     text: ins.text||'', meta: ins.meta||'', type: ins.type||'info',
     icon: ins.icon||'', rec: ins.rec||'',
   };
-  localStorage.setItem('dismissed_insights_v1', JSON.stringify(d));
+  try{ lsSet('dismissed_insights_v1', JSON.stringify(d)); }catch(e){}
   renderInsights(_insightsShowAll);  // refresh without the dismissed card
 }
 function undismissInsight(id){
   const d = getDismissedInsights();
   delete d[id];
-  localStorage.setItem('dismissed_insights_v1', JSON.stringify(d));
+  try{ lsSet('dismissed_insights_v1', JSON.stringify(d)); }catch(e){}
   renderInsights(_insightsShowAll);
 }
 function isInsightDismissed(id, currentCount, threshold){
@@ -4115,6 +4309,7 @@ function renderHome(){
 
   // Trade ideas section
   renderIdeas();
+  renderLegacyNotice();
 }
 
 function renderInsights(showAll){
@@ -5898,13 +6093,13 @@ function saveIdeaDraft(){
     note:_v('iNote'), dir:ideaForm.dir||null, conviction:ideaForm.conviction||null, img:ideaCurrentImg||null,
   };
   const empty = !d.pair && !d.note && !d.entry && !d.sl && !d.tp && !d.dir && !d.conviction && !d.img;
-  try{ empty ? localStorage.removeItem(IDEA_DRAFT_KEY) : localStorage.setItem(IDEA_DRAFT_KEY, JSON.stringify(d)); }
+  try{ empty ? lsRemove(IDEA_DRAFT_KEY) : lsSet(IDEA_DRAFT_KEY, JSON.stringify(d)); }
   catch(e){ /* quota — ignore, keep what we can */ }
 }
-function clearIdeaDraft(){ try{ localStorage.removeItem(IDEA_DRAFT_KEY); }catch(e){} }
-function hasIdeaDraft(){ try{ return !!localStorage.getItem(IDEA_DRAFT_KEY); }catch(e){ return false; } }
+function clearIdeaDraft(){ lsRemove(IDEA_DRAFT_KEY); }
+function hasIdeaDraft(){ return !!lsGet(IDEA_DRAFT_KEY); }
 function restoreIdeaDraft(){
-  let d; try{ d=JSON.parse(localStorage.getItem(IDEA_DRAFT_KEY)||'null'); }catch(e){ d=null; }
+  const d = lsJSON(IDEA_DRAFT_KEY, null);
   if(!d) return;
   document.getElementById('iPair').value=d.pair||'';
   document.getElementById('iMarket').value=d.market||'forex';
@@ -5953,18 +6148,20 @@ function insertIdeaTag(tag, btn){
 }
 
 function saveIdeasLocal(){
-  try{ localStorage.setItem(IDEAS_KEY, JSON.stringify(ideas)); }
+  try{ lsSet(IDEAS_KEY, JSON.stringify(ideas)); }
   catch(e){ console.warn('[IDEAS] localStorage save failed:', e.message); }
 }
 
 async function loadIdeas(){
+  const owner = dataOwner, epoch = ownerEpoch;
   // 1. Local first — instant, offline-proof
-  try{ ideas = JSON.parse(localStorage.getItem(IDEAS_KEY)||'[]'); }
-  catch(e){ ideas = []; }
+  ideas = lsJSON(IDEAS_KEY, [], owner);
   renderIdeas();
+  if(!owner) return;
   // 2. Try server (graceful — if /ideas endpoint doesn't exist yet, stay local)
   try{
     const srv = await api('GET','/ideas');
+    if(!isCurrentOwner(owner, epoch)) return;
     if(srv && Array.isArray(srv)){
       const map = {};
       [...srv, ...ideas].forEach(x=>{ if(x && x.id && !map[x.id]) map[x.id]=x; });
@@ -6506,9 +6703,9 @@ function showSyncDetails(){
 }
 
 function updateBackupStatus(){
-  const pending  = JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
-  const local    = JSON.parse(localStorage.getItem('trades_v3')||'[]');
-  const lastSync = localStorage.getItem('last_sync_time');
+  const pending  = lsJSON(PENDING_KEY, []);
+  const local    = lsJSON('trades_v3', []);
+  const lastSync = lsGet('last_sync_time');
 
   const card    = document.getElementById('backupStatusCard');
   const dot     = document.getElementById('backupStatusDot');
@@ -6587,8 +6784,7 @@ function importJSON(input){
         if(data.baseCapital!==undefined) baseCapital=data.baseCapital;
         if(data.goals) goals=data.goals;
         safeLocalStorageSet('trades_v3', trades);
-        localStorage.setItem('baseCapital_v3',String(baseCapital));
-        localStorage.setItem('goals_v1',JSON.stringify(goals));
+        try{ lsSet('baseCapital_v3',String(baseCapital)); lsSet('goals_v1',JSON.stringify(goals)); }catch(e){}
         renderHome(); renderTrades();
         closeModal('exportModal');
         showToast(lang==='ru'?`Импортировано ${count} сделок`:`Imported ${count} trades`);
@@ -6646,7 +6842,7 @@ function updateOnlineStatus(){
 window.addEventListener('online',()=>{
   updateOnlineStatus();
   // When network restores, retry any pending trades that failed while offline
-  const pending = JSON.parse(localStorage.getItem(PENDING_KEY)||'[]');
+  const pending = lsJSON(PENDING_KEY, []);
   if(pending.length>0){
     console.log(`[SYNC] Network restored — retrying ${pending.length} pending trade(s)`);
     clearTimeout(syncPendingQueue._retryTimer);
@@ -7558,7 +7754,7 @@ function _syncSettingsLabels(){
 }
 
 function clearDismissedInsights(){
-  localStorage.removeItem('dismissed_insights_v1');
+  lsRemove('dismissed_insights_v1');
   if(document.getElementById('page-home')?.classList.contains('active')) renderInsights(_insightsShowAll);
   showToast(lang==='ru' ? 'Инсайты сброшены' : 'Insights reset');
 }
@@ -8363,6 +8559,7 @@ async function handleCheckoutReturn(){
 // Loads the journal itself. Called straight away inside Telegram, or after a
 // successful sign-in in the browser.
 async function startApp(){
+  setDataOwner(currentIdentityOwner());
   loadSettings();
   await loadData();
   renderHome();
