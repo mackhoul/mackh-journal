@@ -508,8 +508,11 @@ app.post('/trades', auth, async (req, res) => {
 
 // DELETE /trades/:id — delete a trade
 app.delete('/trades/:id', auth, async (req, res) => {
-  // Validate id — must be a numeric timestamp string (our client uses Date.now())
-  if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: 'Invalid trade id' });
+  // Validate id. The app creates numeric ids (Date.now() + random digits), but
+  // imported or older trades can carry other ids; allow letters, digits, - and _
+  // so every stored trade can be deleted. The charset keeps the id safe to
+  // place into the Supabase query string below.
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(req.params.id)) return res.status(400).json({ error: 'Invalid trade id' });
   try {
     await supabase('DELETE', `trades?id=eq.${req.params.id}&user_id=eq.${req.userId}`);
     console.log(`[API] DELETE /trades/${req.params.id} for user ${req.userId}`);
