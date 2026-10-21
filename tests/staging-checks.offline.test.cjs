@@ -371,6 +371,9 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
     'img_url not text': [{ ...existing, img_url: 5 }],
     'created_at not a timestamp': [{ ...existing, created_at: 'yesterday' }],
     'deleted_at not a timestamptz': [{ ...existing, deleted_at: '2026-10-21T12:00:00' }],
+    'created_at as a one-string array': [{ ...existing, created_at: [existing.created_at] }],
+    'deleted_at as a one-string array': [{ ...existing, deleted_at: ['2026-10-21T12:00:01.000001+00:00'] }],
+    'created_at as a number': [{ ...existing, created_at: Date.parse('2026-10-21T20:12:31Z') }],
     'deleted_gen null': [{ ...existing, deleted_gen: null }],
     'deleted_gen negative': [{ ...existing, deleted_gen: -1 }],
     'deleted_gen as text': [{ ...existing, deleted_gen: '0' }],
@@ -385,6 +388,9 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
     pr = await putBack(w, rows);
     check(`bad snapshot → STOP, zero requests: ${name}`, pr.stop && pr.requests === 0 && w.snapshot() === w.initial, pr);
   }
+  check('timestamp strings accepted: created_at with/without fraction, deleted_at with +00:00 / +00 / Z',
+    ['2026-10-21T20:12:31.254071', '2026-10-21 20:12:31', '2026-10-21T20:12:31.25'].every(c => S.parseSnapshot(JSON.stringify([{ ...existing, created_at: c }])).length === 1)
+    && ['2026-10-21T12:00:01.000001+00:00', '2026-10-21 12:00:01+00', '2026-10-21T12:00:01Z'].every(d => S.parseSnapshot(JSON.stringify([{ ...existing, deleted_at: d }])).length === 1));
   check('nullable columns accepted: data, img_url, created_at, deleted_at null', S.parseSnapshot(JSON.stringify([{ ...existing, data: null, img_url: null, created_at: null, deleted_at: null }])).length === 1);
   // a correct full snapshot (incl. a deletion marker) repairs damaged and missing rows exactly
   const markerRow = { id: 'm-1', user_id: 900002, data: { id: 'm-1', deleted: true }, img_url: null, created_at: '2026-10-21T20:12:31.254071', deleted_at: '2026-10-21T20:30:00.123456+00:00', deleted_gen: 3 };

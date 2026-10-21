@@ -164,12 +164,12 @@ const TSTZ_RE = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[
 
 // `timestamp without time zone` as text, microseconds padded: comparable as a string
 function normTimestamp(s) {
-  const m = String(s ?? '').match(TS_RE);
+  const m = typeof s === 'string' ? s.match(TS_RE) : null;
   return m ? `${m[1]}T${m[2]}.${(m[3] || '').padEnd(6, '0')}` : null;
 }
 // `timestamptz` as UTC milliseconds + microsecond digits
 function normTimestamptz(s) {
-  const m = String(s ?? '').match(TSTZ_RE);
+  const m = typeof s === 'string' ? s.match(TSTZ_RE) : null;
   if (!m) return null;
   let zone = m[4] === 'Z' ? 'Z' : m[4].replace(/^([+-]\d{2})(\d{2})$/, '$1:$2');
   if (/^[+-]\d{2}$/.test(zone)) zone += ':00';
@@ -584,8 +584,9 @@ function parseSnapshot(fileText) {
     if (!Number.isSafeInteger(r.user_id)) problems.push(`${at}: user_id must be an integer`);
     // data is jsonb (any JSON value or null); the other nullable columns: img_url, created_at, deleted_at
     if (r.img_url !== null && typeof r.img_url !== 'string') problems.push(`${at}: img_url must be text or null`);
-    if (r.created_at !== null && !normTimestamp(r.created_at)) problems.push(`${at}: invalid created_at`);
-    if (r.deleted_at !== null && !normTimestamptz(r.deleted_at)) problems.push(`${at}: invalid deleted_at`);
+    // Only null or a string, then the date format (an array or number is never a timestamp)
+    if (r.created_at !== null && (typeof r.created_at !== 'string' || !normTimestamp(r.created_at))) problems.push(`${at}: created_at must be a timestamp string or null`);
+    if (r.deleted_at !== null && (typeof r.deleted_at !== 'string' || !normTimestamptz(r.deleted_at))) problems.push(`${at}: deleted_at must be a timestamptz string or null`);
     if (!Number.isSafeInteger(r.deleted_gen) || r.deleted_gen < 0) problems.push(`${at}: deleted_gen must be an integer ≥ 0`);
     const k = `${r.id}|${r.user_id}`;
     if (seen.has(k)) problems.push(`${at}: duplicate (id, user_id)`);
