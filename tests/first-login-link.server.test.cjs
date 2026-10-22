@@ -18,9 +18,10 @@ const helperPart = between('// ── Supabase REST helper', '// ── Image up
 // Fake account_links table. Each request waits a turn, so requests started
 // together all read before any of them writes — like parallel HTTP requests.
 // A POST without its own Prefer gets the helper's default (merge-duplicates).
-function setup({ links = {}, loseRowAfterInsert = false } = {}) {
+function setup({ links = {}, loseRowAfterInsert = false, failAfterStore = false } = {}) {
   const table = new Map(Object.entries(links));
   const calls = [], logs = [];
+  let failed = false;
   const turn = () => new Promise(r => setTimeout(r, 0));
   const db = async (method, p, body, prefer) => {
     calls.push({ method, path: p, body, prefer });
@@ -34,6 +35,8 @@ function setup({ links = {}, loseRowAfterInsert = false } = {}) {
       if (table.has(body.auth_id) && /ignore-duplicates/.test(mode)) return [];
       table.set(body.auth_id, { ...body });
       if (loseRowAfterInsert) table.delete(body.auth_id);
+      // the row is stored but the answer is lost (timeout, dropped connection)
+      if (failAfterStore && !failed) { failed = true; throw new Error('network error after the insert'); }
       return [{ ...body }];
     }
     throw new Error(`unexpected request ${method} ${p}`);
@@ -82,6 +85,49 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
   let threw = false, got;
   try { got = await s.resolve(a); } catch { threw = true; }
   check('no stored link after insert: request fails, no made-up id', threw, { got });
+
+  // 4b. (review ad36a0b) The link POST fails with an unknown outcome: that request
+  //     fails; the next one uses the stored link, never the lost made-up id
+  s = setup({ failAfterStore: true });
+  let firstFailed = false;
+  try { await s.resolve(a); } catch { firstFailed = true; }
+  const next = await s.resolve(a);
+  check('unknown outcome of the link write: that request fails, the next uses the stored id',
+    firstFailed && next === Number(s.table.get(a.id).user_id), { firstFailed, next, stored: s.table.get(a.id) });
+
+  // 4c. (review ad36a0b) Parallel first requests that write a trade and settings:
+  //     a later request of the same account finds both under its one owner
+  s = setup();
+  const owned = [];                                             // rows written under the id each request got
+  await Promise.all([
+    s.resolve(a).then(id => owned.push({ table: 'trades', id: 'first-trade', user_id: id })),
+    s.resolve(a).then(id => owned.push({ table: 'users', user_id: id, base_capital: 1000 })),
+    s.resolve(a).then(() => null),
+  ]);
+  const later = await s.resolve(a);
+  check('parallel first writes (trade + settings): all under the owner a later request uses',
+    owned.length === 2 && owned.every(r => r.user_id === later), { owned, later });
+
+  // 4d. The auth middleware: Telegram users never go through the web link; a failed
+  //     link answers 500 and the route does not run with any id
+  const authPart = between('async function auth(', '// ── Routes');
+  const runAuth = async ({ headers, resolve }) => {
+    let status = 200, nextCalled = false, resolveCalls = 0;
+    const actx = {
+      validateTelegramAuth: () => true, getUserId: () => 424242,
+      verifySupabaseToken: async () => ({ id: a.id, email: a.email }),
+      resolveWebUserId: async u => { resolveCalls++; return resolve(u); },
+      console: { log() {}, warn() {}, error() {} },
+    };
+    vm.createContext(actx); vm.runInContext(authPart, actx);
+    const req = { headers }, res = { status: n => { status = n; return res; }, json: () => res };
+    await actx.auth(req, res, () => { nextCalled = true; });
+    return { status, nextCalled, resolveCalls, userId: req.userId };
+  };
+  let r = await runAuth({ headers: { 'x-telegram-init-data': 'ok' }, resolve: () => 1 });
+  check('Telegram request: own Telegram id, web link never touched', r.nextCalled && r.userId === 424242 && r.resolveCalls === 0, r);
+  r = await runAuth({ headers: { authorization: 'Bearer t' }, resolve: () => { throw new Error('link failed'); } });
+  check('web request with a failed link: 500, route not run, no user id', r.status === 500 && !r.nextCalled && r.userId === undefined, r);
 
   // 5. The helper sends the Prefer it is given; other POSTs keep merge-duplicates
   const sent = [];
