@@ -196,6 +196,22 @@
   deleteTrade('1013'); await sleep(300); undoDelete(); await sleep(5500); await syncPendingQueue();
   check('undo: trade back, no deletion sent', ids().includes('1013') && srvA().includes('1013') && !M.log.some(x => x.method === 'DELETE'), M.log);
 
+  // 31. (staging UI) the "Undo" link can really be clicked: a click at its centre lands on
+  // the link itself, not on the page behind the toast; a hidden toast catches no clicks
+  const hitAtCentre = el => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); };
+  fresh({ '1031': T1('1031') }); await login(); M.log = [];
+  deleteTrade('1031'); await sleep(400);                            // toast shown (transition .22s)
+  const link31 = document.querySelector('#toast .toast-undo');
+  const hit31 = link31 && hitAtCentre(link31);
+  check('undo link: a click at its centre reaches the link', !!link31 && hit31 === link31, { hit: hit31 && (hit31.id || hit31.className || hit31.tagName) });
+  if (hit31) hit31.click();                                         // what a real click at that point does
+  await sleep(300); await syncPendingQueue();
+  check('undo link: clicking it brings the trade back, no deletion sent', ids().includes('1031') && srvA().includes('1031') && !M.log.some(x => x.method === 'DELETE'), M.log);
+  fresh({ '1032': T1('1032') }); await login();
+  deleteTrade('1032'); await sleep(5600);                           // window over, toast hidden
+  const link32 = document.querySelector('#toast .toast-undo');
+  check('undo link: a hidden toast does not catch clicks', !link32 || hitAtCentre(link32) !== link32);
+
   // 14. Server refuses to delete a non-numeric id (behaviour before the server fix)
   fresh({ 'imp-1': T1('imp-1') }); await login();
   await deleteTradeSync('imp-1'); await reload();

@@ -522,6 +522,7 @@ body.light .goal-deep-bar-wrap{background:rgba(0,0,0,.06)}
 .toast{position:fixed;bottom:calc(88px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%) translateY(12px);background:var(--surface-2);color:var(--text);border:1px solid var(--border-strong);padding:8px 14px;border-radius:20px;font-size:12px;font-weight:500;opacity:0;transition:all .22s;pointer-events:none;white-space:nowrap;z-index:500;display:flex;align-items:center;gap:6px;max-width:calc(100vw - 32px)}
 .toast svg{width:13px;height:13px;stroke-width:2.5;color:var(--toast-c,var(--positive));flex-shrink:0}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.show .toast-undo{pointer-events:auto}  /* the toast lets clicks through; only a visible "Undo" link takes them */
 
 /* STEP WIZARD */
 .step-indicator{display:flex;align-items:center;gap:4px;padding:12px 17px 0}
