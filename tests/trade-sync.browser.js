@@ -212,6 +212,84 @@
   const link32 = document.querySelector('#toast .toast-undo');
   check('undo link: a hidden toast does not catch clicks', !link32 || hitAtCentre(link32) !== link32);
 
+  // 33–39. (review ad36a0b, P2) another tab of the same account deletes a trade.
+  // The other tab is simulated the way the browser does it: it writes the shared
+  // storage, and this tab gets a 'storage' event (or has not handled it yet).
+  const keyA = k => 'mj:web:uid-A:' + k;
+  const otherTab = (k, value, notify = true) => { localStorage.setItem(k, value); if (notify) window.dispatchEvent(new StorageEvent('storage', { key: k, newValue: value })); };
+  const tombDone = id => JSON.stringify([{ id, at: Date.now(), notBefore: 0, done: true, doneAt: Date.now(), gen: 1 }]);
+  const cacheWithout = id => JSON.stringify(lsJSON('trades_v3', []).filter(t => t.id !== id));
+  const toastText = () => document.getElementById('toast').textContent;
+  const deletedOnServer = id => { delete M.srv.A[id]; (M.deleted.A ||= new Set()).add(id); (M.gens.A ||= {})[id] = 1; };
+
+  // 33. a confirmed deletion from the other tab leaves this tab at once; this tab sends nothing
+  fresh({ '1033': T1('1033') }); M.guard = true; await login(); M.log = [];
+  deletedOnServer('1033'); otherTab(keyA('trades_v3'), cacheWithout('1033')); otherTab(keyA('deleted_trades_v1'), tombDone('1033'));
+  await sleep(200); renderTrades();
+  check('other tab: confirmed deletion removes the trade here (memory and list), nothing sent',
+    !ids().includes('1033') && !document.getElementById('allTrades').textContent.includes('1033') && !M.log.length, M.log);
+
+  // 34. the edit form was open here when the other tab deleted the trade
+  fresh({ '1034': T1('1034', { pair: 'EDIT34' }) }); M.guard = true; await login(); M.log = [];
+  openEditTrade('1034');
+  deletedOnServer('1034'); otherTab(keyA('trades_v3'), cacheWithout('1034')); otherTab(keyA('deleted_trades_v1'), tombDone('1034'));
+  document.getElementById('tPnl').value = '99'; saveTrade(); await sleep(300); await syncPendingQueue();
+  check('open form: saving an edit of a trade deleted meanwhile is not sent, not queued, not cached, not shown',
+    !M.log.some(x => x.method === 'POST' && x.id === '1034') && !queue().some(q => q.startsWith('1034')) && !cacheIds().includes('1034') && !ids().includes('1034'), { log: M.log, q: queue() });
+  check('open form: the user is told the edit was not saved', /уже удалена|already deleted/.test(toastText()), toastText());
+
+  // 35. the other tab's deletion is stored but this tab has not handled the event yet
+  fresh({ '1035': T1('1035') }); M.guard = true; await login(); M.log = [];
+  deletedOnServer('1035'); otherTab(keyA('deleted_trades_v1'), tombDone('1035'), false);
+  const e35 = { ...trades.find(t => t.id === '1035'), pnl: '35' }; trades = trades.map(t => t.id === '1035' ? e35 : t);
+  await syncTrade(e35);
+  check('event not handled yet: the edit is dropped, not sent, not cached, trade gone, user told',
+    !M.log.some(x => x.method === 'POST') && !queue().length && !cacheIds().includes('1035') && !ids().includes('1035') && /уже удалена|already deleted/.test(toastText()), { log: M.log, toast: toastText() });
+
+  // 36. an edit queued here offline, then the other tab's deletion arrives: dropped at sending, not reported as sent
+  fresh({ '1036': T1('1036') }); M.guard = true; await login();
+  M.down = true; const e36 = { ...trades.find(t => t.id === '1036'), pnl: '36' }; trades = trades.map(t => t.id === '1036' ? e36 : t); await syncTrade(e36);
+  deletedOnServer('1036'); otherTab(keyA('deleted_trades_v1'), tombDone('1036'), false);
+  const statusMsgs = [], origStatus = showSyncStatus;
+  showSyncStatus = (msg, ...rest) => { statusMsgs.push(msg); return origStatus(msg, ...rest); };
+  M.down = false; M.log = []; await syncPendingQueue(); await sleep(100);
+  showSyncStatus = origStatus;
+  check('queued edit of a trade deleted in another tab: not sent, queue empty, trade gone here and in the cache, user told',
+    !M.log.some(x => x.method === 'POST') && !queue().length && !ids().includes('1036') && !cacheIds().includes('1036') && /уже удалена|already deleted/.test(toastText()), { log: M.log, q: queue() });
+  check('queued edit of a deleted trade: not reported as synced', !statusMsgs.some(m => /Досинхронизировано|Synced/.test(m)), statusMsgs);
+
+  // 37. undo window in the other tab: hidden here, back after its undo, and this tab never sends a DELETE
+  fresh({ '1037': T1('1037') }); M.guard = true; await login(); M.log = [];
+  const copy37 = lsJSON('trades_v3', []).find(t => t.id === '1037');
+  otherTab(keyA('trades_v3'), cacheWithout('1037'));
+  otherTab(keyA('deleted_trades_v1'), JSON.stringify([{ id: '1037', at: Date.now(), notBefore: Date.now() + 5000 }]));
+  await sleep(100);
+  const hidden37 = !ids().includes('1037');
+  otherTab(keyA('deleted_trades_v1'), '[]');                                  // the other tab's undo lifts its deletion first…
+  const stillHidden37 = !ids().includes('1037');
+  otherTab(keyA('trades_v3'), JSON.stringify([...lsJSON('trades_v3', []), copy37]));   // …then writes the trade back
+  await sleep(5600); await syncPendingQueue();
+  check('other tab undo window: hidden here, back after its undo, no DELETE from this tab after the window',
+    hidden37 && stillHidden37 && ids().includes('1037') && !M.log.some(x => x.method === 'DELETE'), { hidden37, stillHidden37, ids: ids(), log: M.log });
+  // 38. …and deleting it again in the other tab hides it again
+  deletedOnServer('1037'); otherTab(keyA('trades_v3'), cacheWithout('1037')); otherTab(keyA('deleted_trades_v1'), tombDone('1037'));
+  await sleep(100);
+  check('other tab deletes again after its undo: hidden again here', !ids().includes('1037'));
+
+  // 39. a slow GET that left before the other tab's deletion does not bring the trade back
+  fresh({ '1039': T1('1039') }); M.guard = true; await login();
+  M.snapshotGet = true; M.delay = { 'GET /trades': 500 };
+  const load39 = loadData(); await sleep(100);
+  deletedOnServer('1039'); otherTab(keyA('trades_v3'), cacheWithout('1039')); otherTab(keyA('deleted_trades_v1'), tombDone('1039'));
+  await load39; M.delay = {}; M.snapshotGet = false; await sleep(100);
+  check('late GET: the trade deleted in the other tab does not come back', !ids().includes('1039') && !cacheIds().includes('1039'), { ids: ids(), cache: cacheIds() });
+
+  // 40. a deletion stored for another account does not touch this account's tab
+  fresh({ '1040': T1('1040') }); M.guard = true; await login();
+  otherTab('mj:web:uid-B:deleted_trades_v1', tombDone('1040'));
+  await sleep(100);
+  check('other account\'s deletion in shared storage: this account keeps its trade', ids().includes('1040'));
+
   // 14. Server refuses to delete a non-numeric id (behaviour before the server fix)
   fresh({ 'imp-1': T1('imp-1') }); await login();
   await deleteTradeSync('imp-1'); await reload();

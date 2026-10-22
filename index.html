@@ -2775,7 +2775,7 @@ function setDataOwner(owner){
   ownerEpoch++;
   clearTimeout(syncPendingQueue._retryTimer);
   trades = []; baseCapital = 0; goals = []; ideas = [];
-  _serverIds = null; _localChangeAt.clear();
+  _serverIds = null; _localChangeAt.clear(); _hiddenByOtherTab.clear();
   subState = null;
   if(typeof document!=='undefined' && document.getElementById('subGroup')) renderSubscription();
   resetFormsForAccountSwitch();
@@ -2896,6 +2896,7 @@ const TOMB_KEEP_MS = 30*24*60*60*1000;   // confirmed deletions are remembered f
 let _serverIds = null;                    // ids the server returned on the last load; null = unknown
 const _localChangeAt = new Map();         // trade id -> time of the last local save/delete or confirmed save (this session)
 function noteLocalChange(id){ _localChangeAt.set(id, Date.now()); }
+const _hiddenByOtherTab = new Set();       // trade ids hidden here because another tab deleted them (it may still undo)
 let _syncRun = null;
 let _rejectNotified = false;
 
@@ -2978,7 +2979,7 @@ function syncPendingQueue(opts={}){
 
 async function syncPass(run){
   const {owner, epoch} = run;
-  let blocked = false, delivered = 0;
+  let blocked = false, delivered = 0, droppedDeleted = 0;
 
   // 1. Deletions, oldest first
   const tombs = getTombs(owner).filter(x=>!x.done).sort((a,b)=>(a.at||0)-(b.at||0));
@@ -3012,7 +3013,14 @@ async function syncPass(run){
     const ids = [...new Set(getQueue(owner).map(q=>q.id))];
     for(const id of ids){
       if(!isCurrentOwner(owner, epoch)) return;
-      if(tombIds(owner).has(id)){ removeFromPendingQueue(id, owner); continue; }
+      if(tombIds(owner).has(id)){
+        // Queued before this account deleted the trade (e.g. in another tab): the
+        // edit is dropped, not sent, and the trade leaves this tab as well
+        removeFromPendingQueue(id, owner);
+        dropDeletedTrade(owner, id, isCurrentOwner(owner, epoch));
+        droppedDeleted++;
+        continue;
+      }
       const entry = getQueue(owner).find(q=>q.id===id);
       if(!entry) continue;
       const payload = stripQueueFields(entry);
@@ -3062,6 +3070,7 @@ async function syncPass(run){
     lsSet('last_sync_time', new Date().toISOString(), owner);
     renderHome(); renderTrades();
   }
+  if(droppedDeleted>0){ renderHome(); renderTrades(); warnEditOfDeletedTrade(); }
   const open = getTombs(owner).filter(x=>!x.done);
   const rejected = open.filter(x=>x.rejected).length;
   const left = getQueue(owner).length + open.length;
@@ -3110,6 +3119,49 @@ function applyServerDeleted(owner, id, isCurrent){
     safeLocalStorageSet('trades_v3', lsJSON('trades_v3', [], owner).filter(t=>t.id!==id), owner);
   }
 }
+
+// This account already deleted the trade (in another tab, or the deletion is
+// waiting for its undo window): an edit of it is not saved. The trade leaves
+// this tab and the stored copy; the deletion itself stays as it is.
+function dropDeletedTrade(owner, id, isCurrent){
+  if(isCurrent){
+    trades = trades.filter(t=>t.id!==id);
+    if(_serverIds) _serverIds.delete(id);
+  }
+  safeLocalStorageSet('trades_v3', lsJSON('trades_v3', [], owner).filter(t=>t.id!==id), owner);
+}
+function warnEditOfDeletedTrade(){
+  toastWarn(lang==='ru' ? 'Эта сделка уже удалена (в другой вкладке или на другом устройстве) — изменения не сохранены'
+                        : 'This trade was already deleted (in another tab or device) — changes not saved');
+}
+
+// Another tab of the same account deleted a trade, or undid that deletion in
+// its undo window: show the same journal here. Nothing is sent from this tab;
+// the tab that deleted delivers the deletion.
+function applyOtherTabDeletions(){
+  const owner = dataOwner; if(!owner) return;
+  const tombs = getTombs(owner);
+  const deleted = new Set(tombs.map(x=>x.id));
+  const confirmed = new Set(tombs.filter(x=>x.done).map(x=>x.id));
+  let changed = false;
+  for(const t of trades.filter(t=>deleted.has(t.id))){
+    _hiddenByOtherTab.add(t.id); changed = true;
+  }
+  if(changed) trades = trades.filter(t=>!deleted.has(t.id));
+  for(const id of [..._hiddenByOtherTab]){
+    if(confirmed.has(id)){ _hiddenByOtherTab.delete(id); if(_serverIds) _serverIds.delete(id); continue; }
+    if(deleted.has(id)) continue;                                     // still inside the other tab's undo window
+    const copy = lsJSON('trades_v3', [], owner).find(t=>t && t.id===id);
+    if(!copy) continue;                                               // undone; its copy is written right after
+    _hiddenByOtherTab.delete(id);
+    if(!trades.some(t=>t.id===id)){ trades.push(copy); changed = true; }
+  }
+  if(changed){ renderHome(); renderTrades(); }
+}
+window.addEventListener('storage', e=>{
+  if(!dataOwner || !e.key) return;
+  if(e.key===scopedKey(TOMB_KEY) || e.key===scopedKey('trades_v3')) applyOtherTabDeletions();
+});
 
 // After an upload, a newer queued version that still carries the same picture
 // points at the uploaded file instead of uploading it again.
@@ -3473,6 +3525,13 @@ function showSyncStatus(msg, type){
 async function syncTrade(trade, opts={}){
   const owner = dataOwner, epoch = ownerEpoch;
   if(!owner) return;
+  // 0. A trade this account already deleted is not saved again (an undo lifts its deletion first)
+  if(tombIds(owner).has(trade.id)){
+    dropDeletedTrade(owner, trade.id, true);
+    renderHome(); renderTrades();
+    warnEditOfDeletedTrade();
+    return;
+  }
   // 1. This account's local copy and the queue first: nothing typed is lost
   //    if the app closes or the server is down.
   noteLocalChange(trade.id);
@@ -6983,8 +7042,14 @@ function saveTrade(){
   };
   if(editingId){
     const idx=trades.findIndex(t=>t.id===editingId);
-    if(idx>=0){tradeData.id=editingId; trades[idx]=tradeData; syncTrade(tradeData);}
-    showToast(''+T('toast_updated'));
+    if(idx<0 || tombIds().has(editingId)){
+      // Deleted while the form was open (for example in another tab)
+      dropDeletedTrade(dataOwner, editingId, true);
+      warnEditOfDeletedTrade();
+    } else {
+      tradeData.id=editingId; trades[idx]=tradeData; syncTrade(tradeData);
+      showToast(''+T('toast_updated'));
+    }
   } else {
     tradeData.id=Date.now().toString()+Math.floor(Math.random()*900+100).toString();
     trades.push(tradeData);
