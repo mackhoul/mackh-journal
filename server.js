@@ -151,14 +151,15 @@ function getUserId(initData) {
 }
 
 // ── Supabase REST helper ─────────────────────────────────
-async function supabase(method, path, body) {
+// POSTs upsert (merge-duplicates) unless the caller passes its own Prefer.
+async function supabase(method, path, body, prefer) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers: {
       'Content-Type':  'application/json',
       'apikey':        SUPABASE_SERVICE_KEY,
       'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-      'Prefer':        method === 'POST' ? 'resolution=merge-duplicates,return=representation' : '',
+      'Prefer':        prefer ?? (method === 'POST' ? 'resolution=merge-duplicates,return=representation' : ''),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -261,19 +262,26 @@ async function verifySupabaseToken(token) {
 // First web login creates the link. Telegram users keep their Telegram id
 // as the internal id, so their existing trades stay attached.
 async function resolveWebUserId(authUser) {
-  const rows = await supabase('GET', `account_links?auth_id=eq.${authUser.id}&select=*`);
+  const linkPath = `account_links?auth_id=eq.${authUser.id}&select=*`;
+  const rows = await supabase('GET', linkPath);
   if (rows && rows.length) return Number(rows[0].user_id);
 
   // New web account — generate an internal id that can't collide with a
   // Telegram id (those are far smaller than this range).
+  // The first login sends several requests at once and each may get here.
+  // Insert only if no link exists yet (never overwrite one), then use the id
+  // that is actually stored, so every request gets the same user_id.
   const newId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
-  await supabase('POST', 'account_links', {
+  const inserted = await supabase('POST', 'account_links?on_conflict=auth_id', {
     auth_id:  authUser.id,
     user_id:  newId,
     email:    authUser.email || null,
-  });
-  console.log(`[AUTH] linked new web account ${authUser.email} → user_id ${newId}`);
-  return newId;
+  }, 'resolution=ignore-duplicates,return=representation');
+  if (inserted && inserted.length) console.log(`[AUTH] linked new web account ${authUser.email} → user_id ${newId}`);
+
+  const stored = await supabase('GET', linkPath);
+  if (!stored || !stored.length) throw new Error(`account link for ${authUser.id} missing after insert`);
+  return Number(stored[0].user_id);
 }
 
 // ── Auth middleware ──────────────────────────────────────

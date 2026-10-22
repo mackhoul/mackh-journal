@@ -1,0 +1,104 @@
+/*
+ * Server check of the first web login: runs the real resolveWebUserId and
+ * supabase() helper from server.js in a sandbox with a fake database that
+ * behaves like PostgREST on account_links (primary key auth_id). No network,
+ * no npm packages, no Supabase.
+ *
+ * Run:  node tests/first-login-link.server.test.cjs
+ */
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+const between = (from, to) => source.slice(source.indexOf(from), source.indexOf(to));
+const linkPart = between('async function resolveWebUserId', '// ── Auth middleware');
+const helperPart = between('// ── Supabase REST helper', '// ── Image upload');
+
+// Fake account_links table. Each request waits a turn, so requests started
+// together all read before any of them writes — like parallel HTTP requests.
+// A POST without its own Prefer gets the helper's default (merge-duplicates).
+function setup({ links = {}, loseRowAfterInsert = false } = {}) {
+  const table = new Map(Object.entries(links));
+  const calls = [], logs = [];
+  const turn = () => new Promise(r => setTimeout(r, 0));
+  const db = async (method, p, body, prefer) => {
+    calls.push({ method, path: p, body, prefer });
+    await turn();
+    if (method === 'GET' && p.startsWith('account_links?auth_id=eq.')) {
+      const id = p.slice('account_links?auth_id=eq.'.length).split('&')[0];
+      return table.has(id) ? [{ ...table.get(id) }] : [];
+    }
+    if (method === 'POST' && p.startsWith('account_links')) {
+      const mode = prefer || 'resolution=merge-duplicates,return=representation';
+      if (table.has(body.auth_id) && /ignore-duplicates/.test(mode)) return [];
+      table.set(body.auth_id, { ...body });
+      if (loseRowAfterInsert) table.delete(body.auth_id);
+      return [{ ...body }];
+    }
+    throw new Error(`unexpected request ${method} ${p}`);
+  };
+  const ctx = {
+    supabase: db, Date, Math, Number, String, JSON, Error,
+    console: { log: m => logs.push(String(m)), warn() {}, error() {} },
+  };
+  vm.createContext(ctx); vm.runInContext(linkPart, ctx);
+  return { resolve: u => ctx.resolveWebUserId(u), table, calls, logs };
+}
+
+const results = [];
+const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PASS' : 'FAIL', detail: ok ? '' : JSON.stringify(detail) });
+
+(async () => {
+  const a = { id: '11111111-1111-1111-1111-111111111111', email: 'a@example.com' };
+  const b = { id: '22222222-2222-2222-2222-222222222222', email: 'b@example.com' };
+
+  // 1. First login: the app sends /trades, /settings, ... at once
+  let s = setup();
+  let ids = await Promise.all([1, 2, 3, 4, 5].map(() => s.resolve(a)));
+  const stored = Number(s.table.get(a.id)?.user_id);
+  check('parallel first login: every request gets the same user_id', new Set(ids).size === 1, ids);
+  check('parallel first login: that user_id is the stored link', ids.every(id => id === stored), { ids, stored });
+  check('parallel first login: "linked new web account" logged once',
+    s.logs.filter(l => l.includes('linked new web account')).length === 1, s.logs);
+  check('link POST never overwrites an existing link',
+    s.calls.filter(c => c.method === 'POST').every(c => /ignore-duplicates/.test(c.prefer || '')), s.calls.map(c => c.prefer));
+
+  // 2. Two accounts logging in at the same time stay apart
+  s = setup();
+  const [ra, rb] = await Promise.all([s.resolve(a), s.resolve(b), s.resolve(a), s.resolve(b)]).then(r => [r[0], r[1]]);
+  check('two new accounts at once: different ids, each one stored',
+    ra !== rb && ra === Number(s.table.get(a.id).user_id) && rb === Number(s.table.get(b.id).user_id),
+    { ra, rb, table: [...s.table.values()] });
+
+  // 3. Existing link: read only, nothing written
+  s = setup({ links: { [a.id]: { auth_id: a.id, user_id: '1700000000000123', email: a.email } } });
+  ids = await Promise.all([s.resolve(a), s.resolve(a)]);
+  check('existing link: stored id returned, no write',
+    ids.every(id => id === 1700000000000123) && !s.calls.some(c => c.method === 'POST'), { ids, calls: s.calls });
+
+  // 4. Link missing even after the insert: fail instead of using an id nobody stored
+  s = setup({ loseRowAfterInsert: true });
+  let threw = false, got;
+  try { got = await s.resolve(a); } catch { threw = true; }
+  check('no stored link after insert: request fails, no made-up id', threw, { got });
+
+  // 5. The helper sends the Prefer it is given; other POSTs keep merge-duplicates
+  const sent = [];
+  const hctx = {
+    SUPABASE_URL: 'https://test.invalid', SUPABASE_SERVICE_KEY: 'k', JSON, Error,
+    fetch: async (url, opts) => { sent.push({ url, prefer: opts.headers.Prefer }); return { ok: true, text: async () => '[]' }; },
+  };
+  vm.createContext(hctx); vm.runInContext(helperPart, hctx);
+  await hctx.supabase('POST', 'trades?on_conflict=id,user_id', {});
+  await hctx.supabase('POST', 'account_links?on_conflict=auth_id', {}, 'resolution=ignore-duplicates,return=representation');
+  await hctx.supabase('GET', 'account_links?auth_id=eq.x');
+  check('helper: default POST still merge-duplicates', sent[0].prefer === 'resolution=merge-duplicates,return=representation', sent[0]);
+  check('helper: explicit Prefer is sent as given', sent[1].prefer === 'resolution=ignore-duplicates,return=representation', sent[1]);
+  check('helper: GET has no Prefer', sent[2].prefer === '', sent[2]);
+
+  console.table(results);
+  const failed = results.filter(x => x.result === 'FAIL').length;
+  console.log(failed ? `${failed} check(s) FAILED` : `All ${results.length} checks passed`);
+  process.exit(failed ? 1 : 0);
+})().catch(e => { console.error('ERROR', e); process.exit(1); });
