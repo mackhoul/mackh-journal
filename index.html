@@ -1499,6 +1499,30 @@ body.light .dm-now{color:var(--accent)}
   .dm-title.reveal .w{animation:dmWord .6s var(--ease) both;animation-delay:calc(var(--i) * 55ms + 80ms)}
   @keyframes dmWord{from{opacity:0;transform:translateY(.35em)}}
 }
+
+/* ── Other screens (stage 4) ── */
+/* one radius family: rows 12, tiles 18, hero and windows 26 */
+:root{--radius-sm:12px;--radius-md:18px;--radius-lg:26px}
+.modal{border-radius:var(--radius-lg) var(--radius-lg) 0 0}
+@media(min-width:1024px){ .modal{border-radius:var(--radius-lg)} }
+/* every sum and count in Onest with lining tabular figures; Literata stays for words */
+.bal-amount,.score-ring span,.kpi-val,.streak-num,.disc-score,.tc-date b,.an-big,.sl-num,.sl-best b,.dstat-val,
+.pc-grid b,.exp-top b,.rh-n,.dd-grid b,.ss-table td b,.wk-hero b,.wk-grid b{font-family:var(--sans);font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.02em}
+/* the week's result is a figure, not an action: night surface, light number */
+.wk-hero,body.light .wk-hero{background:var(--surface-2);color:var(--text);border-bottom:1px solid var(--border)}
+.wk-hero span{color:var(--text-secondary);opacity:1;font-weight:500}
+/* trades: a denser list, the result stays a thin coloured mark */
+.tc{border-radius:var(--radius-sm);margin-bottom:6px}
+.tc-body{padding:10px 14px 10px 16px}
+.tc-date b{font-size:20px}
+/* desktop sidebar: the main action says what it does */
+.nav-fab-lbl{display:none}
+@media(min-width:1024px){ .nav-fab{gap:10px;font:600 14px/1 var(--sans)} .nav-fab-lbl{display:inline} }
+/* sign-in: the same night, with the copper rule under the name */
+#authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 70%),
+  radial-gradient(60% 45% at 100% 100%,rgba(86,112,200,.12),transparent 70%),var(--bg)}
+body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in srgb,var(--accent) 9%,transparent),transparent 70%),var(--bg)}
+.auth-brand::after{content:'';display:block;width:28px;height:2px;margin-top:12px;background:var(--accent);border-radius:1px}
 /* the overview below the map: capital, chart, numbers (the «Сейчас» tile moved into the map) */
 @media(min-width:640px){
   .home-hero>#balCard{grid-column:1;grid-row:1}
@@ -1964,8 +1988,9 @@ body.light .dm-now{color:var(--accent)}
     <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><line x1="7" y1="2.5" x2="7" y2="21.5" stroke-linecap="round"/><rect x="4.2" y="9" width="5.6" height="7" rx="1.2" fill="currentColor" stroke="none"/><line x1="17" y1="2.5" x2="17" y2="21.5" stroke-linecap="round"/><rect x="14.2" y="5" width="5.6" height="6" rx="1.2" fill="currentColor" stroke="none"/></svg>
     Trades<div class="nb-dot"></div>
   </button>
-  <button class="nav-fab" id="fabBtn" onclick="openAddChoice()">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="12" y1="5" x2="12" y2="19"/><line stroke-linecap="round" x1="5" y1="12" x2="19" y2="12"/></svg>
+  <button class="nav-fab" id="fabBtn" onclick="openAddChoice()" aria-label="Записать сделку">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><line stroke-linecap="round" x1="12" y1="5" x2="12" y2="19"/><line stroke-linecap="round" x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span class="nav-fab-lbl" id="fabLbl">Записать сделку</span>
   </button>
   <button class="nb" onclick="goPage('analytics',this)">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" d="M4 20V13M10 20V8M16 20V11"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 13L10 8L16 11L20 5"/></svg>
@@ -4142,7 +4167,8 @@ function renderDayMap(){
     if(share>=1) note.textContent = ru ? 'Лимит достигнут. На сегодня всё.' : 'Limit reached. Done for today.';
     else if(share>=.75) note.textContent = ru ? `До лимита осталось $${(lim-loss).toFixed(2)}.` : `$${(lim-loss).toFixed(2)} left before the limit.`;
   }
-  set('dmCtaLbl', ru?'Записать сделку':'Log a trade');
+  set('dmCtaLbl', T('log_trade'));
+  set('fabLbl', T('log_trade'));   // the menu's «+» says the same
   set('homeOverviewTitle', ru?'Счёт и статистика':'Account and stats');
   document.getElementById('dmPanel').setAttribute('aria-label', ru?'Итог дня и запись':'Day result and entry');
   const tzSel = document.getElementById('kzTzSelect');
@@ -7779,7 +7805,7 @@ function applyA11yLabels(){
   document.querySelectorAll('[onclick^="openSettings"]').forEach(b => set(b, 'a11y_settings'));
   set(document.getElementById('themeBtn'), 'a11y_theme');
   set(document.querySelector('[onclick^="openExportModal"]'), 'a11y_backup');
-  set(document.getElementById('fabBtn'), 'add_trade');
+  set(document.getElementById('fabBtn'), 'log_trade');
   set(document.querySelector('#page-progress .picon[onclick*="goalsModal"]'), 'a11y_add_goal');
   set(document.getElementById('filterResetBtn'), 'a11y_reset_filters');
   const nav = document.querySelector('nav.nav'); if(nav) nav.setAttribute('aria-label', T('a11y_nav'));
@@ -7877,7 +7903,7 @@ const STRINGS = {
     filter_reset_btn:'Сброс', kpi_wins:'Прибыльных', kpi_losses:'Убыточных', kpi_pnl:'Итого P&L', kpi_rr:'Средний R:R',
     streak_journal:'Серия журналирования', streak_days:'дней подряд',
     // Trade form — step labels
-    add_trade:'Новая сделка',
+    add_trade:'Новая сделка',log_trade:'Записать сделку',
     step0:'Детали', step1:'Сетап', step2:'Чеклист', step3:'Дисциплина',
     // Form fields
     fsec_basics:'Основное', fsec_details:'Параметры сделки', fsec_result:'Результат',
@@ -8063,7 +8089,7 @@ const STRINGS = {
     filter_reset_btn:'Reset', kpi_wins:'Wins', kpi_losses:'Losses', kpi_pnl:'Total P&L', kpi_rr:'Avg R:R',
     streak_journal:'Journal streak', streak_days:'days in a row',
     // Trade form
-    add_trade:'New Trade',
+    add_trade:'New Trade',log_trade:'Log a trade',
     step0:'Details', step1:'Setup', step2:'Checklist', step3:'Discipline',
     // Form fields
     fsec_basics:'Trade Basics', fsec_details:'Trade Details', fsec_result:'Result',
