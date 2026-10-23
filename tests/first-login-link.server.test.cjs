@@ -18,8 +18,8 @@ const helperPart = between('// ── Supabase REST helper', '// ── Image up
 // Fake account_links table. Each request waits a turn, so requests started
 // together all read before any of them writes — like parallel HTTP requests.
 // A POST without its own Prefer gets the helper's default (merge-duplicates).
-function setup({ links = {}, loseRowAfterInsert = false, failAfterStore = false } = {}) {
-  const table = new Map(Object.entries(links));
+function setup({ links = {}, loseRowAfterInsert = false, failAfterStore = false, sharedTable = null } = {}) {
+  const table = sharedTable || new Map(Object.entries(links));
   const calls = [], logs = [];
   let failed = false;
   const turn = () => new Promise(r => setTimeout(r, 0));
@@ -66,6 +66,21 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
     s.logs.filter(l => l.includes('linked new web account')).length === 1, s.logs);
   check('link POST never overwrites an existing link',
     s.calls.filter(c => c.method === 'POST').every(c => /ignore-duplicates/.test(c.prefer || '')), s.calls.map(c => c.prefer));
+
+  // 1b. (review ad36a0b) Two server processes share only the database: each runs its
+  //     own copy of resolveWebUserId (no shared memory), two and then six first
+  //     requests of one account overlap across them
+  const shared = new Map();
+  const p1 = setup({ sharedTable: shared }), p2 = setup({ sharedTable: shared });
+  const pair = await Promise.all([p1.resolve(a), p2.resolve(a)]);
+  check('two processes, two first requests: one user_id, the stored one',
+    pair[0] === pair[1] && pair[0] === Number(shared.get(a.id).user_id), { pair, stored: shared.get(a.id) });
+  const sharedB = new Map();
+  const q1 = setup({ sharedTable: sharedB }), q2 = setup({ sharedTable: sharedB });
+  const group = await Promise.all([q1, q2, q1, q2, q1, q2].map(p => p.resolve(b)));
+  check('two processes, six first requests: one user_id, the stored one, no POST overwrote it',
+    new Set(group).size === 1 && group[0] === Number(sharedB.get(b.id).user_id)
+      && [...q1.calls, ...q2.calls].filter(c => c.method === 'POST').every(c => /ignore-duplicates/.test(c.prefer || '')), { group });
 
   // 2. Two accounts logging in at the same time stay apart
   s = setup();
