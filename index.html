@@ -3146,6 +3146,8 @@ function applyOtherTabDeletions(){
   let changed = false;
   for(const t of trades.filter(t=>deleted.has(t.id))){
     _hiddenByOtherTab.add(t.id); changed = true;
+    // its open detail card would offer Edit/Delete for a trade that is gone here
+    if(document.querySelector(`#detailModal.open [onclick="deleteTrade('${t.id}')"]`)) closeModal('detailModal');
   }
   if(changed) trades = trades.filter(t=>!deleted.has(t.id));
   for(const id of [..._hiddenByOtherTab]){
@@ -5923,6 +5925,8 @@ function openDetail(id){
 
 function deleteTrade(id){
   const removed=trades.find(t=>t.id===id);
+  // Already deleted by this account (e.g. in another tab): keep that deletion as it is
+  if(!removed && tombIds().has(id)){ closeModal('detailModal'); return; }
   // Recorded right away, so closing the app during the undo window keeps it deleted
   markTradeDeleted(id, {sendAfterMs:5000});
   closeModal('detailModal');
