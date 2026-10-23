@@ -1483,6 +1483,22 @@ body.light .dm-now{color:var(--accent)}
   .dm > .dm-panel{grid-column:2;grid-row:1 / 3;position:sticky;top:24px;margin-top:30px}
 }
 .home-overview{margin-top:24px}
+
+/* ── Atmosphere (stage 3): sky behind everything, light on the map's cards, the headline's entrance ── */
+.v4-sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.dm-card,.dm-trade{position:relative;isolation:isolate}
+.dm-card::before,.dm-trade::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;opacity:0;transition:opacity .3s var(--ease);
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--accent) 7%,transparent),transparent 60%)}
+.dm-card::after,.dm-trade::after{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;pointer-events:none;opacity:0;transition:opacity .25s var(--ease);
+  background:radial-gradient(120px circle at var(--mx,50%) var(--my,50%),var(--accent-soft),transparent 70%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.dm-card.lit::before,.dm-card.lit::after,.dm-trade.lit::before,.dm-trade.lit::after{opacity:1}
+.dm-title .w{display:inline-block}
+@media(prefers-reduced-motion:no-preference){
+  .dm-title.reveal .w{animation:dmWord .6s var(--ease) both;animation-delay:calc(var(--i) * 55ms + 80ms)}
+  @keyframes dmWord{from{opacity:0;transform:translateY(.35em)}}
+}
 /* the overview below the map: capital, chart, numbers (the «Сейчас» tile moved into the map) */
 @media(min-width:640px){
   .home-hero>#balCard{grid-column:1;grid-row:1}
@@ -1528,6 +1544,7 @@ body.light .dm-now{color:var(--accent)}
   </div>
 </div>
 <div class="offline-bar" id="offlineBar">Offline — данные сохраняются локально</div>
+<canvas class="v4-sky" id="v4Sky" aria-hidden="true"></canvas>
 <div class="v4-grain" aria-hidden="true"></div>
 <div id="app">
 <div class="sstrip" id="sStrip" aria-hidden="true"></div>
@@ -1567,7 +1584,7 @@ body.light .dm-now{color:var(--accent)}
         <span class="now-clock" id="kzNowPill">—</span>
         <select class="kz-tz-select" id="kzTzSelect" aria-label="Часовой пояс" onchange="setKzTimezone(this.value)"></select>
       </div>
-      <h1 class="dm-title" id="dmTitle"></h1>
+      <h1 class="dm-title reveal" id="dmTitle"></h1>
       <div class="dm-status" id="dmStatus"></div>
     </header>
     <aside class="dm-panel" id="dmPanel" aria-label="Итог дня и запись">
@@ -4068,9 +4085,14 @@ function renderDayMap(){
   set('dmWeekday', wd.charAt(0).toUpperCase()+wd.slice(1)+',');
   const RU_IN = ['','одной','двух','трёх','четырёх','пяти','шести','семи','восьми','девяти'];
   const EN_N = ['','one','two','three','four','five','six','seven','eight','nine'];
-  set('dmTitle', n
+  const title = n
     ? (ru ? `${dayMonth}. День в ${n<10?RU_IN[n]:n} ${plural(n,'сделке','сделках','сделках')}` : `${dayMonth}. A day of ${n<10?EN_N[n]:n} ${n===1?'trade':'trades'}`)
-    : (ru ? `${dayMonth}. Сделок пока нет` : `${dayMonth}. No trades yet`));
+    : (ru ? `${dayMonth}. Сделок пока нет` : `${dayMonth}. No trades yet`);
+  const h1 = document.getElementById('dmTitle');
+  if(h1 && h1.textContent!==title){   // word spans keep the text readable; the reveal runs on each new sentence
+    let i = 0;
+    h1.innerHTML = title.split(/(\s+)/).map(w=> !w || /^\s+$/.test(w) ? w : `<span class="w" style="--i:${i++}">${escapeHtml(w)}</span>`).join('');
+  }
 
   // Session status
   const info = sessionNow(now);
@@ -9441,6 +9463,122 @@ setInterval(()=>{ fetch(SERVER+'/health').catch(()=>{}); }, 10*60*1000);
 
 // Killzone timeline — live "now" marker, ticks once a minute
 setInterval(renderKillzones, 60*1000);
+
+// ── Atmosphere (DESIGN.md v4): two drifting light fields and dust in two layers ──
+// Simplified in Telegram and on weak phones, drawn once under reduced motion,
+// held still while the tab is hidden or a window is open. Dust reacts to a mouse only.
+function v4Sky(){
+  const c = document.getElementById('v4Sky');
+  if(!c || !c.getContext) return;
+  const ctx = c.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const fine = matchMedia('(hover: hover) and (pointer: fine)');
+  const lite = !!(tg && tg.initData) || (navigator.hardwareConcurrency||8) <= 4 || (navigator.deviceMemory||8) <= 4;
+  let W = 0, H = 0, dust = [], quiet = [], quietDirty = true, hidden = document.hidden, raf = 0, last = 0;
+  const ptr = {x:0, y:0, sx:0, sy:0, on:false};
+  const fields = [   // night colour / morning colour
+    {x:.12, y:.12, r:.62, c:[240,161,94], a:.12, lc:[176,90,34], la:.07, sp:.00005, ph:0},     // copper, behind the start of the day
+    {x:.92, y:.78, r:.7,  c:[86,112,200], a:.10, lc:[86,112,200], la:.05, sp:.00004, ph:2.4},  // deep blue, the far corner
+  ];
+  function size(){
+    const dpr = Math.min(devicePixelRatio||1, lite ? 1.5 : 2);
+    W = innerWidth; H = innerHeight;
+    c.width = W*dpr; c.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+    const n = Math.round(Math.min(lite ? 60 : 150, W*H/(fine.matches ? 9500 : 18000)));
+    dust = Array.from({length:n}, (_,i)=>{
+      const near = i%4===0;   // a quarter is close: bigger, brighter, quicker
+      return {x:Math.random()*W, y:Math.random()*H, vx:0, vy:0, near, tw:Math.random()*6.28, drift:near ? .09 : .03,
+        r:near ? Math.random()+1.1 : Math.random()*.6+.3, a:near ? Math.random()*.3+.3 : Math.random()*.2+.08};
+    });
+    quietDirty = true;
+    draw(0);
+  }
+  function quietRects(){   // the sky goes quiet around the numbers
+    quiet = [...document.querySelectorAll('.page.active :is(.dm-result,.dm-list,.bal-card,.chart-card,.kpi-grid)')]
+      .map(el=>el.getBoundingClientRect()).filter(r=>r.width && r.bottom>-40 && r.top<H+40)
+      .map(r=>[r.left-28, r.top-28, r.right+28, r.bottom+28]);
+    quietDirty = false;
+  }
+  const inQuiet = (x,y)=>quiet.some(q=>x>q[0] && x<q[2] && y>q[1] && y<q[3]);
+  function draw(t){
+    if(quietDirty) quietRects();
+    const light = document.body.classList.contains('light'), still = reduce.matches;
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation = light ? 'source-over' : 'lighter';
+    for(const f of fields){
+      const k = still ? 0 : t*f.sp, col = light ? f.lc : f.c;
+      const x = (f.x+Math.sin(k+f.ph)*.06)*W, y = (f.y+Math.cos(k*1.2+f.ph)*.05)*H, r = f.r*Math.max(W,H);
+      const g = ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0, `rgba(${col},${light ? f.la : f.a})`); g.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    }
+    if(ptr.on && !still){
+      ptr.sx += (ptr.x-ptr.sx)*.14; ptr.sy += (ptr.y-ptr.sy)*.14;
+      const tone = light ? '176,90,34' : '246,195,143';
+      const g = ctx.createRadialGradient(ptr.sx,ptr.sy,0,ptr.sx,ptr.sy,280);
+      g.addColorStop(0, `rgba(${tone},${light ? .06 : .09})`); g.addColorStop(1, `rgba(${tone},0)`);
+      ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+    }
+    for(const p of dust){
+      let lift = 0;
+      if(!still){
+        if(ptr.on){
+          const dx = p.x-ptr.sx, dy = p.y-ptr.sy, d = Math.hypot(dx,dy), R = p.near ? 170 : 120;
+          if(d<R && d>.1){ const f = (R-d)/R; p.vx += dx/d*f*(p.near ? .45 : .2); p.vy += dy/d*f*(p.near ? .45 : .2); lift = f; }
+        }
+        p.vx *= .93; p.vy *= .93;
+        p.x += p.vx + Math.sin(t*.0003+p.tw)*p.drift; p.y += p.vy - p.drift;
+        if(p.x<-10) p.x = W+10; if(p.x>W+10) p.x = -10; if(p.y<-10) p.y = H+10; if(p.y>H+10) p.y = -10;
+      }
+      const calm = inQuiet(p.x,p.y) ? .15 : 1;
+      const tw = still ? 1 : .75+Math.sin(t*.0018+p.tw)*.25;
+      const a = Math.min(1, (p.a*tw + lift*(p.near ? .8 : .4))*calm) * (light ? .55 : 1);
+      if(a<.02) continue;
+      if(p.near && calm===1 && !lite && !light){ ctx.fillStyle = `rgba(246,195,143,${a*.18})`; ctx.beginPath(); ctx.arc(p.x,p.y,(p.r+lift*2)*3,0,6.283); ctx.fill(); }
+      ctx.fillStyle = light ? `rgba(150,95,50,${a})` : `rgba(255,${Math.round(222-lift*40)},${Math.round(185-lift*80)},${a})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r+lift*(p.near ? 1.6 : .6),0,6.283); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function loop(t){
+    raf = 0;
+    if(hidden || reduce.matches) return;
+    raf = requestAnimationFrame(loop);
+    if(lite && t-last<32) return;                         // about 30 frames a second
+    last = t;
+    if(document.querySelector('.overlay.open')) return;   // a window is open: the sky holds still
+    draw(t);
+  }
+  const run = ()=>{ if(!raf && !hidden && !reduce.matches) raf = requestAnimationFrame(loop); };
+  addEventListener('pointermove', e=>{
+    if(e.pointerType!=='mouse' || !fine.matches || lite) return;
+    if(!ptr.on){ ptr.sx = e.clientX; ptr.sy = e.clientY; }
+    ptr.x = e.clientX; ptr.y = e.clientY; ptr.on = true;
+  }, {passive:true});
+  document.addEventListener('pointerleave', ()=>{ ptr.on = false; });
+  addEventListener('scroll', ()=>{ quietDirty = true; if(reduce.matches) draw(0); }, {passive:true});
+  document.addEventListener('visibilitychange', ()=>{ hidden = document.hidden; run(); });
+  let rs = 0;
+  addEventListener('resize', ()=>{ cancelAnimationFrame(rs); rs = requestAnimationFrame(size); });
+  if(reduce.addEventListener) reduce.addEventListener('change', ()=>{ size(); run(); });
+  new MutationObserver(()=>{ if(reduce.matches) draw(0); }).observe(document.body, {attributes:true, attributeFilter:['class']});   // theme switch
+  size(); run();
+}
+
+// A mouse lights the edge of the day map's cards where it points; no tilt.
+function v4CardLight(){
+  const fine = matchMedia('(hover: hover) and (pointer: fine)');
+  let lit = null;
+  addEventListener('pointermove', e=>{
+    if(e.pointerType!=='mouse' || !fine.matches) return;
+    const card = e.target.closest ? e.target.closest('.dm-card, .dm-trade') : null;
+    if(card!==lit){ if(lit) lit.classList.remove('lit'); lit = card; if(lit) lit.classList.add('lit'); }
+    if(lit){ const r = lit.getBoundingClientRect(); lit.style.setProperty('--mx', e.clientX-r.left+'px'); lit.style.setProperty('--my', e.clientY-r.top+'px'); }
+  }, {passive:true});
+  document.addEventListener('pointerleave', ()=>{ if(lit) lit.classList.remove('lit'); lit = null; });
+}
+v4Sky();
+v4CardLight();
 </script>
 </body>
 </html>
