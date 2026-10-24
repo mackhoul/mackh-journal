@@ -1449,7 +1449,8 @@ body.light .dm-chip.is-now{color:var(--accent)}
 .dm-cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;padding:0 22px;border:0;border-radius:999px;font:600 15px/1 var(--sans);background:var(--accent);color:var(--on-accent);cursor:pointer;
   box-shadow:0 10px 32px -10px color-mix(in srgb,var(--accent) 75%,transparent);transition:transform .16s var(--ease),background .16s var(--ease)}
 .dm-cta:hover{background:var(--accent-soft)}
-body.light .dm-cta:hover{background:#9A4C1B}
+.overlay .modal[tabindex="-1"]:focus{outline:none}   /* the window takes focus as a whole; its controls keep their rings */
+body.light .dm-cta:hover,body.light .btn-primary:hover{background:#9A4C1B}   /* --accent-soft under light text is 3.25:1; this is 5.8:1 */
 .dm-cta:active{transform:scale(.97)}
 .dm-cta svg{width:18px;height:18px}
 
@@ -9603,8 +9604,51 @@ function v4CardLight(){
   }, {passive:true});
   document.addEventListener('pointerleave', ()=>{ if(lit) lit.classList.remove('lit'); lit = null; });
 }
+// Windows (.overlay) and the keyboard: when one opens, focus moves into it and Tab
+// stays inside; when it closes, focus returns to the control that opened it.
+// Every open/close path only toggles the class «open», so the class is watched.
+// The window itself takes focus, not its first field: no phone keyboard pops up.
+function v4ModalFocus(){
+  const focusables = o=>[...o.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]
+    .filter(el=>!el.disabled && el.tabIndex>=0 && el.getClientRects().length);
+  const topOpen = ()=>{ const all = document.querySelectorAll('.overlay.open'); return all[all.length-1] || null; };
+  const openers = new Map();
+  const mo = new MutationObserver(records=>records.forEach(r=>{
+    const o = r.target, was = /(^|\s)open(\s|$)/.test(r.oldValue||''), is = o.classList.contains('open');
+    if(is && !was){
+      const a = document.activeElement, host = a && a.closest ? a.closest('.overlay') : null;
+      if(host && host!==o && !host.classList.contains('open')) openers.set(o, openers.get(host));   // one window replaced another: return where the first came from
+      else if(a && a!==document.body && !o.contains(a)) openers.set(o, {el:a, id:a.dataset && a.dataset.id});
+      else openers.delete(o);
+      const box = o.querySelector('.modal') || o;
+      if(!box.hasAttribute('tabindex')) box.setAttribute('tabindex','-1');
+      box.focus({preventScroll:true});
+    } else if(was && !is){
+      const back = openers.get(o), a = document.activeElement;
+      if(!back || topOpen() || (a && a!==document.body && !o.contains(a))) return;   // kept for a window opened in its place
+      // the list may have been re-rendered while the window was open: find the same trade again
+      const el = back.el.isConnected ? back.el
+        : back.id ? document.querySelector(`.page.active [data-id="${CSS.escape(back.id)}"]`) : null;
+      if(el) el.focus({preventScroll:true});
+      openers.delete(o);
+    }
+  }));
+  document.querySelectorAll('.overlay').forEach(o=>mo.observe(o, {attributes:true, attributeFilter:['class'], attributeOldValue:true}));
+  document.addEventListener('keydown', e=>{
+    if(e.key!=='Tab') return;
+    const o = topOpen();
+    if(!o) return;
+    const list = focusables(o), a = document.activeElement;
+    if(!list.length){ e.preventDefault(); return; }
+    const first = list[0], last = list[list.length-1];
+    if(!o.contains(a)){ e.preventDefault(); first.focus(); }
+    else if(e.shiftKey && (a===first || !list.includes(a))){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && a===last){ e.preventDefault(); first.focus(); }
+  });
+}
 v4Sky();
 v4CardLight();
+v4ModalFocus();
 </script>
 </body>
 </html>
