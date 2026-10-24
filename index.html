@@ -4214,7 +4214,17 @@ function renderDayMap(){
     + `<ul class="dm-list">${groups.Other.map(tradeLi).join('')}</ul></section>`;
   if(evening) html += `<div class="dm-tail"><ul class="dm-list">${nowLi(ru?'открылась Азия, это уже следующий торговый день':'Asia has opened, the next trading day')}</ul></div>`;
   if(!dmThread) dmThread = dmThreadInit();
-  if(ss._v!==html){ ss.innerHTML=html; ss._v=html; dmThread && dmThread.build(); }
+  if(ss._v!==html){
+    // a re-render (e.g. a sync answer) must not drop keyboard focus from a trade: keep it on the same trade, else its neighbour
+    const f = document.activeElement, had = f && ss.contains(f) ? f.dataset.id : null;
+    const at = had ? [...ss.querySelectorAll('.dm-trade')].indexOf(f) : -1;
+    ss.innerHTML=html; ss._v=html; dmThread && dmThread.build();
+    if(had){
+      const list = [...ss.querySelectorAll('.dm-trade')];
+      const n = list.find(b=>b.dataset.id===had) || list[at] || list[at-1] || document.querySelector('.dm-cta');
+      if(n) n.focus({preventScroll:true});
+    }
+  }
   ss.querySelectorAll('[data-dm-clock]').forEach(e=>{ e.textContent=clock; });
 }
 
@@ -5675,6 +5685,10 @@ function enhanceDate(inp){
     if(i<0) return;
     const step = {ArrowRight:1,ArrowLeft:-1,ArrowDown:7,ArrowUp:-7}[e.key];
     if(step){ e.preventDefault(); const n=days[i+step]; if(n) n.focus(); }
+  });
+  // Tab moves through the month buttons and days; once focus leaves the picker it closes, like the lists
+  wrap.addEventListener('focusout', e=>{
+    if(wrap.classList.contains('open') && e.relatedTarget && !wrap.contains(e.relatedTarget)) wrap.classList.remove('open');
   });
   const sync = ()=>{ trg.querySelector('.ssel-lbl').textContent = dpFormat(inp.value); trg.classList.toggle('has-value', !!inp.value); };
   Object.defineProperty(inp,'value',{configurable:true,
@@ -7806,6 +7820,7 @@ function applyA11yLabels(){
   document.querySelectorAll('[onclick^="openSettings"]').forEach(b => set(b, 'a11y_settings'));
   set(document.getElementById('themeBtn'), 'a11y_theme');
   set(document.querySelector('[onclick^="openExportModal"]'), 'a11y_backup');
+  set(document.querySelector('#fullscreen .fs-close'), 'a11y_close');
   set(document.getElementById('fabBtn'), 'log_trade');
   set(document.querySelector('#page-progress .picon[onclick*="goalsModal"]'), 'a11y_add_goal');
   set(document.getElementById('filterResetBtn'), 'a11y_reset_filters');
@@ -9567,16 +9582,20 @@ function v4Sky(){
     }
     ctx.globalCompositeOperation = 'source-over';
   }
+  // A window or the full-screen picture covers the sky: the loop stops entirely
+  // and starts again when the last layer closes (one loop at most: run() checks raf).
+  const covered = ()=>!!document.querySelector('.overlay.open, #fullscreen.open');
   function loop(t){
     raf = 0;
-    if(hidden || reduce.matches) return;
+    if(hidden || reduce.matches || covered()) return;
     raf = requestAnimationFrame(loop);
     if(lite && t-last<32) return;                         // about 30 frames a second
     last = t;
-    if(document.querySelector('.overlay.open')) return;   // a window is open: the sky holds still
     draw(t);
   }
-  const run = ()=>{ if(!raf && !hidden && !reduce.matches) raf = requestAnimationFrame(loop); };
+  const run = ()=>{ if(!raf && !hidden && !reduce.matches && !covered()) raf = requestAnimationFrame(loop); };
+  const layers = new MutationObserver(run);
+  document.querySelectorAll('.overlay, #fullscreen').forEach(l=>layers.observe(l, {attributes:true, attributeFilter:['class']}));
   addEventListener('pointermove', e=>{
     if(e.pointerType!=='mouse' || !fine.matches || lite) return;
     if(!ptr.on){ ptr.sx = e.clientX; ptr.sy = e.clientY; }
@@ -9604,46 +9623,92 @@ function v4CardLight(){
   }, {passive:true});
   document.addEventListener('pointerleave', ()=>{ if(lit) lit.classList.remove('lit'); lit = null; });
 }
-// Windows (.overlay) and the keyboard: when one opens, focus moves into it and Tab
-// stays inside; when it closes, focus returns to the control that opened it.
-// Every open/close path only toggles the class «open», so the class is watched.
-// The window itself takes focus, not its first field: no phone keyboard pops up.
+// Layers and the keyboard: a window (.overlay) or the full-screen picture (#fullscreen).
+// When one opens, focus moves into it and Tab stays inside the topmost visible layer;
+// when it closes, focus returns to the control that opened it, or to the nearest
+// sensible one if that control is gone (a deleted trade: its neighbour, else the
+// «Записать сделку» button). Every open/close path only toggles the class «open»,
+// so the class is watched. A window itself takes focus, not its first field, so
+// no phone keyboard pops up.
+const V4_LAYERS = '.overlay, #fullscreen';
+function v4TopLayer(){
+  let top = null, z = -Infinity;
+  document.querySelectorAll('.overlay.open, #fullscreen.open').forEach(l=>{
+    const v = parseInt(getComputedStyle(l).zIndex,10) || 0;
+    if(v>=z){ z = v; top = l; }   // equal z: the later one in the page is on top
+  });
+  return top;
+}
 function v4ModalFocus(){
-  const focusables = o=>[...o.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]
-    .filter(el=>!el.disabled && el.tabIndex>=0 && el.getClientRects().length);
-  const topOpen = ()=>{ const all = document.querySelectorAll('.overlay.open'); return all[all.length-1] || null; };
+  const visible = el=>el && el.isConnected && el.getClientRects().length && getComputedStyle(el).visibility!=='hidden';
+  const focusables = l=>[...l.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]
+    .filter(el=>!el.disabled && el.tabIndex>=0 && visible(el));
+  const boxOf = l=> l.id==='fullscreen' ? l.querySelector('.fs-close') : (l.querySelector('.modal') || l);
+  const peers = ()=>[...document.querySelectorAll('.page.active [data-id]')].filter(el=>el.tabIndex>=0 && visible(el));
   const openers = new Map();
-  const mo = new MutationObserver(records=>records.forEach(r=>{
-    const o = r.target, was = /(^|\s)open(\s|$)/.test(r.oldValue||''), is = o.classList.contains('open');
-    if(is && !was){
-      const a = document.activeElement, host = a && a.closest ? a.closest('.overlay') : null;
-      if(host && host!==o && !host.classList.contains('open')) openers.set(o, openers.get(host));   // one window replaced another: return where the first came from
-      else if(a && a!==document.body && !o.contains(a)) openers.set(o, {el:a, id:a.dataset && a.dataset.id});
-      else openers.delete(o);
-      const box = o.querySelector('.modal') || o;
-      if(!box.hasAttribute('tabindex')) box.setAttribute('tabindex','-1');
-      box.focus({preventScroll:true});
-    } else if(was && !is){
-      const back = openers.get(o), a = document.activeElement;
-      if(!back || topOpen() || (a && a!==document.body && !o.contains(a))) return;   // kept for a window opened in its place
-      // the list may have been re-rendered while the window was open: find the same trade again
-      const el = back.el.isConnected ? back.el
-        : back.id ? document.querySelector(`.page.active [data-id="${CSS.escape(back.id)}"]`) : null;
-      if(el) el.focus({preventScroll:true});
-      openers.delete(o);
-    }
-  }));
-  document.querySelectorAll('.overlay').forEach(o=>mo.observe(o, {attributes:true, attributeFilter:['class'], attributeOldValue:true}));
+  const enter = l=>{
+    const box = boxOf(l);
+    if(!box.hasAttribute('tabindex') && box.tagName!=='BUTTON') box.setAttribute('tabindex','-1');
+    box.focus({preventScroll:true});
+  };
+  const usable = (el, top)=> visible(el) && !el.disabled && (top ? top.contains(el) : !el.closest(V4_LAYERS));
+  function restore(back){
+    const top = v4TopLayer();
+    let el = back && back.el;
+    if(!usable(el, top) && !top && back && back.id) el = document.querySelector(`.page.active [data-id="${CSS.escape(back.id)}"]`);
+    if(!usable(el, top) && top) el = boxOf(top);                         // e.g. the picture closed over the trade window
+    if(!usable(el, top) && back && back.pos>=0){ const p = peers(); el = p[back.pos] || p[back.pos-1]; }   // the trade is gone: its neighbour
+    if(!usable(el, top)) el = document.querySelector('.page.active .dm-cta') || document.getElementById('fabBtn');
+    if(usable(el, top)) el.focus({preventScroll:true});
+  }
+  const mo = new MutationObserver(records=>{
+    const isOpen = l=>l.classList.contains('open');
+    const changed = records.filter((r,i)=>records.findIndex(x=>x.target===r.target)===i).map(r=>r.target);
+    const was = new Map(records.map(r=>[r.target, null]));
+    records.slice().reverse().forEach(r=>was.set(r.target, /(^|\s)open(\s|$)/.test(r.oldValue||'')));   // state before this batch
+    const opened = changed.filter(l=>isOpen(l) && !was.get(l)), closed = changed.filter(l=>!isOpen(l) && was.get(l));
+    // openings first: a window opened in place of another inherits that one's way back
+    opened.forEach(l=>{
+      const a = document.activeElement, host = a && a.closest ? a.closest(V4_LAYERS) : null;
+      const from = (host && host!==l && !isOpen(host)) ? host : closed.find(c=>openers.has(c));
+      if(from && openers.has(from) && (!host || host===from)) openers.set(l, openers.get(from));
+      else if(a && a!==document.body && !l.contains(a)) openers.set(l, {el:a, id:a.dataset && a.dataset.id, pos:peers().indexOf(a)});
+      else if(!from) openers.delete(l);
+      enter(l);
+    });
+    closed.forEach(l=>{
+      const back = openers.get(l); openers.delete(l);
+      if(opened.length) return;                                          // focus already went into the new window
+      const a = document.activeElement;
+      if(a && a!==document.body && !l.contains(a) && visible(a)) return; // focus is fine where it is
+      restore(back);
+    });
+  });
+  document.querySelectorAll(V4_LAYERS).forEach(l=>mo.observe(l, {attributes:true, attributeFilter:['class'], attributeOldValue:true}));
   document.addEventListener('keydown', e=>{
+    const top = v4TopLayer();
+    if(!top) return;
+    if(e.key==='Escape' && top.id==='fullscreen'){ e.preventDefault(); closeFullscreen(); return; }
     if(e.key!=='Tab') return;
-    const o = topOpen();
-    if(!o) return;
-    const list = focusables(o), a = document.activeElement;
-    if(!list.length){ e.preventDefault(); return; }
-    const first = list[0], last = list[list.length-1];
-    if(!o.contains(a)){ e.preventDefault(); first.focus(); }
-    else if(e.shiftKey && (a===first || !list.includes(a))){ e.preventDefault(); last.focus(); }
-    else if(!e.shiftKey && a===last){ e.preventDefault(); first.focus(); }
+    e.preventDefault();                                                  // the layer decides every step, nothing behind it is reachable
+    const list = focusables(top), a = document.activeElement;
+    if(!list.length){ boxOf(top).focus(); return; }
+    const last = list.length-1;
+    let i = list.indexOf(a);
+    if(i<0){
+      if(!top.contains(a) || a===boxOf(top)){ list[e.shiftKey ? last : 0].focus(); return; }
+      // focus sits on something hidden inside the layer, e.g. an option of a list that the
+      // list's own Tab handler has just closed: step from the list's button, in page order
+      const anchor = (a.closest('.ssel') && a.closest('.ssel').querySelector('.ssel-trigger')) || a;
+      i = list.indexOf(anchor);
+      if(i<0){
+        const after = list.findIndex(el=>anchor.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const k = after<0 ? list.length : after;
+        list[e.shiftKey ? (k-1<0 ? last : k-1) : (k>last ? 0 : k)].focus();
+        return;
+      }
+    }
+    list[e.shiftKey ? (i>0 ? i-1 : last) : (i<last ? i+1 : 0)].focus();
   });
 }
 v4Sky();
