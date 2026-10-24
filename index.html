@@ -1502,8 +1502,14 @@ body.light .dm-now{color:var(--accent)}
 }
 
 /* ── Other screens (stage 4) ── */
+
+/* the screenshot in a trade window is a button: same look, keyboard and pointer both open it */
+button.detail-img-wrap{display:block;width:100%;padding:0;font:inherit;color:inherit;text-align:inherit;cursor:zoom-in}
+button.detail-img-wrap:focus-visible{outline:2px solid var(--accent-soft);outline-offset:3px}
+button.detail-img-wrap:focus-visible .detail-img-ov{opacity:1}
 /* one radius family: rows 12, tiles 18, hero and windows 26 */
-:root{--radius-sm:12px;--radius-md:18px;--radius-lg:26px}
+:root{--radius-sm:12px;--radius-md:18px;--radius-lg:26px;--mkt-crypto:#FF9A6C}
+body.light{--mkt-crypto:#B5541F}   /* crypto in charts: the badge colour, darker on paper */
 .modal{border-radius:var(--radius-lg) var(--radius-lg) 0 0}
 @media(min-width:1024px){ .modal{border-radius:var(--radius-lg)} }
 /* every sum and count in Onest with lining tabular figures; Literata stays for words */
@@ -5378,6 +5384,20 @@ function getGoalProgress(g){
 // ═══════════════════════════════════════════════════════
 //  HOME CHART
 // ═══════════════════════════════════════════════════════
+// Chart colours come from the current theme's tokens; toggleTheme rebuilds the charts,
+// so a theme switch recolours them. Defaults cover anything a chart does not set itself.
+function chartTheme(){
+  const cs = getComputedStyle(document.body), v = n=>cs.getPropertyValue(n).trim();
+  const c = {text:v('--text'), muted:v('--text-muted'), secondary:v('--text-secondary'), border:v('--border'), borderStrong:v('--border-strong'),
+    surface:v('--surface'), bg:v('--bg'), positive:v('--positive'), negative:v('--negative'), info:v('--info'), info2:v('--info-2'),
+    warning:v('--warning'), crypto:v('--mkt-crypto')};
+  if(window.Chart){ Chart.defaults.color = c.muted; Chart.defaults.borderColor = c.border; }
+  return c;
+}
+function chartAlpha(color, a){   // '#RRGGBB' → rgba(); anything else is returned as it is
+  const m = /^#([0-9a-f]{6})$/i.exec(color); if(!m) return color;
+  const n = parseInt(m[1],16); return `rgba(${n>>16},${n>>8&255},${n&255},${a})`;
+}
 function renderHomeChart(){
   const canvas = document.getElementById('homeChart');
   const ctx = canvas.getContext('2d');
@@ -5402,12 +5422,13 @@ function renderHomeChart(){
     homeCI.update();
     return;
   }
-  const og=ctx.createLinearGradient(0,0,0,120); og.addColorStop(0,'rgba(79,209,165,.16)'); og.addColorStop(1,'rgba(79,209,165,0)');
-  const pg=ctx.createLinearGradient(0,0,0,120); pg.addColorStop(0,'rgba(142,124,240,.18)'); pg.addColorStop(1,'rgba(142,124,240,0)');
+  const c=chartTheme();
+  const og=ctx.createLinearGradient(0,0,0,120); og.addColorStop(0,chartAlpha(c.positive,.16)); og.addColorStop(1,chartAlpha(c.positive,0));
+  const pg=ctx.createLinearGradient(0,0,0,120); pg.addColorStop(0,chartAlpha(c.info,.18)); pg.addColorStop(1,chartAlpha(c.info,0));
   homeCI=new Chart(ctx,{type:'line',data:{labels:eqLabels,datasets:[
-    {label:T('capital'),data:eqData,fill:true,backgroundColor:og,borderColor:'#4FD1A5',borderWidth:2,tension:.35,pointRadius:0,pointBackgroundColor:'#4FD1A5',pointBorderColor:'rgba(0,0,0,.5)',pointBorderWidth:1.5,pointHoverRadius:7},
-    {label:T('an_pnl_curve'),data:pnlData,fill:true,backgroundColor:pg,borderColor:'#8E7CF0',borderWidth:1.5,tension:.35,pointRadius:0,pointBackgroundColor:'#8E7CF0',pointBorderColor:'rgba(0,0,0,.5)',pointBorderWidth:1.5,pointHoverRadius:6}
-  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:getComputedStyle(document.body).getPropertyValue('--surface').trim(),borderColor:'var(--accent-muted)',borderWidth:1,titleColor:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),titleFont:{family:'Onest',size:10},bodyColor:getComputedStyle(document.body).getPropertyValue('--text').trim(),bodyFont:{family:'Onest',size:11},padding:8,cornerRadius:10,callbacks:{label:c=>`${c.dataset.label}: $${c.raw}`}}},scales:{x:{display:false},y:{display:false,grid:{display:false}}}}});
+    {label:T('capital'),data:eqData,fill:true,backgroundColor:og,borderColor:c.positive,borderWidth:2,tension:.35,pointRadius:0,pointBackgroundColor:c.positive,pointBorderColor:c.bg,pointBorderWidth:1.5,pointHoverRadius:7},
+    {label:T('an_pnl_curve'),data:pnlData,fill:true,backgroundColor:pg,borderColor:c.info,borderWidth:1.5,tension:.35,pointRadius:0,pointBackgroundColor:c.info,pointBorderColor:c.bg,pointBorderWidth:1.5,pointHoverRadius:6}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:c.surface,borderColor:c.borderStrong,borderWidth:1,titleColor:c.secondary,titleFont:{family:'Onest',size:10},bodyColor:c.text,bodyFont:{family:'Onest',size:11},padding:8,cornerRadius:10,callbacks:{label:c=>`${c.dataset.label}: $${c.raw}`}}},scales:{x:{display:false},y:{display:false,grid:{display:false}}}}});
 }
 
 function setRange(btn){
@@ -5821,10 +5842,10 @@ function renderAnalytics(){
   if(pnlCI) pnlCI.destroy();
   const ctx=document.getElementById('pnlChart').getContext('2d');
   const pos=!data.length||data[data.length-1]>=0;
-  const lc=pos?'#4FD1A5':'#FF6B6B';
-  const g=ctx.createLinearGradient(0,0,0,130); g.addColorStop(0,pos?'rgba(79,209,165,.16)':'rgba(255,107,107,.15)'); g.addColorStop(1,'rgba(0,0,0,0)');
+  const tc=chartTheme(), lc=pos?tc.positive:tc.negative;
+  const g=ctx.createLinearGradient(0,0,0,130); g.addColorStop(0,chartAlpha(lc,.16)); g.addColorStop(1,chartAlpha(lc,0));
   const cs=getComputedStyle(document.body);
-  pnlCI=new Chart(ctx,{type:'line',data:{labels,datasets:[{data,fill:true,backgroundColor:g,borderColor:lc,borderWidth:2,tension:.35,pointRadius:0,pointHoverRadius:5,pointBackgroundColor:lc,pointBorderColor:'rgba(0,0,0,.5)',pointBorderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:cs.getPropertyValue('--surface').trim(),borderColor:'var(--accent-muted)',borderWidth:1,bodyFont:{family:'Onest',size:11},bodyColor:cs.getPropertyValue('--text').trim(),padding:8,cornerRadius:10,callbacks:{label:c=>' $'+c.raw}}},scales:{x:{display:false},y:{grid:{color:cs.getPropertyValue('--border').trim()},ticks:{color:cs.getPropertyValue('--text-muted').trim(),font:{family:'Onest',size:9},callback:v=>'$'+v}}}}});
+  pnlCI=new Chart(ctx,{type:'line',data:{labels,datasets:[{data,fill:true,backgroundColor:g,borderColor:lc,borderWidth:2,tension:.35,pointRadius:0,pointHoverRadius:5,pointBackgroundColor:lc,pointBorderColor:tc.bg,pointBorderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:cs.getPropertyValue('--surface').trim(),borderColor:tc.borderStrong,borderWidth:1,bodyFont:{family:'Onest',size:11},bodyColor:cs.getPropertyValue('--text').trim(),padding:8,cornerRadius:10,callbacks:{label:c=>' $'+c.raw}}},scales:{x:{display:false},y:{grid:{color:cs.getPropertyValue('--border').trim()},ticks:{color:cs.getPropertyValue('--text-muted').trim(),font:{family:'Onest',size:9},callback:v=>'$'+v}}}}});
 
   // Sessions — use stored session field
   const SESSION_NAMES = ['London','New York','Asia'];
@@ -5931,7 +5952,8 @@ function renderAnalytics(){
   if(mktCounts.some(c=>c>0)){
     mktWrap.style.display='block';
     if(mktCI) mktCI.destroy();
-    mktCI=new Chart(document.getElementById('mktChart').getContext('2d'),{type:'doughnut',data:{labels:mktLabels,datasets:[{data:mktCounts,backgroundColor:['#8E7CF0','#4FD1A5','#4FD1A5','#FFB224'],borderWidth:0,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:getComputedStyle(document.body).getPropertyValue('--text-secondary').trim(),font:{family:'Onest',size:10,weight:'600'},padding:10,boxWidth:7,borderRadius:3}}}}});
+    const mc=chartTheme();   // the same colours as the market badges, a surface-coloured gap between segments
+    mktCI=new Chart(document.getElementById('mktChart').getContext('2d'),{type:'doughnut',data:{labels:mktLabels,datasets:[{data:mktCounts,backgroundColor:[mc.info2,mc.crypto,mc.positive,mc.warning],borderColor:mc.surface,borderWidth:2,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:mc.secondary,font:{family:'Onest',size:10,weight:'600'},padding:10,boxWidth:7,borderRadius:3}}}}});
   } else mktWrap.style.display='none';
 
   // RR analysis
@@ -6340,7 +6362,7 @@ function openDetail(id){
   const ds=t.date?new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
   const rrDisplay=t.rr?escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n))):'—';
   const detailImgSrc = t.img || t.img_url || null;
-  const imgBlock=detailImgSrc?`<div class="detail-img-wrap" onclick="openFullscreen('${t.id}')"><img class="detail-img ${lazyCls(detailImgSrc)}" src="${escapeHtml(detailImgSrc)}" alt="${escapeHtml(T('img_chart_alt')+' '+(t.pair||t.asset||''))}" decoding="async" onload="imgReady(this)" onerror="imgFail(this)"><div class="detail-img-ov"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7"/></svg></div></div>`:'';
+  const imgBlock=detailImgSrc?`<button type="button" class="detail-img-wrap" onclick="openFullscreen('${t.id}')" aria-label="${escapeHtml(lang==='ru'?'Открыть скриншот на весь экран':'Open the screenshot full screen')}"><img class="detail-img ${lazyCls(detailImgSrc)}" src="${escapeHtml(detailImgSrc)}" alt="${escapeHtml(T('img_chart_alt')+' '+(t.pair||t.asset||''))}" decoding="async" onload="imgReady(this)" onerror="imgFail(this)"><span class="detail-img-ov" aria-hidden="true"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7"/></svg></span></button>`:'';
   // Checklist detail
   const clKeys=[{id:'liq',key:'cl_liq'},{id:'str',key:'cl_str'},{id:'htf',key:'cl_htf'},{id:'news',key:'cl_news'},{id:'risk',key:'cl_risk'}];
   const clDetail=t.checklistDetail;
@@ -9659,6 +9681,8 @@ function v4ModalFocus(){
     if(!usable(el, top) && top) el = boxOf(top);                         // e.g. the picture closed over the trade window
     if(!usable(el, top) && back && back.pos>=0){ const p = peers(); el = p[back.pos] || p[back.pos-1]; }   // the trade is gone: its neighbour
     if(!usable(el, top)) el = document.querySelector('.page.active .dm-cta') || document.getElementById('fabBtn');
+    // Analytics and Progress hide the log button: the first visible control of the section, else its menu item
+    if(!usable(el, top) && !top){ const page = document.querySelector('.page.active'); el = (page && focusables(page)[0]) || document.querySelector('.nb.active'); }
     if(usable(el, top)) el.focus({preventScroll:true});
   }
   const mo = new MutationObserver(records=>{
