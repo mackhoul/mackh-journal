@@ -9713,6 +9713,12 @@ function v4ModalFocus(){
     const top = v4TopLayer();
     if(!top) return;
     if(e.key==='Escape' && top.id==='fullscreen'){ e.preventDefault(); closeFullscreen(); return; }
+    if(e.key==='Escape'){                                                // a window closes the way its ✕ closes it
+      e.preventDefault();
+      const x = top.querySelector('.mclose');
+      if(x) x.click(); else closeModal(top.id);
+      return;
+    }
     if(e.key!=='Tab') return;
     e.preventDefault();                                                  // the layer decides every step, nothing behind it is reachable
     const list = focusables(top), a = document.activeElement;
@@ -9735,9 +9741,38 @@ function v4ModalFocus(){
     list[e.shiftKey ? (i>0 ? i-1 : last) : (i<last ? i+1 : 0)].focus();
   });
 }
+// Things that open or switch on a click but are not buttons (trade cards and rows, market
+// tabs, KPI tiles, insight and idea cards, calendar days, uploads, the toast's «Отменить»)
+// get a place in the Tab order and answer Enter and Space like a button. Lists are
+// re-rendered often, so new elements are picked up as they appear.
+const V4_OPERABLE = '.tc, .tt-row, .mtab, .kpi.clickable, .insight-card, .insights-dismissed-toggle, .an-card[onclick], '
+  + '.idea-card, .shdr[onclick], .cal-day[onclick], .img-upload, .toast-undo, #syncDot';
+function v4Operable(){
+  const mark = root=>{
+    root.querySelectorAll(V4_OPERABLE).forEach(el=>{
+      if(!el.hasAttribute('tabindex')) el.setAttribute('tabindex','0');
+      if(!el.hasAttribute('role')) el.setAttribute('role','button');
+      if(el.classList.contains('mtab')) el.setAttribute('aria-pressed', String(el.classList.contains('active')));
+    });
+  };
+  let queued = false;
+  const later = ()=>{ if(queued) return; queued = true; setTimeout(()=>{ queued = false; mark(document); }, 0); };
+  new MutationObserver(records=>{
+    if(records.some(r=>r.type==='childList' || r.target.classList.contains('mtab'))) later();
+  }).observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
+  document.addEventListener('keydown', e=>{
+    if(e.key!=='Enter' && e.key!==' ') return;
+    const el = e.target;
+    if(!(el instanceof Element) || !el.matches(V4_OPERABLE)) return;
+    e.preventDefault();                                                  // Space must not scroll the page
+    el.click();
+  });
+  mark(document);
+}
 v4Sky();
 v4CardLight();
 v4ModalFocus();
+v4Operable();
 </script>
 </body>
 </html>
