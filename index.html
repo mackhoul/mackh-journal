@@ -1377,7 +1377,7 @@ body.light .v4-grain{opacity:.07;mix-blend-mode:multiply}
 .step-dot.active{background:var(--accent)}
 .saction:hover{text-decoration-color:var(--accent)}
 .toast-undo{color:var(--accent-soft)}
-body.light .toast-undo{color:var(--accent)}
+body.light .toast-undo{color:var(--accent-ink)}
 .nav{background:color-mix(in srgb,var(--bg) 82%,transparent)}
 @media(min-width:1024px){ .nav{background:color-mix(in srgb,var(--bg) 92%,transparent)} }
 .nav-logo::after{content:'';display:inline-block;width:16px;height:2px;margin-left:8px;vertical-align:middle;background:var(--accent);border-radius:1px}
@@ -1422,7 +1422,7 @@ body.light .dm-thread .dm-nowmark{stroke:var(--accent)}
 .dm-chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:999px;padding:5px 10px;background:color-mix(in srgb,var(--surface) 60%,transparent)}
 .dm-chip i{width:7px;height:7px;border-radius:50%}
 .dm-chip.is-now{color:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 50%,transparent)}
-body.light .dm-chip.is-now{color:var(--accent)}
+body.light .dm-chip.is-now{color:var(--accent-ink)}
 
 .dm-panel{margin-top:18px;display:grid;gap:10px}
 .dm-card{background:var(--surface);border:1px solid var(--border);border-radius:18px}
@@ -1473,7 +1473,7 @@ body.light .dm-cta:hover,body.light .btn-primary:hover{background:#9A4C1B}   /* 
 .dm-pnl.be{color:var(--warning)}
 .dm-pnl small{display:block;margin-top:2px;font-weight:500;font-size:11px;color:var(--text-muted)}
 .dm-now{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:6px 0 0;font-size:13px;color:var(--accent-soft)}
-body.light .dm-now{color:var(--accent)}
+body.light .dm-now{color:var(--accent-ink)}
 .dm-now b{font-weight:600}
 .dm-now span{color:var(--text-secondary)}
 .dm-tail{padding-top:22px}
@@ -1535,6 +1535,11 @@ button.detail-img-wrap:focus-visible .detail-img-ov{opacity:1}
   .ss-table thead th{white-space:normal;padding:4px 2px;line-height:1.2}
   .ss-table tbody th{max-width:84px;padding-right:4px}
 }
+/* ── Contrast (a11y package, step 4): every text pair ≥4.5:1 ── */
+:root{--accent-ink:var(--accent-soft)}
+body.light #iSaveBtn{color:#fff}   /* light text on the morning violet: 6.4:1 */
+body.light{--accent-ink:#9A4C1B;--positive:#0E6E51;--negative:#B33232;--warning:#7F5700}   /* «утро»: data colours deep enough for text on paper and on their own tints */
+.pc-cell:not(.none) span,.pc-cell:not(.none) b{color:var(--text)}
 /* the quick entry's «Сохранить» stays in reach at the bottom of the window */
 #quickModal #qSaveBtn{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2;box-shadow:0 -14px 22px var(--surface)}
 /* the notch and the home bar: browsers (viewport-fit=cover) and Telegram (its safe-area variables) */
@@ -1609,7 +1614,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <div class="auth-foot" id="authFoot">Данные синхронизируются с приложением в Telegram</div>
   </div>
 </div>
-<div class="offline-bar" id="offlineBar">Offline — данные сохраняются локально</div>
+<div class="offline-bar" id="offlineBar" role="status">Нет сети — данные сохраняются на устройстве</div>
 <canvas class="v4-sky" id="v4Sky" aria-hidden="true"></canvas>
 <div class="v4-grain" aria-hidden="true"></div>
 <div id="app">
@@ -1947,7 +1952,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <div class="shdr"><div class="stitle" id="marketsTitle"></div></div>
     <div class="an-grid">
       <div class="an-card an-full" id="mktDonutWrap">
-        <div class="an-card-title"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="2" y1="12" x2="22" y2="12"/><path stroke-linecap="round" d="M12 2a15.3 15.3 0 010 20"/></svg>Распределение</div>
+        <div class="an-card-title"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="2" y1="12" x2="22" y2="12"/><path stroke-linecap="round" d="M12 2a15.3 15.3 0 010 20"/></svg><span id="anDistTitle">Распределение</span></div>
         <div style="height:200px"><canvas id="mktChart"></canvas></div>
       </div>
     </div>
@@ -2119,8 +2124,8 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
             </div>
           </label>
           <div style="position:relative">
-            <div class="frr-display" id="rrDisplay" style="color:var(--text-muted)">—</div>
-            <div class="frr-display" id="rrManualDisplay" style="display:none;color:var(--text-muted);cursor:text" onclick="document.getElementById('rrManualInput').focus()">—</div>
+            <div class="frr-display" id="rrDisplay" style="color:var(--text-secondary)">—</div>
+            <div class="frr-display" id="rrManualDisplay" style="display:none;color:var(--text-secondary);cursor:text" onclick="document.getElementById('rrManualInput').focus()">—</div>
             <input id="rrManualInput" type="text" placeholder="—" autocomplete="off" name="rr_manual_noautofill"
               style="display:none;position:absolute;inset:0;width:100%;background:var(--surface-3);border:none;outline:none;font-family:var(--sans);font-size:15px;font-weight:500;text-align:center;letter-spacing:.02em;color:var(--text);padding:9px 11px;border-radius:var(--radius-md)"
               oninput="onRRManualInput()" onblur="onRRManualBlur()">
@@ -2179,7 +2184,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <label class="flabel" id="lbl_ss_el">Скриншот</label>
         <div class="img-upload" id="imgUploadArea" onclick="document.getElementById('imgInput').click()">
           <div class="img-upload-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></div>
-          <div><div class="img-upload-text">Загрузить скриншот</div><div class="img-upload-sub" id="imgUploadSub">PNG или JPG, можно вставить Ctrl+V</div></div>
+          <div><div class="img-upload-text" id="imgUploadTitle">Загрузить скриншот</div><div class="img-upload-sub" id="imgUploadSub">PNG или JPG, можно вставить Ctrl+V</div></div>
           <input type="file" id="imgInput" accept="image/*" onchange="handleImg(this)">
         </div>
         <div class="img-preview" id="imgPreview">
@@ -2289,9 +2294,9 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <div class="mhandle"></div>
     <div class="mhdr"><div class="mtitle" id="capModalTitle">Стартовый депозит</div><button class="mclose" onclick="closeModal('capModal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mbody">
-      <div class="fgroup"><label class="flabel">Депозит ($)</label><input class="finput mono" id="capInput" type="number" placeholder="10000" style="font-size:22px"></div>
+      <div class="fgroup"><label class="flabel" id="capLbl">Депозит ($)</label><input class="finput mono" id="capInput" type="number" placeholder="10000" style="font-size:22px"></div>
       <p id="capModalHint" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.65">Капитал = Депозит + сумма всех P&L. Обновляется автоматически.</p>
-      <button class="btn-primary" onclick="saveCap()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg id="capSaveBtn">Сохранить</button>
+      <button class="btn-primary" id="capSaveBtn" onclick="saveCap()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg><span id="capSaveLbl">Сохранить</span></button>
     </div>
   </div>
 </div>
@@ -2603,7 +2608,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <label class="flabel" id="qlbl_ss_q">Скриншот</label>
         <div class="img-upload" id="qImgUploadArea" onclick="document.getElementById('qImgInput').click()" style="min-height:48px;padding:10px 14px">
           <div class="img-upload-icon" style="width:28px;height:28px"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></div>
-          <div><div class="img-upload-text" style="font-size:12px">Выберите файл, перетащите или вставьте Ctrl+V</div></div>
+          <div><div class="img-upload-text" style="font-size:12px" id="qImgText">Выберите файл, перетащите или вставьте Ctrl+V</div></div>
           <input type="file" id="qImgInput" accept="image/*" onchange="handleQImg(this)" style="display:none">
         </div>
         <div class="img-preview" id="qImgPreview" style="display:none">
@@ -4037,6 +4042,11 @@ function sessLabel(name){
   const ru = lang==='ru';
   return ({'Asia':ru?'Азия':'Asia','London':ru?'Лондон':'London','New York':ru?'Нью-Йорк':'New York',
     'Overlap':ru?'Лондон + Нью-Йорк':'London + New York'})[name] || name;
+}
+// Short session names for tables and lists, in the interface language (stored values stay English)
+function sessName(name){
+  const ru = lang==='ru';
+  return ({'Asia':ru?'Азия':'Asia','London':ru?'Лондон':'London','Overlap':ru?'Перекрытие':'Overlap','New York':ru?'Нью-Йорк':'New York'})[name] || name;
 }
 function fmtDur(mins){
   const ru = lang==='ru', h = Math.floor(mins/60), m = mins%60;
@@ -5898,7 +5908,7 @@ function renderAnalytics(){
   document.getElementById('sessionsCard').innerHTML = sessData.length
     ? sessData.map(s=>`
         <div class="sess-row" style="margin-bottom:10px">
-          <div class="sess-name" style="width:80px">${escapeHtml(s.name)}</div>
+          <div class="sess-name" style="width:80px">${escapeHtml(sessName(s.name))}</div>
           <div class="sess-bar-wrap"><div class="sess-bar" style="width:${s.wr/maxWR*100}%;background:${s.wr>=50?'var(--positive)':'var(--negative)'}"></div></div>
           <div class="sess-pct">${s.wr.toFixed(0)}%</div>
           <div class="sess-count" style="color:${s.pnl>=0?'var(--positive)':'var(--negative)'};font-family:var(--sans);font-size:12px;width:52px;text-align:right">${s.pnl>0?'+':s.pnl<0?'−':''}$${Math.abs(s.pnl).toFixed(0)}</div>
@@ -5959,8 +5969,8 @@ function renderAnalytics(){
           ? (h.wins+'W '+h.losses+'L'+(pnlStr?', '+pnlStr:''))
           : (lang==='ru'?'Нет сделок':'No trades');
         return '<div style="border-radius:10px;background:'+bg+';border:1px solid '+border+';padding:10px 4px 8px;text-align:center;transition:transform .12s;cursor:default" title="'+tip+'">'+
-          '<div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:6px">'+DOW_LABELS[i]+'</div>'+
-          '<div style="font-family:var(--serif);font-size:20px;font-weight:600;color:'+(h.total?'var(--text)':'var(--text-muted)')+';line-height:1">'+(h.total||'\u2014')+'</div>'+
+          '<div style="font-size:12px;font-weight:500;color:'+(h.total?'var(--text)':'var(--text-secondary)')+';margin-bottom:6px">'+DOW_LABELS[i]+'</div>'+
+          '<div style="font-family:var(--sans);font-variant-numeric:lining-nums tabular-nums;font-size:20px;font-weight:600;color:'+(h.total?'var(--text)':'var(--text-muted)')+';line-height:1">'+(h.total||'\u2014')+'</div>'+
           (h.total ? '<div style="font-size:12px;font-weight:600;color:'+numCol+';margin-top:5px">'+(wr!==null?wr.toFixed(0)+'%':'')+'</div>' : '')+
           '</div>';
       }).join('')}
@@ -5986,6 +5996,7 @@ function renderAnalytics(){
     : `<div style="color:var(--text-muted);font-size:12px">${T('no_mistake_data')}</div>`;
 
   // Market donut
+  const anDist=document.getElementById('anDistTitle'); if(anDist) anDist.textContent=lang==='ru'?'Распределение':'Distribution';
   const mktKeys=['forex','crypto','stocks','metals'], mktLabels=[T('market_forex'),T('market_crypto'),T('market_stocks'),T('market_metals')];
   const mktCounts=mktKeys.map(k=>t.filter(x=>x.market===k).length);
   const mktWrap=document.getElementById('mktDonutWrap');
@@ -6001,7 +6012,7 @@ function renderAnalytics(){
   document.getElementById('rrCard').innerHTML = rrBuckets.map(b=>{
     const bt=t.filter(b.fn);
     const {wr,total}=calcStats(bt);
-    return `<div class="setup-row"><div class="setup-name">${b.label}</div><div class="setup-pills"><span class="s-pill ${wr>=50?'g':'r'}">${wr!==null?wr.toFixed(0)+'%':'—'}</span><span class="s-pill">${total} ${T('an_total').toLowerCase()}</span></div></div>`;
+    return `<div class="setup-row"><div class="setup-name">${b.label}</div><div class="setup-pills"><span class="s-pill ${wr>=50?'g':'r'}">${wr!==null?wr.toFixed(0)+'%':'—'}</span><span class="s-pill">${total} ${lang==='ru'?plural(total,'сделка','сделки','сделок'):(total===1?'trade':'trades')}</span></div></div>`;
   }).join('');
 
   // Clean vs Dirty trades
@@ -6013,8 +6024,8 @@ function renderAnalytics(){
     const {wr:wc,pnl:pc} = calcStats(clean);
     const {wr:wd,pnl:pd} = calcStats(dirty);
     const rows = [
-      {label:lang==='ru'?'Чистые (Clean)':'Clean trades', count:clean.length, wr:wc, pnl:pc, col:'var(--positive)'},
-      {label:lang==='ru'?'Грязные (Dirty)':'Dirty trades',count:dirty.length, wr:wd, pnl:pd, col:'var(--negative)'},
+      {label:lang==='ru'?'Чистые':'Clean trades', count:clean.length, wr:wc, pnl:pc, col:'var(--positive)'},
+      {label:lang==='ru'?'Грязные':'Dirty trades',count:dirty.length, wr:wd, pnl:pd, col:'var(--negative)'},
       {label:lang==='ru'?'Нейтральные':'Neutral',          count:neutral,       wr:null,pnl:null,col:'var(--text-muted)'},
     ];
     cdEl.innerHTML = rows.map(r=>`
@@ -6208,7 +6219,7 @@ function tcHTML(t){
   const row3Parts = [
     t.dir ? `<span style="color:${t.dir==='buy'?'var(--positive)':'var(--negative)'};font-weight:600">${t.dir==='buy'?'Buy':'Sell'}</span>` : '',
     t.setup ? `<span style="color:var(--text)">${escapeHtml(setupDisplayName(t.setup))}</span>` : '',
-    t.session ? `<span>${t.session}</span>` : '',
+    t.session ? `<span>${escapeHtml(sessName(t.session))}</span>` : '',
     t.quickTrade ? `<span style="color:var(--info-2);display:inline-flex;align-items:center;gap:3px"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>${lang==='ru'?'Быстрая':'Quick'}</span>` : '',
   ].filter(Boolean);
   const row3 = row3Parts.length
@@ -6264,7 +6275,7 @@ function tradeRowHTML(t){
   const resBadgeCls = t.result==='win'?'rb-win':t.result==='loss'?'rb-loss':'rb-be';
   const pnlCol = pnlNum>0?'var(--positive)':pnlNum<0?'var(--negative)':'var(--warning)';
   const resCls = t.result==='win'?'tc-win':t.result==='loss'?'tc-loss':'tc-be';
-  const ds = t.date ? new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short',year:'2-digit'}) : '—';
+  const ds = t.date ? new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short',year:'numeric'}).replace(' г.','') : '—';
   const rrText = t.rr ? escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n))) : '—';
   const dirHTML = t.dir ? `<span style="color:${t.dir==='buy'?'var(--positive)':'var(--negative)'};font-weight:600">${t.dir==='buy'?'Buy':'Sell'}</span>` : '—';
   const pnlHTML = hasPnl ? `<span class="mono" style="color:${pnlCol};font-weight:600">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</span>` : '—';
@@ -6562,7 +6573,8 @@ function wrColor(wr){
   return 'var(--negative)';
 }
 
-function rrColor(n){ return isNaN(n)||n<=0?'var(--text-muted)':n>=3?'var(--positive)':n>=2?'var(--warning)':'var(--negative)'; }
+// R:R is the plan of a trade, not its result: plain text colour (red and green stay for P&L)
+function rrColor(n){ return isNaN(n)||n<=0?'var(--text-secondary)':'var(--text)'; }
 
 let rrManualMode = false;
 
@@ -6608,7 +6620,7 @@ function setRRMode(isManual){
 // Shared display setter — same format for both modes
 function setRRDisplay(rrStr){
   const n = parseFloat((rrStr||'').replace('1:',''));
-  const col = !rrStr||isNaN(n) ? 'var(--text-muted)' : rrColor(n);
+  const col = !rrStr||isNaN(n) ? 'var(--text-secondary)' : rrColor(n);
   const text = rrStr || '—';
   // Auto display
   const autoEl = document.getElementById('rrDisplay');
@@ -7822,7 +7834,7 @@ function updateThemeIcon(){
 function updateOnlineStatus(){
   const bar=document.getElementById('offlineBar');
   if(!bar) return;
-  bar.textContent=lang==='ru'?'Offline — данные сохраняются локально':'Offline — data saved locally';
+  bar.textContent=lang==='ru'?'Нет сети — данные сохраняются на устройстве':'Offline — data is saved on this device';
   bar.classList.toggle('show',!navigator.onLine);
 }
 window.addEventListener('online',()=>{
@@ -8054,7 +8066,7 @@ const STRINGS = {
     vs_prev_period:'к прошлым 30 дням',
     an_avgrr:'Avg R:R', an_discipline:'Дисциплина',
     an_pnl_curve:'Кривая P&L',
-    home_pnl_curve:'P&L Кривая',
+    home_pnl_curve:'Кривая P&L',
     score_hint:'Винрейт, дисциплина, R:R и ошибки',now_closed:'Выходные',now_opens_in:'Азия откроется через {t}',now_ends_in:'До конца {t}, дальше {next}',kz_title:'Сейчас',
     kz_today_trades:'Сделок сегодня',
     img_unavailable:'Скрин недоступен', img_chart_alt:'Скриншот графика',
@@ -8429,6 +8441,8 @@ function applyLang(){
   if(sfd) sfd.textContent=T('filter_setups');
   const frd=document.getElementById('filterResultDefault');
   if(frd) frd.textContent=T('filter_res_all');
+  // Session choices in the trade forms read in the interface language; the values stay English
+  document.querySelectorAll('#tSession option, #qSession option').forEach(o=>{ o.textContent = sessName(o.value); });
   initStyledSelects(); // option text changed — refresh the visible lists
 
   // Re-run renderTrades so the select rebuilds with correct language
@@ -8475,6 +8489,23 @@ function applyLang(){
 
   // Trade form static labels
   _setT('lbl_session_el', 'lbl_session');
+  // the trade forms' remaining fixed words follow the interface language too
+  _setT('lbl_pair_el', 'lbl_pair');
+  _setT('qlbl_ss_q', 'lbl_screenshot');
+  [['rrBtnAuto','Авто','Auto'],['rrBtnManual','Вручную','Manual'],
+   ['btnPlanYes','✓ Да','✓ Yes'],['btnPlanNo','✗ Нет','✗ No'],['btnEmoNo','✓ Нет','✓ No'],['btnEmoYes','✗ Да','✗ Yes'],
+   ['qBtnPlanYes','✓ Да','✓ Yes'],['qBtnPlanNo','✗ Нет','✗ No'],['qBtnEmoNo','✓ Нет','✓ No'],['qBtnEmoYes','✗ Да','✗ Yes'],
+   ['qImgText','Выберите файл, перетащите или вставьте Ctrl+V','Choose a file, drop it or paste with Ctrl+V'],
+   ['imgUploadTitle','Загрузить скриншот','Upload a screenshot'],
+   ['capLbl','Депозит ($)','Deposit ($)'],
+   ['backupTip','Скачивай бэкап раз в неделю и сохраняй в облако (Google Диск, iCloud)','Download a backup once a week and keep it in the cloud (Google Drive, iCloud)']
+  ].forEach(([id,ru,en])=>{ const el=document.getElementById(id); if(el) el.textContent = lang==='ru' ? ru : en; });
+  document.querySelectorAll('[data-i="btn_back"]').forEach(b=>{ b.textContent = T('back'); });
+  _setT('capModalTitle', 'cap_modal_title');
+  _setT('capSaveLbl', 'save');
+  const bst = document.getElementById('backupStatusText');   // the placeholder before the backup check answers
+  if(bst && /^(Проверяю|Checking)\.\.\.$/.test(bst.textContent)) bst.textContent = lang==='ru' ? 'Проверяю...' : 'Checking...';
+  if(document.getElementById('goalHint')) updateGoalHint();
   // Quick add modal
   _setT('addChoiceTitle',  'add_choice_title');
   _setT('addChoiceFull',   'add_choice_full');
@@ -9245,7 +9276,7 @@ function renderSessionSetups(list){
   el.innerHTML=`
     ${best?`<p class="ss-best">${L('Лучшее сочетание','Best combination')}: <b>${escapeHtml(setupDisplayName(best.s))}</b> ${L('в сессию','in')} <b>${sessLabel(best.c)}</b>, ${(best.r>0?'+':'')+best.r.toFixed(2)}R ${L('на сделку','per trade')} (${best.n} ${L('сд.','tr.')})</p>`:''}
     <div class="ss-scroll"><table class="ss-table">
-      <thead><tr><th></th>${SESS_COLS.map(c=>`<th>${c==='Overlap'?'Overlap':sessLabel(c)}</th>`).join('')}</tr></thead>
+      <thead><tr><th></th>${SESS_COLS.map(c=>`<th>${sessName(c)}</th>`).join('')}</tr></thead>
       <tbody>${setups.map(s=>`<tr><th>${escapeHtml(setupDisplayName(s))}</th>${SESS_COLS.map(c=>cell(bySetup[s].filter(t=>tradeSession(t)===c))).join('')}</tr>`).join('')}</tbody>
     </table></div>
     <p class="tt-foot">${L('В ячейке: винрейт, матожидание в R и число сделок.','Each cell: win rate, expectancy in R, number of trades.')}</p>
@@ -9297,7 +9328,7 @@ function renderPnlCalendar(){
     const wk=cells.slice(i,i+7); const wsum=wk.reduce((s,c)=>s+(c&&c.v?c.v.pnl:0),0), wn=wk.reduce((s,c)=>s+(c&&c.v?c.v.n:0),0);
     rows+=wk.map(c=>{
       if(!c) return '<div class="pc-cell pc-blank"></div>';
-      const a=c.v?(.12+Math.abs(c.v.pnl)/maxAbs*.5).toFixed(2):0;
+      const a=c.v?(.10+Math.abs(c.v.pnl)/maxAbs*.24).toFixed(2):0;   // at most .34: the day's text stays ≥4.5:1
       const bg=c.v?(c.v.pnl>0?`rgba(79,209,165,${a})`:c.v.pnl<0?`rgba(255,107,107,${a})`:'var(--surface-3)'):'';
       return `<button type="button" class="pc-cell${c.ds===today?' today':''}${c.ds===sel?' sel':''}${c.v?'':' none'}" ${c.v?`onclick="pnlCalPick('${c.ds}')"`:'disabled'} style="${bg?'background:'+bg:''}" aria-label="${c.ds}${c.v?', '+money(c.v.pnl):''}"><span>${c.d}</span>${c.v?`<b>${short(c.v.pnl)}</b>`:''}</button>`;
     }).join('') + `<div class="pc-week ${wsum>0?'green':wsum<0?'red':''}">${wn?short(wsum):''}</div>`;
