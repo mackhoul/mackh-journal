@@ -5877,7 +5877,7 @@ function renderAnalytics(){
     <div class="an-card"><div class="an-card-title">${T('an_winrate')}</div><div class="an-big" style="color:${wrColor(wr)}">${wr!==null?wr.toFixed(1)+'%':'—'}</div></div>
     <div class="an-card" onclick="toggleRRView()" style="cursor:pointer" title="${lang==='ru'?'Нажми для переключения':'Click to toggle'}">
       <div class="an-card-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span id="anRRLabel">${rrViewMode==='wins'?(lang==='ru'?'R:R (победы)':'R:R (wins)'):'Avg R:R'}</span>
+        <span id="anRRLabel">${rrViewMode==='wins'?(lang==='ru'?'R:R (победы)':'R:R (wins)'):(lang==='ru'?'Средний R:R':'Avg R:R')}</span>
         <span style="font-size:12px;color:var(--text-muted);margin-left:4px">${lang==='ru'?'сменить':'switch'}</span>
       </div>
       <div id="anRRValue" class="an-big" style="color:${(()=>{const v=rrViewMode==='wins'?calcStats(t.filter(x=>x.result==='win')).avgRR:avgRR;return v?rrColor(v):'var(--text-muted)'})()}">${(()=>{const v=rrViewMode==='wins'?calcStats(t.filter(x=>x.result==='win')).avgRR:avgRR;return v?'1:'+v.toFixed(2):'—'})()}</div>
@@ -8064,7 +8064,7 @@ const STRINGS = {
     progress_pre:'Прогресс ', progress_span:'& Цели',
     an_total:'Всего сделок', an_winrate:'Винрейт',
     vs_prev_period:'к прошлым 30 дням',
-    an_avgrr:'Avg R:R', an_discipline:'Дисциплина',
+    an_avgrr:'Средний R:R', an_discipline:'Дисциплина',
     an_pnl_curve:'Кривая P&L',
     home_pnl_curve:'Кривая P&L',
     score_hint:'Винрейт, дисциплина, R:R и ошибки',now_closed:'Выходные',now_opens_in:'Азия откроется через {t}',now_ends_in:'До конца {t}, дальше {next}',kz_title:'Сейчас',
