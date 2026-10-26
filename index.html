@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MackH Trade Journal</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preload" href="fonts/onest-400.woff2" as="font" type="font/woff2" crossorigin>
@@ -1511,6 +1511,37 @@ button.detail-img-wrap:focus-visible .detail-img-ov{opacity:1}
 /* forms (a11y package): an unchosen result is named next to its buttons; switches show keyboard focus */
 .ferr{margin:8px 0 0;font-size:13px;color:var(--negative)}
 .s-toggle input:focus-visible + span{outline:2px solid var(--accent-soft);outline-offset:2px}
+
+/* ── Phone (a11y package, step 3) ── */
+@media (pointer:coarse){
+  /* 16px fields: with zoom allowed, iOS would otherwise zoom into a smaller field on focus */
+  .finput,.fselect,.ftextarea,.auth-input,.tags-input{font-size:16px}
+  /* every control answers a 44px touch; compact ones keep their look and get a wider invisible hit area */
+  .picon,.mclose,.tpill,.dp-nav,.fclear,.pc-chip,.bal-btn,.saction,.more-btn,.mtab,.cal-trigger,.ssel-trigger,.auth-signout,
+  .s-seg button,#rrBtnAuto,#rrBtnManual,.tbtn,.s-toggle,.idea-act{position:relative}
+  :is(.picon,.mclose,.tpill,.dp-nav,.fclear,.pc-chip,.bal-btn,.saction,.more-btn,.mtab,.cal-trigger,.ssel-trigger,.auth-signout,
+  .s-seg button,#rrBtnAuto,#rrBtnManual,.tbtn,.s-toggle,.idea-act,.insight-dismiss,.pc-cell,#srvPingBtn,#syncDot,.idea-tag-chip)::after{
+    content:'';position:absolute;top:50%;left:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+  #srvPingBtn,.idea-tag-chip{position:relative}
+  .detail-actions button,.s-action-btn,.s-row input.s-num,#pcRiskInput{min-height:44px}
+}
+/* nothing smaller than 12px to read (the heat map's hour numbers stay 10px: 24 columns at 375px) */
+.dm-pnl small,.insight-dismiss,.pc-cell b,.pc-cell span,.pc-wd,.rh-k,.sess-count,.sess-pct,.sess-row>div,.tc-date i,
+.res-badge,.tc-meta,.tc-rr,.hw-row span,.ss-table td i,.idea-tag-chip,.s-group-title,.s-row-sub,.s-seg button,.auth-signout,.dstat-lbl,.mkt-badge{font-size:12px!important}
+/* the sessions × setups table fits a 375px phone without hiding a column */
+@media (max-width:420px){
+  .ss-table{border-spacing:2px}
+  .ss-table td{min-width:0;padding:7px 2px}
+  .ss-table thead th{white-space:normal;padding:4px 2px;line-height:1.2}
+  .ss-table tbody th{max-width:84px;padding-right:4px}
+}
+/* the quick entry's «Сохранить» stays in reach at the bottom of the window */
+#quickModal #qSaveBtn{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2;box-shadow:0 -14px 22px var(--surface)}
+/* the notch and the home bar: browsers (viewport-fit=cover) and Telegram (its safe-area variables) */
+@media (max-width:1023px){
+  #app{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:var(--tg-content-safe-area-inset-top,0px)}
+  .nav{bottom:calc(10px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
+}
 /* one radius family: rows 12, tiles 18, hero and windows 26 */
 :root{--radius-sm:12px;--radius-md:18px;--radius-lg:26px;--mkt-crypto:#FF9A6C}
 body.light{--mkt-crypto:#B5541F}   /* crypto in charts: the badge colour, darker on paper */
@@ -1801,11 +1832,11 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <button class="picon" onclick="openSettings()" title="Settings"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-linecap="round"/></svg></button>
   </div>
   <div id="bulkBar" style="display:none;padding:8px 14px;background:var(--accent-muted);border:1px solid var(--accent-muted);border-radius:var(--radius-md);margin:0 16px 8px;align-items:center;justify-content:space-between;gap:8px">
-    <span style="font-size:11px;font-weight:600;color:var(--text-secondary)" id="bulkCount">0 выбрано</span>
+    <span style="font-size:12px;font-weight:600;color:var(--text-secondary)" id="bulkCount">0 выбрано</span>
     <div style="display:flex;gap:6px">
-      <button onclick="bulkSelectAll()" style="padding:4px 10px;border-radius:7px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-secondary);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans)" id="bulkAllBtn">Все</button>
-      <button onclick="toggleBulkMode()" style="padding:4px 10px;border-radius:7px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans)">✕</button>
-      <button onclick="bulkDelete()" style="padding:4px 10px;border-radius:7px;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.25);color:var(--negative);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans)" id="bulkDeleteBtn">Удалить</button>
+      <button onclick="bulkSelectAll()" style="padding:4px 10px;border-radius:7px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans)" id="bulkAllBtn">Все</button>
+      <button onclick="toggleBulkMode()" style="padding:4px 10px;border-radius:7px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans)">✕</button>
+      <button onclick="bulkDelete()" style="padding:4px 10px;border-radius:7px;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.25);color:var(--negative);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans)" id="bulkDeleteBtn">Удалить</button>
     </div>
   </div>
   <div class="mtabs" id="tradesMtabs">
@@ -2083,8 +2114,8 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <label class="flabel" style="display:flex;align-items:center;justify-content:space-between">
             <span id="lbl_rr_el">R:R</span>
             <div style="display:flex;gap:3px">
-              <button id="rrBtnAuto" onclick="setRRMode(false)" style="padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border-strong);background:var(--surface-3);color:var(--text);font-family:var(--sans)">Авто</button>
-              <button id="rrBtnManual" onclick="setRRMode(true)" style="padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-muted);font-family:var(--sans)">Вручную</button>
+              <button id="rrBtnAuto" onclick="setRRMode(false)" style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border-strong);background:var(--surface-3);color:var(--text);font-family:var(--sans)">Авто</button>
+              <button id="rrBtnManual" onclick="setRRMode(true)" style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-muted);font-family:var(--sans)">Вручную</button>
             </div>
           </label>
           <div style="position:relative">
@@ -2141,7 +2172,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <button class="tbtn" id="btnSetupRange" onclick="setTrade('setup','Range')">↔ Range</button>
           <button class="tbtn" id="btnSetupOffplan" onclick="setTrade('setup','Off-plan')">Off-plan</button>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;line-height:1.5"><span id="trendHint">Движение по тренду</span> &nbsp;·&nbsp; <span id="rangeHint">Боковой рынок</span> &nbsp;·&nbsp; <span id="offplanHint">Вне плана</span></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:5px;line-height:1.5"><span id="trendHint">Движение по тренду</span> &nbsp;·&nbsp; <span id="rangeHint">Боковой рынок</span> &nbsp;·&nbsp; <span id="offplanHint">Вне плана</span></div>
       </div>
       <div class="fsection" id="fsecNotes1">Заметки</div>
       <div class="fgroup">
@@ -2286,7 +2317,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <div class="fgroup"><label id="goalDaysLabel" class="flabel">Дней</label><input class="finput mono" id="goalDays" type="number" placeholder="30"></div>
       </div>
       <div class="fgroup"><label id="goalNameLabel" class="flabel">Название</label><input class="finput" id="goalName" placeholder="Например: Апрельский план"></div>
-      <p class="fgroup" style="font-size:11px;color:var(--text-muted);line-height:1.6" id="goalHint"></p>
+      <p class="fgroup" style="font-size:12px;color:var(--text-muted);line-height:1.6" id="goalHint"></p>
       <button class="btn-primary" id="goalBtnLabel" onclick="saveGoal()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Создать цель</button>
     </div>
   </div>
@@ -2308,7 +2339,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0">
           <div style="min-width:0">
             <div id="acctEmail" style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
-            <div id="acctHint" style="font-size:11px;color:var(--text-muted);margin-top:2px">Веб-сессия</div>
+            <div id="acctHint" style="font-size:12px;color:var(--text-muted);margin-top:2px">Веб-сессия</div>
           </div>
           <button class="auth-signout" id="acctSignOut" onclick="signOut()">Выйти</button>
         </div>
@@ -2409,16 +2440,16 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
             <div id="srvDot" style="width:9px;height:9px;border-radius:50%;background:var(--text-muted);flex-shrink:0;transition:background .3s"></div>
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--text)" id="srvStatusLbl">Сервер</div>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:1px" id="srvStatusSub">Нажми проверить</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:1px" id="srvStatusSub">Нажми проверить</div>
             </div>
           </div>
-          <button onclick="pingServer()" id="srvPingBtn" style="padding:5px 12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:11px;font-weight:600;color:var(--text-secondary);cursor:pointer;white-space:nowrap">Проверить</button>
+          <button onclick="pingServer()" id="srvPingBtn" style="padding:5px 12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;white-space:nowrap">Проверить</button>
         </div>
       </div>
 
       <div style="text-align:center;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--text-muted);font-family:var(--sans)">MackH Journal <span style="color:var(--accent)">v1.4.0</span></div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;opacity:.5">2026-04-02</div>
+        <div style="font-size:12px;color:var(--text-muted);font-family:var(--sans)">MackH Journal <span style="color:var(--accent)">v1.4.0</span></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;opacity:.5">2026-04-02</div>
       </div>
 
     </div>
@@ -2434,7 +2465,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
       <div style="display:flex;align-items:center;gap:9px">
         <div id="insightDetailIcon" style="width:32px;height:32px;border-radius:9px;background:var(--surface-2);display:flex;align-items:center;justify-content:center"></div>
         <div>
-          <div style="font-size:11px;font-weight:700;text-transform:none;margin-bottom:2px" id="insightDetailBadge"></div>
+          <div style="font-size:12px;font-weight:700;text-transform:none;margin-bottom:2px" id="insightDetailBadge"></div>
           <div class="mtitle" id="insightDetailTitle" style="font-size:15px"></div>
         </div>
       </div>
@@ -2455,7 +2486,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <div id="backupStatusDot" style="width:10px;height:10px;border-radius:50%;background:var(--text-muted);flex-shrink:0"></div>
           <div id="backupStatusText" style="font-size:13px;font-weight:600;color:var(--text)">Проверяю...</div>
         </div>
-        <div id="backupStatsText" style="font-size:11px;color:var(--text-muted);line-height:1.6"></div>
+        <div id="backupStatsText" style="font-size:12px;color:var(--text-muted);line-height:1.6"></div>
       </div>
       <!-- Pending warning -->
       <div id="pendingWarning" style="display:none;border-radius:10px;padding:10px 12px;background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.2);margin-bottom:12px;font-size:12px;color:var(--negative);line-height:1.5"></div>
@@ -2473,7 +2504,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <span id="importBtnLabel">Импорт из файла</span>
       </button>
       <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importJSON(this)">
-      <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:12px;line-height:1.5" id="backupTip">Скачивай бэкап раз в неделю и сохраняй в облако (Google Диск, iCloud)</p>
+      <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px;line-height:1.5" id="backupTip">Скачивай бэкап раз в неделю и сохраняй в облако (Google Диск, iCloud)</p>
     </div>
   </div>
 </div>
@@ -4710,7 +4741,7 @@ function openInsightDetail(id){
   document.getElementById('insightDetailTitle').textContent = ins.text;
 
   document.getElementById('insightDetailBody').innerHTML = `
-    ${ins.meta?`<div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;padding:0 1px">${escapeHtml(ins.meta)}</div>`:''}
+    ${ins.meta?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;padding:0 1px">${escapeHtml(ins.meta)}</div>`:''}
     <div class="insight-detail-why">
       <div class="insight-detail-block-title">${ins.type==='good'?(ru?'Почему это работает':'Why it works'):(ru?'Почему это происходит':'Why this happens')}</div>
       ${(Array.isArray(content.why)?content.why:[content.why]).map(w=>`
@@ -4727,7 +4758,7 @@ function openInsightDetail(id){
           <span>${escapeHtml(f)}</span>
         </div>`).join('')}
     </div>
-    ${ins.rec?`<div style="padding:9px 11px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);font-size:11px;color:var(--text-secondary);line-height:1.5;margin-bottom:4px"><span style="color:var(--accent);font-weight:700">${ru?'Совет:':'Tip:'}</span> ${escapeHtml(ins.rec)}</div>`:''}
+    ${ins.rec?`<div style="padding:9px 11px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:4px"><span style="color:var(--accent);font-weight:700">${ru?'Совет:':'Tip:'}</span> ${escapeHtml(ins.rec)}</div>`:''}
     ${ins.id?`<div style="display:flex;gap:8px;margin-top:14px">
       <button onclick="dismissInsight('${ins.id}',${ins.dismissCount});closeModal('insightDetailModal')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer">${ru?'✓ Запомнил':'✓ Got it'}</button>
       <button onclick="closeModal('insightDetailModal')" style="flex:1;padding:11px;border-radius:10px;border:none;background:var(--accent);font-family:var(--sans);font-size:13px;font-weight:700;color:var(--on-accent);cursor:pointer">${ru?'Закрыть':'Close'}</button>
@@ -5260,7 +5291,7 @@ function renderDismissedSection(wrap){
           ${v.meta?`<div class="insight-meta">${escapeHtml(v.meta)}</div>`:''}
         </div>
       </div>
-      <button onclick="undismissInsight('${id}')" style="position:absolute;top:8px;right:8px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;cursor:pointer">${ru?'Вернуть':'Restore'}</button>
+      <button onclick="undismissInsight('${id}')" style="position:absolute;top:8px;right:8px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);font-size:12px;font-weight:600;padding:3px 8px;border-radius:20px;cursor:pointer">${ru?'Вернуть':'Restore'}</button>
     </div>`).join('') : '';
 
   const div = document.createElement('div');
@@ -5397,7 +5428,10 @@ function chartTheme(){
   const c = {text:v('--text'), muted:v('--text-muted'), secondary:v('--text-secondary'), border:v('--border'), borderStrong:v('--border-strong'),
     surface:v('--surface'), bg:v('--bg'), positive:v('--positive'), negative:v('--negative'), info:v('--info'), info2:v('--info-2'),
     warning:v('--warning'), crypto:v('--mkt-crypto')};
-  if(window.Chart){ Chart.defaults.color = c.muted; Chart.defaults.borderColor = c.border; }
+  if(window.Chart){
+    Chart.defaults.color = c.muted; Chart.defaults.borderColor = c.border;
+    Chart.defaults.animation = matchMedia('(prefers-reduced-motion: reduce)').matches ? false : {duration:400};
+  }
   return c;
 }
 function chartAlpha(color, a){   // '#RRGGBB' → rgba(); anything else is returned as it is
@@ -5851,7 +5885,7 @@ function renderAnalytics(){
   const tc=chartTheme(), lc=pos?tc.positive:tc.negative;
   const g=ctx.createLinearGradient(0,0,0,130); g.addColorStop(0,chartAlpha(lc,.16)); g.addColorStop(1,chartAlpha(lc,0));
   const cs=getComputedStyle(document.body);
-  pnlCI=new Chart(ctx,{type:'line',data:{labels,datasets:[{data,fill:true,backgroundColor:g,borderColor:lc,borderWidth:2,tension:.35,pointRadius:0,pointHoverRadius:5,pointBackgroundColor:lc,pointBorderColor:tc.bg,pointBorderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:cs.getPropertyValue('--surface').trim(),borderColor:tc.borderStrong,borderWidth:1,bodyFont:{family:'Onest',size:11},bodyColor:cs.getPropertyValue('--text').trim(),padding:8,cornerRadius:10,callbacks:{label:c=>' $'+c.raw}}},scales:{x:{display:false},y:{grid:{color:cs.getPropertyValue('--border').trim()},ticks:{color:cs.getPropertyValue('--text-muted').trim(),font:{family:'Onest',size:9},callback:v=>'$'+v}}}}});
+  pnlCI=new Chart(ctx,{type:'line',data:{labels,datasets:[{data,fill:true,backgroundColor:g,borderColor:lc,borderWidth:2,tension:.35,pointRadius:0,pointHoverRadius:5,pointBackgroundColor:lc,pointBorderColor:tc.bg,pointBorderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:cs.getPropertyValue('--surface').trim(),borderColor:tc.borderStrong,borderWidth:1,bodyFont:{family:'Onest',size:11},bodyColor:cs.getPropertyValue('--text').trim(),padding:8,cornerRadius:10,callbacks:{label:c=>' $'+c.raw}}},scales:{x:{display:false},y:{grid:{color:cs.getPropertyValue('--border').trim()},ticks:{color:cs.getPropertyValue('--text-muted').trim(),font:{family:'Onest',size:11},callback:v=>'$'+v}}}}});
 
   // Sessions — use stored session field
   const SESSION_NAMES = ['London','New York','Asia'];
@@ -5867,8 +5901,8 @@ function renderAnalytics(){
           <div class="sess-name" style="width:80px">${escapeHtml(s.name)}</div>
           <div class="sess-bar-wrap"><div class="sess-bar" style="width:${s.wr/maxWR*100}%;background:${s.wr>=50?'var(--positive)':'var(--negative)'}"></div></div>
           <div class="sess-pct">${s.wr.toFixed(0)}%</div>
-          <div class="sess-count" style="color:${s.pnl>=0?'var(--positive)':'var(--negative)'};font-family:var(--sans);font-size:11px;width:52px;text-align:right">${s.pnl>0?'+':s.pnl<0?'−':''}$${Math.abs(s.pnl).toFixed(0)}</div>
-          <div style="font-size:11px;color:var(--text-muted);width:24px;text-align:right">${s.total}</div>
+          <div class="sess-count" style="color:${s.pnl>=0?'var(--positive)':'var(--negative)'};font-family:var(--sans);font-size:12px;width:52px;text-align:right">${s.pnl>0?'+':s.pnl<0?'−':''}$${Math.abs(s.pnl).toFixed(0)}</div>
+          <div style="font-size:12px;color:var(--text-muted);width:24px;text-align:right">${s.total}</div>
         </div>`).join('')
     : `<div style="color:var(--text-muted);font-size:12px">${T('no_session_data')}</div>`;
 
@@ -5927,11 +5961,11 @@ function renderAnalytics(){
         return '<div style="border-radius:10px;background:'+bg+';border:1px solid '+border+';padding:10px 4px 8px;text-align:center;transition:transform .12s;cursor:default" title="'+tip+'">'+
           '<div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:6px">'+DOW_LABELS[i]+'</div>'+
           '<div style="font-family:var(--serif);font-size:20px;font-weight:600;color:'+(h.total?'var(--text)':'var(--text-muted)')+';line-height:1">'+(h.total||'\u2014')+'</div>'+
-          (h.total ? '<div style="font-size:11px;font-weight:600;color:'+numCol+';margin-top:5px">'+(wr!==null?wr.toFixed(0)+'%':'')+'</div>' : '')+
+          (h.total ? '<div style="font-size:12px;font-weight:600;color:'+numCol+';margin-top:5px">'+(wr!==null?wr.toFixed(0)+'%':'')+'</div>' : '')+
           '</div>';
       }).join('')}
     </div>
-    <div style="display:flex;gap:12px;margin-top:10px;font-size:11px;color:var(--text-muted);flex-wrap:wrap">
+    <div style="display:flex;gap:12px;margin-top:10px;font-size:12px;color:var(--text-muted);flex-wrap:wrap">
       <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:3px;background:rgba(79,209,165,.5);display:inline-block"></span>${lang==='ru'?'Прибыльный день':'Profitable day'}</span>
       <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:3px;background:rgba(255,107,107,.5);display:inline-block"></span>${lang==='ru'?'Убыточный день':'Loss day'}</span>
       <span>${lang==='ru'?'Цифра = сделок за всё время':'Number = total trades'}</span>
@@ -5959,7 +5993,7 @@ function renderAnalytics(){
     mktWrap.style.display='block';
     if(mktCI) mktCI.destroy();
     const mc=chartTheme();   // the same colours as the market badges, a surface-coloured gap between segments
-    mktCI=new Chart(document.getElementById('mktChart').getContext('2d'),{type:'doughnut',data:{labels:mktLabels,datasets:[{data:mktCounts,backgroundColor:[mc.info2,mc.crypto,mc.positive,mc.warning],borderColor:mc.surface,borderWidth:2,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:mc.secondary,font:{family:'Onest',size:10,weight:'600'},padding:10,boxWidth:7,borderRadius:3}}}}});
+    mktCI=new Chart(document.getElementById('mktChart').getContext('2d'),{type:'doughnut',data:{labels:mktLabels,datasets:[{data:mktCounts,backgroundColor:[mc.info2,mc.crypto,mc.positive,mc.warning],borderColor:mc.surface,borderWidth:2,hoverOffset:5}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{position:'bottom',labels:{color:mc.secondary,font:{family:'Onest',size:12,weight:'600'},padding:10,boxWidth:7,borderRadius:3}}}}});
   } else mktWrap.style.display='none';
 
   // RR analysis
@@ -6027,9 +6061,9 @@ function renderAnalytics(){
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
             <div style="font-size:12px;font-weight:600;color:var(--text)">${mLabel(m)}</div>
             <div style="display:flex;gap:6px;align-items:center">
-              <span style="font-size:11px;font-weight:700;color:var(--negative);background:var(--negative-muted);border-radius:5px;padding:2px 6px">${pct}%</span>
-              <span style="font-size:11px;color:${pnlCol};font-family:var(--sans)">${pnlStr}</span>
-              <span style="font-size:11px;color:var(--text-muted)">${s.count}×</span>
+              <span style="font-size:12px;font-weight:700;color:var(--negative);background:var(--negative-muted);border-radius:5px;padding:2px 6px">${pct}%</span>
+              <span style="font-size:12px;color:${pnlCol};font-family:var(--sans)">${pnlStr}</span>
+              <span style="font-size:12px;color:var(--text-muted)">${s.count}×</span>
             </div>
           </div>
           <div style="height:4px;border-radius:2px;background:var(--surface-2);overflow:hidden">
@@ -6373,19 +6407,19 @@ function openDetail(id){
   const clKeys=[{id:'liq',key:'cl_liq'},{id:'str',key:'cl_str'},{id:'htf',key:'cl_htf'},{id:'news',key:'cl_news'},{id:'risk',key:'cl_risk'}];
   const clDetail=t.checklistDetail;
   const clBlock=clDetail&&Object.keys(clDetail).length
-    ?`<div class="dblock"><div class="dblock-title">${T('detail_checklist')} — ${Math.round((t.checklistScore||0)*100)}%</div>${clKeys.map(c=>{const val=clDetail[c.id];const col=val===true?'var(--positive)':val===false?'var(--negative)':'var(--text-muted)';const icon=val===true?'✓':val===false?'✗':'—';return`<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px"><span style="color:${col};font-weight:700;flex-shrink:0;font-size:12px;width:12px">${icon}</span><span style="font-size:11px;color:var(--text-secondary);line-height:1.4">${T(c.key)}</span></div>`;}).join('')}</div>`
+    ?`<div class="dblock"><div class="dblock-title">${T('detail_checklist')} — ${Math.round((t.checklistScore||0)*100)}%</div>${clKeys.map(c=>{const val=clDetail[c.id];const col=val===true?'var(--positive)':val===false?'var(--negative)':'var(--text-muted)';const icon=val===true?'✓':val===false?'✗':'—';return`<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px"><span style="color:${col};font-weight:700;flex-shrink:0;font-size:12px;width:12px">${icon}</span><span style="font-size:12px;color:var(--text-secondary);line-height:1.4">${T(c.key)}</span></div>`;}).join('')}</div>`
     :(t.checklistScore!==undefined?`<div class="dblock"><div class="dblock-title">${T('detail_checklist')}</div>${Math.round((t.checklistScore||0)*100)}%</div>`:'');
   // Mistakes
   const mkList=t.mistakes||[];
-  const mkBlock=mkList.length?`<div class="dblock"><div class="dblock-title">${T('detail_mistakes')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${mkList.map(mk=>`<span style="font-size:11px;padding:2px 9px;border-radius:20px;background:rgba(255,107,107,.1);color:var(--negative);border:1px solid rgba(255,107,107,.18)">${mLabel(mk)}</span>`).join('')}</div></div>`:'';
+  const mkBlock=mkList.length?`<div class="dblock"><div class="dblock-title">${T('detail_mistakes')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${mkList.map(mk=>`<span style="font-size:12px;padding:2px 9px;border-radius:20px;background:rgba(255,107,107,.1);color:var(--negative);border:1px solid rgba(255,107,107,.18)">${mLabel(mk)}</span>`).join('')}</div></div>`:'';
 
   const levels=levelsRulerHTML(t);
   document.getElementById('detailBody').innerHTML=`<div class="detail-spread${imgBlock||levels?' has-media':''}"><div class="ds-media">${imgBlock}${levels}</div><div class="ds-info">
     <div class="irow">
       <span class="mkt-badge ${m.cls}">${m.label}</span>
-      ${t.setup?`<span style="font-size:11px;color:var(--text-secondary);font-weight:600;background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:20px">${escapeHtml(setupDisplayName(t.setup))}</span>`:''}
-      ${t.dir?`<span style="font-size:11px;font-weight:700;color:${t.dir==='buy'?'var(--positive)':'var(--negative)'}">${t.dir==='buy'?'Buy':'Sell'}</span>`:''}
-      ${ds?`<span style="font-size:11px;color:var(--text-muted)">${ds}</span>`:''}
+      ${t.setup?`<span style="font-size:12px;color:var(--text-secondary);font-weight:600;background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:20px">${escapeHtml(setupDisplayName(t.setup))}</span>`:''}
+      ${t.dir?`<span style="font-size:12px;font-weight:700;color:${t.dir==='buy'?'var(--positive)':'var(--negative)'}">${t.dir==='buy'?'Buy':'Sell'}</span>`:''}
+      ${ds?`<span style="font-size:12px;color:var(--text-muted)">${ds}</span>`:''}
     </div>
     <div class="dstat-row">
       <div class="dstat"><div class="dstat-val" style="color:${t.result==='win'?'var(--positive)':t.result==='loss'?'var(--negative)':'var(--warning)'}">${t.result==='win'?'WIN':t.result==='loss'?'LOSS':'B/E'}</div><div class="dstat-lbl">${T('detail_result')}</div></div>
@@ -7336,7 +7370,7 @@ function ideaCardHTML(it){
   const dirCls = it.dir==='buy'?'dir-buy':it.dir==='sell'?'dir-sell':'';
   const archived = it.status && it.status!=='watching';
   const dirBadge = it.dir
-    ? `<span style="color:${it.dir==='buy'?'var(--positive)':'var(--negative)'};font-weight:700;font-size:11px">${it.dir==='buy'?'▲ LONG':'▼ SHORT'}</span>`
+    ? `<span style="color:${it.dir==='buy'?'var(--positive)':'var(--negative)'};font-weight:700;font-size:12px">${it.dir==='buy'?'▲ LONG':'▼ SHORT'}</span>`
     : '';
   const convBadge = it.conviction
     ? `<span class="idea-conv c-${it.conviction}">${it.conviction==='high'?(lang==='ru'?'Высокая':'High'):it.conviction==='med'?(lang==='ru'?'Средняя':'Med'):(lang==='ru'?'Низкая':'Low')}</span>`
@@ -7761,6 +7795,7 @@ function toggleTheme(){
   currentTheme=currentTheme==='dark'?'light':'dark';
   document.body.classList.toggle('light',currentTheme==='light');
   localStorage.setItem('theme',currentTheme);
+  v4TelegramChrome();
   // Recreate charts with new colors
   if(homeCI){homeCI.destroy();homeCI=null;}
   if(pnlCI){pnlCI.destroy();pnlCI=null;}
@@ -9831,9 +9866,20 @@ function v4A11yPass(){
     const c = document.getElementById(id); if(c){ c.setAttribute('role','img'); c.setAttribute('aria-label', name); }
   });
 }
+// Inside Telegram the header, background and bottom bar take the app's own night or
+// morning background, so the Mini App reads as one surface. Older clients skip it.
+function v4TelegramChrome(){
+  if(!(tg && tg.initData)) return;
+  const bg = getComputedStyle(document.body).getPropertyValue('--bg').trim();
+  try{
+    if(tg.isVersionAtLeast && tg.isVersionAtLeast('6.1')){ tg.setHeaderColor(bg); tg.setBackgroundColor(bg); }
+    if(tg.isVersionAtLeast && tg.isVersionAtLeast('7.10') && tg.setBottomBarColor) tg.setBottomBarColor(bg);
+  }catch(e){}
+}
 v4Sky();
 v4CardLight();
 v4ModalFocus();
+v4TelegramChrome();
 v4Operable();
 v4A11yPass();
 </script>
