@@ -1507,6 +1507,10 @@ body.light .dm-now{color:var(--accent)}
 button.detail-img-wrap{display:block;width:100%;padding:0;font:inherit;color:inherit;text-align:inherit;cursor:zoom-in}
 button.detail-img-wrap:focus-visible{outline:2px solid var(--accent-soft);outline-offset:3px}
 button.detail-img-wrap:focus-visible .detail-img-ov{opacity:1}
+
+/* forms (a11y package): an unchosen result is named next to its buttons; switches show keyboard focus */
+.ferr{margin:8px 0 0;font-size:13px;color:var(--negative)}
+.s-toggle input:focus-visible + span{outline:2px solid var(--accent-soft);outline-offset:2px}
 /* one radius family: rows 12, tiles 18, hero and windows 26 */
 :root{--radius-sm:12px;--radius-md:18px;--radius-lg:26px;--mkt-crypto:#FF9A6C}
 body.light{--mkt-crypto:#B5541F}   /* crypto in charts: the badge colour, darker on paper */
@@ -2094,10 +2098,11 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <div class="fgroup">
           <label class="flabel" id="lbl_result_el">Результат</label>
           <div class="toggle-group cols3">
-            <button class="tbtn sel-win" id="btnWin" onclick="setTrade('result','win')">Win</button>
+            <button class="tbtn" id="btnWin" onclick="setTrade('result','win')">Win</button>
             <button class="tbtn" id="btnLoss" onclick="setTrade('result','loss')">Loss</button>
             <button class="tbtn" id="btnBE" onclick="setTrade('result','be')">B/E</button>
           </div>
+          <p class="ferr" id="tResultErr" role="alert" hidden></p>
         </div>
       </div>
       <div class="pos-calc" id="posCalc">
@@ -2506,10 +2511,11 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
       <div class="fgroup">
         <label class="flabel" id="qlbl_result">Результат</label>
         <div class="toggle-group cols3">
-          <button class="tbtn sel-win" id="qBtnWin" onclick="setQuick('result','win')">Win</button>
+          <button class="tbtn" id="qBtnWin" onclick="setQuick('result','win')">Win</button>
           <button class="tbtn" id="qBtnLoss" onclick="setQuick('result','loss')">Loss</button>
           <button class="tbtn" id="qBtnBE" onclick="setQuick('result','be')">B/E</button>
         </div>
+        <p class="ferr" id="qResultErr" role="alert" hidden></p>
       </div>
       <div class="frow2">
         <div class="fgroup">
@@ -6486,6 +6492,7 @@ function setTrade(key, val){
     document.getElementById('btnSell').className='tbtn'+(val==='sell'?' sel-sell':'');
   }
   if(key==='result'){
+    if(val) resultError('tResultErr', false);
     document.getElementById('btnWin').className='tbtn'+(val==='win'?' sel-win':'');
     document.getElementById('btnLoss').className='tbtn'+(val==='loss'?' sel-loss':'');
     document.getElementById('btnBE').className='tbtn'+(val==='be'?' sel-be':'');
@@ -6821,7 +6828,7 @@ function syncStateToForm(){
   document.getElementById('tNotes').value  = tForm.notes  ||'';
   // Toggle buttons
   setTrade('dir',    tForm.dir    ||'buy');
-  setTrade('result', tForm.result ||'win');
+  setTrade('result', tForm.result);
   if(tForm.setup)    setTrade('setup',    tForm.setup);
   if(tForm.byPlan    !==undefined) setTrade('byPlan',    tForm.byPlan);
   if(tForm.emotional !==undefined) setTrade('emotional', tForm.emotional);
@@ -6871,12 +6878,13 @@ function copyLastTrade(){
 }
 
 // ── Quick form state ────────────────────────────────────
-let qForm = {result:'win'};
+let qForm = {};
 let qCurrentImg = null;
 
 function setQuick(key,val){
   qForm[key]=val;
   if(key==='result'){
+    if(val) resultError('qResultErr', false);
     document.getElementById('qBtnWin').className='tbtn'+(val==='win'?' sel-win':'');
     document.getElementById('qBtnLoss').className='tbtn'+(val==='loss'?' sel-loss':'');
     document.getElementById('qBtnBE').className='tbtn'+(val==='be'?' sel-be':'');
@@ -6928,8 +6936,9 @@ function initQImgDragDrop(){
 }
 
 function openQuickAdd(){
-  qForm={result:'win'}; qCurrentImg=null;
-  document.getElementById('qBtnWin').className='tbtn sel-win';
+  qForm={}; qCurrentImg=null;   // no result until the trader picks one
+  resultError('qResultErr', false);
+  document.getElementById('qBtnWin').className='tbtn';
   document.getElementById('qBtnLoss').className='tbtn';
   document.getElementById('qBtnBE').className='tbtn';
   document.getElementById('qBtnPlanYes').className='tbtn';
@@ -6949,7 +6958,14 @@ function openQuickAdd(){
   setTimeout(()=>initQImgDragDrop(), 100);
 }
 
+// The result is never assumed: an unchosen one is named next to the buttons
+function resultError(id, show){
+  const el = document.getElementById(id); if(!el) return;
+  el.textContent = show ? T('err_result') : '';
+  el.hidden = !show;
+}
 function saveQuickTrade(){
+  if(!qForm.result){ resultError('qResultErr', true); document.getElementById('qBtnWin').focus(); return; }
   const rrRaw = document.getElementById('qRR').value.trim();
   let rrVal = null;
   if(rrRaw){
@@ -6962,7 +6978,7 @@ function saveQuickTrade(){
     asset:document.getElementById('qPair').value.trim()||'—',
     market:'forex',
     session:document.getElementById('qSession').value||'London',
-    result:qForm.result||'win',
+    result:qForm.result,
     pnl:document.getElementById('qPnl').value||'',
     rr:rrVal,
     date:document.getElementById('qDate').value||new Date().toISOString().split('T')[0],
@@ -7401,7 +7417,8 @@ function renderIdeas(){
 
 function openAddTrade(){
   editingId=null;
-  tForm={dir:'buy',result:'win',date:new Date().toISOString().split('T')[0]};
+  tForm={dir:'buy',date:new Date().toISOString().split('T')[0]};   // no result until the trader picks one
+  resultError('tResultErr', false);
   currentTags=[]; currentImg=null; currentMistakes=[]; checklistState={};
   currentStep=0; rrManualMode=false;
   // Reset RR to auto mode
@@ -7468,6 +7485,7 @@ function stepNext(target, force=false){
   if(!force) syncFormToState(); // preserve state before switching
   if(!force && target>currentStep){
     if(currentStep===0 && !tForm.pair){showToast(T('err_pair'));return;}
+    if(currentStep===0 && !tForm.result){resultError('tResultErr', true);document.getElementById('btnWin').focus();return;}
   }
   currentStep=target;
   for(let i=0;i<4;i++){
@@ -7501,6 +7519,7 @@ function saveTrade(){
   syncFormToState();
   const pair=tForm.pair||'';
   if(!pair){showToast(T('err_pair'));return;}
+  if(!tForm.result){ stepNext(0,true); resultError('tResultErr', true); document.getElementById('btnWin').focus(); return; }
   const tradeData={
     pair, asset:pair,
     market:tForm.market||'forex',
@@ -7510,7 +7529,7 @@ function saveTrade(){
     sl:parseFloat(tForm.sl)||null,
     tp:parseFloat(tForm.tp)||null,
     rr:tForm.rrCalc||null,
-    result:tForm.result||'win',
+    result:tForm.result,
     pnl:tForm.pnl||'',
     date:tForm.date||new Date().toISOString().split('T')[0],
     setup:tForm.setup||null,
@@ -8066,7 +8085,7 @@ const STRINGS = {
     bulk_selected:'выбрано',
     bulk_delete:'Удалить',
     // Toasts & errors
-    err_pair:'Введи инструмент!',
+    err_pair:'Введи инструмент!',err_result:'Выберите результат: Win, Loss или B/E',
     toast_saved:'Сделка сохранена',
     toast_deleted:'Сделка удалена',
     toast_cap:'Депозит сохранён',
@@ -8252,7 +8271,7 @@ const STRINGS = {
     bulk_selected:'selected',
     bulk_delete:'Delete',
     // Toasts & errors
-    err_pair:'Enter instrument!',
+    err_pair:'Enter instrument!',err_result:'Choose a result: Win, Loss or B/E',
     toast_saved:'Trade saved',
     toast_deleted:'Trade deleted',
     toast_cap:'Deposit saved',
@@ -9756,9 +9775,9 @@ function v4Operable(){
     });
   };
   let queued = false;
-  const later = ()=>{ if(queued) return; queued = true; setTimeout(()=>{ queued = false; mark(document); }, 0); };
+  const later = ()=>{ if(queued) return; queued = true; setTimeout(()=>{ queued = false; mark(document); v4A11yPass(); }, 0); };
   new MutationObserver(records=>{
-    if(records.some(r=>r.type==='childList' || r.target.classList.contains('mtab'))) later();
+    if(records.some(r=>r.type==='childList' || r.target.classList.contains('mtab') || r.target.classList.contains('tbtn'))) later();
   }).observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
   document.addEventListener('keydown', e=>{
     if(e.key!=='Enter' && e.key!==' ') return;
@@ -9769,10 +9788,54 @@ function v4Operable(){
   });
   mark(document);
 }
+// Names and roles for assistive tech: every window is a dialog named by its title,
+// form labels point at their fields (or at the in-app list button that stands in for
+// a <select> or date input), button groups are named groups whose buttons say whether
+// they are pressed, settings switches carry their row's words, charts have a text name.
+let v4AutoId = 0;
+function v4A11yPass(){
+  const idOf = el=>el.id || (el.id = 'v4a-'+(++v4AutoId));
+  document.querySelectorAll('.overlay .modal').forEach(m=>{
+    m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true');
+    const t = m.querySelector('.mtitle'); if(t) m.setAttribute('aria-labelledby', idOf(t));
+  });
+  document.querySelectorAll('label.flabel, label.auth-label').forEach(lbl=>{
+    const box = lbl.parentElement; if(!box) return;
+    const group = box.querySelector('.toggle-group');
+    if(group && !box.querySelector('input:not([type=hidden]),select,textarea')){
+      group.setAttribute('role','group'); group.setAttribute('aria-labelledby', idOf(lbl)); return;
+    }
+    const field = box.querySelector('input:not([type=hidden]):not([type=file]),select,textarea');
+    if(!field) return;
+    if(field.id && !lbl.htmlFor) lbl.htmlFor = field.id;
+    // one label over several fields (Entry / SL / TP): the others are named «label: placeholder»
+    box.querySelectorAll('input:not([type=hidden]):not([type=file]),textarea').forEach(f=>{
+      if(f!==field && !f.labels.length && !f.hasAttribute('aria-label') && f.placeholder) f.setAttribute('aria-label', lbl.textContent.trim()+': '+f.placeholder);
+    });
+    const wrap = field.dataset.enhanced && (document.getElementById('ssel_'+field.id) || document.getElementById('dp_'+field.id));
+    const trg = wrap && wrap.querySelector('.ssel-trigger'), val = trg && trg.querySelector('.ssel-lbl');
+    if(trg && val) trg.setAttribute('aria-labelledby', idOf(lbl)+' '+idOf(val));
+  });
+  document.querySelectorAll('.toggle-group .tbtn').forEach(b=>b.setAttribute('aria-pressed', String(/(^|\s)sel-/.test(b.className))));
+  document.querySelectorAll('.s-row').forEach(row=>{
+    const inp = row.querySelector('.s-toggle input, input.s-num'), lbl = row.querySelector('.s-row-lbl'), sub = row.querySelector('.s-row-sub');
+    if(!inp || !lbl) return;
+    inp.setAttribute('aria-labelledby', idOf(lbl));
+    if(sub) inp.setAttribute('aria-describedby', idOf(sub));
+  });
+  const toast = document.getElementById('toast');
+  if(toast && !toast.hasAttribute('role')){ toast.setAttribute('role','status'); toast.setAttribute('aria-live','polite'); }
+  const ru = lang==='ru';
+  [['homeChart', ru?'График капитала и P&L':'Capital and P&L chart'], ['pnlChart', ru?'Кривая P&L':'P&L curve'],
+   ['mktChart', ru?'Сделки по рынкам':'Trades by market']].forEach(([id,name])=>{
+    const c = document.getElementById(id); if(c){ c.setAttribute('role','img'); c.setAttribute('aria-label', name); }
+  });
+}
 v4Sky();
 v4CardLight();
 v4ModalFocus();
 v4Operable();
+v4A11yPass();
 </script>
 </body>
 </html>
