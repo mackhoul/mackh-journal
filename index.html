@@ -1540,6 +1540,29 @@ button.detail-img-wrap:focus-visible .detail-img-ov{opacity:1}
 body.light #iSaveBtn{color:#fff}   /* light text on the morning violet: 6.4:1 */
 body.light{--accent-ink:#9A4C1B;--positive:#0E6E51;--negative:#B33232;--warning:#7F5700}   /* «утро»: data colours deep enough for text on paper and on their own tints */
 .pc-cell:not(.none) span,.pc-cell:not(.none) b{color:var(--text)}
+/* ── Polish after the re-check ── */
+/* the offline bar: dark text on the night's light red (white was 2.78:1); white stays on the morning's deep red */
+.offline-bar{color:#1A0B0B;font-size:12px}
+body.light .offline-bar{color:#fff}
+/* the main choice's subtitle reads at full strength on copper */
+body.light .ac-main .ac-sub,body.light .ac-main .ac-chev{opacity:1}
+body.light .cal-day.today,body.light .cal-day.selected{color:var(--accent-ink)}   /* copper as text on the calendar: the deeper ink */
+/* 12px floor: the menu, the calendars, upload and score captions, the sign-in footnote */
+.nb,.cal-dow,.cal-legend,.cal-clear-btn,.dp-wd span,.img-upload-sub,.cl-score-label,.auth-foot{font-size:12px!important}
+@media(min-width:1024px){ .nb{font-size:14px!important} }
+@media (pointer:coarse){
+  /* lists and calendars: rows and days 44px tall; the filter calendar spans the phone's width so days are ~46px wide */
+  .ssel-opt,.dp-day,.dp-quick button,.cal-clear-btn,.auth-tab,.mtab,.idea-tag-chip,#bulkBar button{min-height:44px}
+  .cal-nav,.fs-close{width:44px;height:44px}
+  .fs-close{top:max(12px,env(safe-area-inset-top,0px));right:12px}
+  #bulkBar button{min-width:44px}
+}
+@media (pointer:coarse) and (max-width:639px){ .cal-popup{width:calc(100vw - 32px)} .dp-popup{width:calc(100vw - 32px);padding:10px} }   /* calendars span the phone: 7 days of ~44px */
+/* toasts and the quick entry's save button clear the home bar in Telegram too */
+@media (max-width:1023px){
+  .toast{bottom:calc(88px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
+  #quickModal #qSaveBtn{bottom:calc(8px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
+}
 /* the quick entry's «Сохранить» stays in reach at the bottom of the window */
 #quickModal #qSaveBtn{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2;box-shadow:0 -14px 22px var(--surface)}
 /* the notch and the home bar: browsers (viewport-fit=cover) and Telegram (its safe-area variables) */
@@ -1593,7 +1616,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
 <div id="authGate">
   <div class="auth-box">
     <div class="auth-brand">MackH <span>Journal</span></div>
-    <div class="auth-sub" id="authSub">Войди, чтобы открыть свой торговый журнал</div>
+    <div class="auth-sub" id="authSub">Войдите, чтобы открыть свой торговый журнал</div>
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="authTabIn"  onclick="setAuthMode('in')">Вход</button>
@@ -2214,7 +2237,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <!-- STEP 2: Checklist -->
     <div class="mbody" id="step2" style="display:none">
       <div class="fsection" id="fsecPsych2">Психология</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6" id="chkHint">Отметь что было выполнено перед входом в сделку.</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;line-height:1.6" id="chkHint">Отметьте что было выполнено перед входом в сделку.</div>
       <div id="checklistItems"></div>
       <div class="cl-score">
         <span class="cl-score-label" id="lbl_cl_el">Выполнено</span>
@@ -2445,7 +2468,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
             <div id="srvDot" style="width:9px;height:9px;border-radius:50%;background:var(--text-muted);flex-shrink:0;transition:background .3s"></div>
             <div>
               <div style="font-size:12px;font-weight:600;color:var(--text)" id="srvStatusLbl">Сервер</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:1px" id="srvStatusSub">Нажми проверить</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:1px" id="srvStatusSub">Нажмите проверить</div>
             </div>
           </div>
           <button onclick="pingServer()" id="srvPingBtn" style="padding:5px 12px;border-radius:8px;border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:12px;font-weight:600;color:var(--text-secondary);cursor:pointer;white-space:nowrap">Проверить</button>
@@ -2454,7 +2477,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
 
       <div style="text-align:center;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:12px;color:var(--text-muted);font-family:var(--sans)">MackH Journal <span style="color:var(--accent)">v1.4.0</span></div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;opacity:.5">2026-04-02</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">2026-04-02</div>
       </div>
 
     </div>
@@ -2509,7 +2532,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <span id="importBtnLabel">Импорт из файла</span>
       </button>
       <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importJSON(this)">
-      <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px;line-height:1.5" id="backupTip">Скачивай бэкап раз в неделю и сохраняй в облако (Google Диск, iCloud)</p>
+      <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px;line-height:1.5" id="backupTip">Скачивайте бэкап раз в неделю и сохраняйте в облако (Google Диск, iCloud)</p>
     </div>
   </div>
 </div>
@@ -2698,7 +2721,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <button type="button" class="idea-tag-chip" data-slug="#KillzoneNY" onclick="insertIdeaTag('Killzone NY',this)">Killzone NY</button>
           <button type="button" class="idea-tag-chip" data-slug="#KillzoneLondon" onclick="insertIdeaTag('Killzone London',this)">Killzone London</button>
         </div>
-        <textarea class="ftextarea" id="iNote" placeholder="Что увидел, план входа, что ждёшь..."></textarea>
+        <textarea class="ftextarea" id="iNote" placeholder="Что увидел, план входа, что ждёте..."></textarea>
       </div>
       <div class="fgroup">
         <label class="flabel" id="ilbl_ss">Скриншот</label>
@@ -2723,7 +2746,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
 </div>
 
 <!-- FULLSCREEN -->
-<div class="fullscreen" id="fullscreen">
+<div class="fullscreen" id="fullscreen" role="dialog" aria-modal="true" aria-label="Скриншот">
   <button class="fs-close" onclick="closeFullscreen()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button>
   <div class="fs-img-wrap"><img id="fsImg" src="" alt="" onclick="event.stopPropagation()"></div>
 </div>
@@ -2828,7 +2851,7 @@ async function doAuth(){
   const btn   = document.getElementById('authBtn');
 
   if(!email || !pass){
-    showAuthMsg(ru?'Заполни email и пароль':'Enter email and password'); return;
+    showAuthMsg(ru?'Заполните email и пароль':'Enter email and password'); return;
   }
   if(authMode==='up' && pass.length < 6){
     showAuthMsg(ru?'Пароль должен быть от 6 символов':'Password must be at least 6 characters'); return;
@@ -2840,7 +2863,7 @@ async function doAuth(){
 
   const cfg = await fetchSupaConfig();
   if(!cfg || !cfg.web_auth_ready){
-    showAuthMsg(ru?'Сервер недоступен. Попробуй ещё раз через минуту.'
+    showAuthMsg(ru?'Сервер недоступен. Попробуйте ещё раз через минуту.'
                   :'Server unavailable. Try again in a minute.');
     btn.disabled=false; setAuthMode(authMode); return;
   }
@@ -2858,7 +2881,7 @@ async function doAuth(){
       const m = (data.error_description || data.msg || data.message || '').toLowerCase();
       let msg;
       if(m.includes('invalid login'))        msg = ru?'Неверный email или пароль':'Wrong email or password';
-      else if(m.includes('already'))         msg = ru?'Такой аккаунт уже есть — войди':'Account already exists — sign in';
+      else if(m.includes('already'))         msg = ru?'Такой аккаунт уже есть — войдите':'Account already exists — sign in';
       else if(m.includes('rate'))            msg = ru?'Слишком много попыток, подожди немного':'Too many attempts, wait a moment';
       else                                   msg = data.error_description || data.msg || (ru?'Не получилось':'Something went wrong');
       showAuthMsg(msg);
@@ -2867,7 +2890,7 @@ async function doAuth(){
 
     if(!data.access_token){
       // Signup succeeded but e-mail confirmation is switched on in Supabase
-      showAuthMsg(ru?'Аккаунт создан. Подтверди email и войди.'
+      showAuthMsg(ru?'Аккаунт создан. Подтвердите email и войдите.'
                     :'Account created. Confirm your email, then sign in.','ok');
       btn.disabled=false; setAuthMode('in'); return;
     }
@@ -2937,7 +2960,7 @@ function signOut(){
 
 function applyAuthGateLang(){
   const ru = lang==='ru';
-  document.getElementById('authSub').textContent      = ru?'Войди, чтобы открыть свой торговый журнал':'Sign in to open your trading journal';
+  document.getElementById('authSub').textContent      = ru?'Войдите, чтобы открыть свой торговый журнал':'Sign in to open your trading journal';
   document.getElementById('authTabIn').textContent    = ru?'Вход':'Sign in';
   document.getElementById('authTabUp').textContent    = ru?'Регистрация':'Sign up';
   document.getElementById('authLblPass').textContent  = ru?'Пароль':'Password';
@@ -3620,7 +3643,7 @@ function show401Banner(){
       'text-align:center','padding:10px 16px','border-bottom:1px solid rgba(0,0,0,.3)',
       'display:flex','align-items:center','justify-content:center','gap:7px',
     ].join(';');
-    bar.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9.5v4M12 17h.01M11.05 4.7L2.9 18.5A1.4 1.4 0 004.15 20.6h15.7a1.4 1.4 0 001.25-2.1L13 4.7a1.4 1.4 0 00-1.95 0z"/></svg>Сессия истекла — перезапусти приложение';
+    bar.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9.5v4M12 17h.01M11.05 4.7L2.9 18.5A1.4 1.4 0 004.15 20.6h15.7a1.4 1.4 0 001.25-2.1L13 4.7a1.4 1.4 0 00-1.95 0z"/></svg>Сессия истекла — перезапустите приложение';
     document.body.prepend(bar);
   }
 }
@@ -4586,97 +4609,97 @@ function getInsightDetail(ins){
     offplan_wr:{
       why: ru?['Вход без сетапа из плана = нет edge, только удача','FOMO и эмоции обнуляют статистическое преимущество','Каждая off-plan сделка учит мозг игнорировать систему','Даже прибыльная off-plan сделка — вред в долгосроке']
              :['Entry without a planned setup = no edge, just luck','FOMO and emotions cancel out your statistical advantage','Every off-plan trade trains your brain to ignore the system','Even a profitable off-plan trade is harmful long-term'],
-      fix: ru?['Проверяй план перед каждым входом: "Это мой сетап?"','Если ответ "не уверен" — не входи','Запиши план сессии до открытия платформы','После выполнения плана — закрой терминал']
+      fix: ru?['Проверяйте план перед каждым входом: "Это мой сетап?"','Если ответ "не уверен" — не входите','Запишите план сессии до открытия платформы','После выполнения плана — закройте терминал']
              :['Check your plan before every entry: "Is this my setup?"','If the answer is "not sure" — don\'t enter','Write your session plan before opening the platform','After completing the plan — close the terminal'],
     },
     strategy_no_data:{
       why: ru?['30 сделок — минимальная выборка для значимой статистики','Меньше 30 = случайные результаты, не система','Каждый сетап нужно тестировать на достаточном числе сделок','Вывод из малой выборки может привести к неверным решениям']
              :['30 trades is the minimum sample for meaningful statistics','Below 30 = random results, not a system','Every setup needs to be tested on a sufficient number of trades','Conclusions from small samples lead to wrong decisions'],
-      fix: ru?['Торгуй один сетап — не меняй его до набора 30 сделок','Каждая сделка — данные. Записывай всё честно','Не делай выводов о стратегии пока выборка мала','После 30 сделок — смотри Expectancy, не WR']
+      fix: ru?['Торгуйте один сетап — не меняйте его до набора 30 сделок','Каждая сделка — данные. Записывайте всё честно','Не делайте выводов о стратегии пока выборка мала','После 30 сделок — смотрите Expectancy, не WR']
              :['Trade one setup — don\'t change it until 30 trades','Every trade is data. Record everything honestly','Don\'t draw strategy conclusions from a small sample','After 30 trades — look at Expectancy, not just WR'],
     },
     strategy_expectancy_bad:{
       why: ru?['Expectancy < 0 значит система теряет деньги при любой дисциплине','Проблема не в психологии — в самой логике входов','Низкий WR при плохом RR = двойной удар по капиталу','Можно торговать идеально по плану и всё равно терять']
              :['Expectancy < 0 means the system loses money regardless of discipline','The problem isn\'t psychology — it\'s the entry logic itself','Low WR with poor RR = double hit on capital','You can trade perfectly by plan and still lose'],
-      fix: ru?['Останови торговлю и разбери последние 30 убытков','Найди: точки входа слишком ранние, или RR нереалистичный?','Протестируй сетап на истории — убедись что edge существует','Снизь размер до минимума пока Expectancy не станет положительной']
+      fix: ru?['Остановите торговлю и разберите последние 30 убытков','Найдите: точки входа слишком ранние, или RR нереалистичный?','Протестируйте сетап на истории — убедитесь что edge существует','Снизьте размер до минимума пока Expectancy не станет положительной']
              :['Stop trading and review the last 30 losses','Find: entries too early, or RR unrealistic?','Backtest the setup — confirm the edge actually exists','Reduce size to minimum until Expectancy turns positive'],
     },
     strategy_expectancy_ok:{
       why: ru?['Expectancy 0–0.2R = система едва в безубытке','Комиссии и спред могут перевести её в минус','Маленький edge легко уничтожается ошибками исполнения','Нужно улучшить либо WR, либо RR — или оба']
              :['Expectancy 0–0.2R = system is barely break-even','Commissions and spread can push it into loss','Small edge is easily destroyed by execution errors','Need to improve either WR, RR, or both'],
-      fix: ru?['Улучши качество входов — жди только A+ подтверждений','Не бери ранний TP — позволь RR расти','Убери худшие сделки из выборки — найди общую причину','Цель: Expectancy выше 0.2R стабильно на 50+ сделках']
+      fix: ru?['Улучшите качество входов — ждите только A+ подтверждений','Не берите ранний TP — позвольте RR расти','Уберите худшие сделки из выборки — найдите общую причину','Цель: Expectancy выше 0.2R стабильно на 50+ сделках']
              :['Improve entry quality — wait for A+ confirmation only','Don\'t take early TP — let RR grow','Remove worst trades from sample — find common cause','Goal: Expectancy above 0.2R consistently over 50+ trades'],
     },
     strategy_expectancy_good:{
-      why: ru?['Expectancy ≥ 0.2R = система математически прибыльна','WR и RR в правильном балансе для долгосрочного роста','Это твой доказанный edge — редкое и ценное достижение','Главный риск теперь — нарушить систему которая работает']
+      why: ru?['Expectancy ≥ 0.2R = система математически прибыльна','WR и RR в правильном балансе для долгосрочного роста','Это ваш доказанный edge — редкое и ценное достижение','Главный риск теперь — нарушить систему которая работает']
              :['Expectancy ≥ 0.2R = system is mathematically profitable','WR and RR are in the right balance for long-term growth','This is your proven edge — a rare and valuable achievement','Main risk now — breaking the system that works'],
-      fix: ru?['Не меняй стратегию. Масштабируй размер постепенно (не резко)','Продолжай вести журнал — следи чтобы Expectancy не падала','Если Expectancy упала ниже 0.1R — снизь размер и разбери причину','Цель: стабильность 0.2R+ на 100+ сделках = масштабирование']
+      fix: ru?['Не меняйте стратегию. Масштабируйте размер постепенно (не резко)','Продолжайте вести журнал — следите чтобы Expectancy не падала','Если Expectancy упала ниже 0.1R — снизьте размер и разберите причину','Цель: стабильность 0.2R+ на 100+ сделках = масштабирование']
              :['Don\'t change the strategy. Scale size gradually (not sharply)','Keep journaling — monitor that Expectancy doesn\'t drop','If Expectancy drops below 0.1R — reduce size and investigate','Goal: consistent 0.2R+ over 100+ trades = ready to scale'],
     },
     range_wr:{
       why: ru?['Боковик — сложная среда: много ложных пробоев и шума','Вход в середине ренджа = нет чёткого SL и TP','Без чётких уровней H/L зоны edge исчезает','Часто боковик торгуется как тренд — главная ошибка']
              :['Range is a complex environment: many false breakouts and noise','Entering mid-range = no clear SL and TP','Without clear H/L zone boundaries edge disappears','Range is often traded like a trend — the main mistake'],
-      fix: ru?['Входи только от границ ренджа (High/Low), не из середины','Жди реакцию на уровне — отбой или ложный пробой с закрытием внутрь','TP — противоположная граница ренджа, SL — за границей зоны','Если рендж узкий (< 50 pips) — пропускай, нет места для R:R']
+      fix: ru?['Входите только от границ ренджа (High/Low), не из середины','Ждите реакцию на уровне — отбой или ложный пробой с закрытием внутрь','TP — противоположная граница ренджа, SL — за границей зоны','Если рендж узкий (< 50 pips) — пропускайте, нет места для R:R']
              :['Enter only from range boundaries (High/Low), not mid-range','Wait for reaction at the level — rejection or false breakout closing inward','TP = opposite range boundary, SL = beyond zone boundary','If range is narrow (< 50 pips) — skip, no room for R:R'],
     },
     range_wr_good:{
-      why: ru?['Ты правильно читаешь границы ренджа и входишь от уровней','Терпение — ждёшь реакцию, не входишь в середину','Чёткое управление: TP на противоположной границе','Это ценный навык — боковик бывает 70% времени на рынке']
+      why: ru?['Вы правильно читаете границы ренджа и входите от уровней','Терпение — ждёте реакцию, не входите в середину','Чёткое управление: TP на противоположной границе','Это ценный навык — боковик бывает 70% времени на рынке']
              :['You correctly read range boundaries and enter from levels','Patience — waiting for reaction, not entering mid-range','Clear management: TP at opposite boundary','This is a valuable skill — range is 70% of market time'],
-      fix: ru?['Продолжай торговать только от чётких H/L зон','На сильных уровнях добавляй объём — твоя статистика это позволяет','Изучи ложные пробои ренджа как точку входа (liquidity sweep)','Следи за объёмом на границах — он подтверждает реакцию']
+      fix: ru?['Продолжайте торговать только от чётких H/L зон','На сильных уровнях добавляйте объём — ваша статистика это позволяет','Изучите ложные пробои ренджа как точку входа (liquidity sweep)','Следите за объёмом на границах — он подтверждает реакцию']
              :['Keep trading only from clear H/L zones','At strong levels add size — your stats support it','Study range false breakouts as entry points (liquidity sweep)','Watch volume at boundaries — it confirms the reaction'],
     },
     mistake_broke_plan:{
       why: ru?['Изменение SL или ранний TP разрушают R:R всей системы','Каждое нарушение делает следующее нарушение легче','Добавка к убытку — самая дорогая ошибка в трейдинге','Статистика работает только если правила соблюдаются всегда']
              :['Moving SL or early TP destroys the R:R of your system','Each violation makes the next one easier to commit','Adding to a loser is the most expensive mistake in trading','Statistics only work when rules are followed consistently'],
-      fix: ru?['Записывай план сделки до входа (entry, SL, TP)','Не прикасайся к SL после установки','Если хочется нарушить план — выйди из рынка','Веди журнал: отмечай каждое нарушение']
+      fix: ru?['Записывайте план сделки до входа (entry, SL, TP)','Не прикасайтесь к SL после установки','Если хочется нарушить план — выйдите из рынка','Ведите журнал: отмечайте каждое нарушение']
              :['Write your trade plan before entry (entry, SL, TP)','Don\'t touch SL after placing it','If you want to break the plan — exit the market','Journal every rule violation'],
     },
     mistake_early_entry:{
       why: ru?['Свеча не закрылась — сигнала ещё нет, только предположение','Ранний вход ухудшает R:R и увеличивает вероятность стопа','BOS/CHOCH подтверждается только на закрытой свече','Нетерпение — одна из главных причин убытков в price action']
              :['Unclosed candle means no signal yet — just an assumption','Early entry worsens R:R and increases stop probability','BOS/CHOCH is only confirmed on a closed candle','Impatience is one of the top causes of loss in price action'],
-      fix: ru?['Жди закрытия свечи — никогда не входи на незакрытой','Проверь старший ТФ перед входом','Используй лимитные ордера вместо рыночных','Если пропустил вход — пропусти сделку']
+      fix: ru?['Ждите закрытия свечи — никогда не входите на незакрытой','Проверьте старший ТФ перед входом','Используйте лимитные ордера вместо рыночных','Если пропустили вход — пропустите сделку']
              :['Wait for candle close — never enter on an open candle','Check higher TF before entry','Use limit orders instead of market orders','If you missed the entry — skip the trade'],
     },
     mistake_no_confirm:{
-      why: ru?['Неполный сигнал = сделка на предположении, не на факте','Без MTF согласованности ты торгуешь против старшего тренда','Ликвидность и структура должны совпадать одновременно','Частичное подтверждение снижает WR и ломает систему']
+      why: ru?['Неполный сигнал = сделка на предположении, не на факте','Без MTF согласованности вы торгуете против старшего тренда','Ликвидность и структура должны совпадать одновременно','Частичное подтверждение снижает WR и ломает систему']
              :['Incomplete signal = trade on assumption, not fact','Without MTF alignment you trade against the higher trend','Liquidity and structure must align at the same time','Partial confirmation lowers WR and breaks the system'],
-      fix: ru?['Составь чеклист подтверждений (3-5 пунктов)','Входи только при 100% соответствии чеклисту','"Хороший сетап" ≠ "подтверждённый сетап"','Записывай причину входа перед нажатием кнопки']
+      fix: ru?['Составьте чеклист подтверждений (3-5 пунктов)','Входите только при 100% соответствии чеклисту','"Хороший сетап" ≠ "подтверждённый сетап"','Записывайте причину входа перед нажатием кнопки']
              :['Build a confirmation checklist (3-5 items)','Only enter at 100% checklist match','"Good setup" ≠ "confirmed setup"','Write your entry reason before clicking the button'],
     },
     mistake_overtrade:{
       why: ru?['После 3+ сделок качество решений резко снижается','Лишние сделки открываются из скуки, не из edge','Комиссии и спред съедают прибыль при высокой частоте','Усталость от экрана = эмоциональные входы во второй половине дня']
              :['After 3+ trades decision quality drops sharply','Extra trades come from boredom, not from edge','Commissions and spread eat profits at high frequency','Screen fatigue = emotional entries in the second half of the day'],
-      fix: ru?['Установи лимит: не более 2-3 сделок в день','После 2 убытков подряд — обязательный стоп на день','Введи "правило первой сделки": если убыток — стоп','Качество важнее количества']
+      fix: ru?['Установите лимит: не более 2-3 сделок в день','После 2 убытков подряд — обязательный стоп на день','Введите "правило первой сделки": если убыток — стоп','Качество важнее количества']
              :['Set a limit: no more than 2-3 trades per day','After 2 consecutive losses — mandatory daily stop','Implement "first trade rule": if loss — stop for the day','Quality over quantity'],
     },
     low_winrate:{
       why: ru?['WR ниже 40% — сигнал системной проблемы, не полосы невезения','Точка входа или тайминг не совпадают с реальным движением','Возможно сетап работал раньше, но рынок изменился','Психологические фильтры могут искажать выбор сделок']
              :['WR below 40% signals a systemic issue, not bad luck','Entry point or timing doesn\'t match the actual move','Setup may have worked before but the market has changed','Psychological filters may be distorting trade selection'],
-      fix: ru?['Разбери последние 10 убыточных сделок: найди общую причину','Не торгуй 2-3 дня — сделай паузу','Вернись к базовому сетапу, который работал раньше','Снизь размер позиции до минимума пока WR не улучшится']
+      fix: ru?['Разберите последние 10 убыточных сделок: найдите общую причину','Не торгуйте 2-3 дня — сделайте паузу','Вернитесь к базовому сетапу, который работал раньше','Снизьте размер позиции до минимума пока WR не улучшится']
              :['Review last 10 losing trades: find the common cause','Don\'t trade for 2-3 days — take a break','Return to the basic setup that worked before','Reduce position size to minimum until WR improves'],
     },
     emotional:{
       why: ru?['Revenge trading после убытка — попытка "отыграть", которая убивает счёт','FOMO заставляет входить в конце движения, не в начале','В эмоциональном состоянии мозг игнорирует риск-менеджмент','Скука и азарт — такие же триггеры, как страх и жадность']
              :['Revenge trading after a loss is an attempt to recover that kills the account','FOMO causes you to enter at the end of a move, not the start','In emotional state the brain ignores risk management','Boredom and excitement are just as dangerous as fear and greed'],
-      fix: ru?['Используй чеклист перед КАЖДЫМ входом — он тормозит импульс','После убытка: 30 минут перерыв, выйди из платформы','Закрой терминал если чувствуешь раздражение или азарт','Веди "эмоциональный дневник" — отмечай состояние перед сделкой']
+      fix: ru?['Используйте чеклист перед КАЖДЫМ входом — он тормозит импульс','После убытка: 30 минут перерыв, выйдите из платформы','Закройте терминал если чувствуете раздражение или азарт','Ведите "эмоциональный дневник" — отмечайте состояние перед сделкой']
              :['Use a checklist before EVERY entry — it slows impulse','After a loss: 30 minute break, leave the platform','Close the terminal if feeling frustration or excitement','Keep an "emotional journal" — note your state before each trade'],
     },
     drawdown:{
       why: ru?['Серия убытков создаёт цикл: стресс → ошибки → больше убытков','Попытка "отыграться" быстро приводит к катастрофическим потерям','Просадка требует непропорционально больший рост для восстановления','Риск-менеджмент важнее, чем поиск следующего входа']
              :['A losing streak creates a cycle: stress → mistakes → more losses','Trying to "win it back" quickly leads to catastrophic losses','Drawdown requires disproportionately larger gains to recover','Risk management matters more than finding the next entry'],
-      fix: ru?['Снизь риск на сделку до 0.5% пока не восстановишься','Не пытайся "отыграться" — это увеличит просадку','Установи максимальную дневную потерю (например 2%)','Сделай паузу и разбери причины каждого убытка']
+      fix: ru?['Снизьте риск на сделку до 0.5% пока не восстановитесь','Не пытайтесь "отыграться" — это увеличит просадку','Установите максимальную дневную потерю (например 2%)','Сделайте паузу и разберите причины каждого убытка']
              :['Reduce per-trade risk to 0.5% until recovery','Don\'t try to "win it back" — this increases drawdown','Set a maximum daily loss (e.g. 2%)','Take a break and analyze the reason for each loss'],
     },
     dirty_trades:{
-      why: ru?['Грязные сделки — симптом: ты знаешь правила, но не следуешь им','Привычка нарушать формируется быстро, ломается долго','Каждая грязная сделка обесценивает статистику журнала','Дисциплина — это не мотивация, это система и среда']
+      why: ru?['Грязные сделки — симптом: вы знаете правила, но не следуете им','Привычка нарушать формируется быстро, ломается долго','Каждая грязная сделка обесценивает статистику журнала','Дисциплина — это не мотивация, это система и среда']
              :['Dirty trades are a symptom: you know the rules but don\'t follow them','The habit of breaking rules forms fast and breaks slowly','Each dirty trade invalidates your journal statistics','Discipline is not motivation — it\'s systems and environment'],
-      fix: ru?['Заполняй чеклист перед каждым входом — это не опционально','Одно нарушение = выход из рынка на день','Качество > количество: лучше 2 чистых сделки, чем 10 грязных','Настрой напоминание: "Ты прошёл чеклист?"']
+      fix: ru?['Заполняйте чеклист перед каждым входом — это не опционально','Одно нарушение = выход из рынка на день','Качество > количество: лучше 2 чистых сделки, чем 10 грязных','Настройте напоминание: "Вы прошли чеклист?"']
              :['Complete the checklist before every entry — not optional','One violation = exit market for the day','Quality > quantity: better 2 clean trades than 10 dirty ones','Set a reminder: "Did you complete the checklist?"'],
     },
     clean_trades:{
       why: ru?['Чистые сделки доказывают: сетап и edge реально работают','Разница в результате — это дисциплина, не рынок','Последовательность в исполнении важнее частоты','Каждая чистая сделка укрепляет правильную привычку']
              :['Clean trades prove that your setup and edge actually work','The difference in results is discipline, not the market','Consistency in execution matters more than frequency','Each clean trade reinforces the right habit'],
-      fix: ru?['Продолжай в том же духе — система работает','Проанализируй что делаешь по-другому в чистых сделках','Постепенно увеличивай размер только в чистых сделках','Ставь цель: 80%+ чистых сделок в месяц']
+      fix: ru?['Продолжайте в том же духе — система работает','Проанализируйте что делаете по-другому в чистых сделках','Постепенно увеличивайте размер только в чистых сделках','Ставьте цель: 80%+ чистых сделок в месяц']
              :['Keep it up — the system works','Analyze what you do differently in clean trades','Gradually increase size only in clean trades','Set a goal: 80%+ clean trades per month'],
     },
   };
@@ -4693,41 +4716,41 @@ function getInsightDetail(ins){
   }
   const fallbacks = {
     _best_sess:{
-      why:ru?['Эта сессия совпадает с твоим торговым стилем и уровнем концентрации','Волатильность и ликвидность в это время подходят твоему сетапу','Психологически ты в лучшем состоянии именно в эти часы','Рынок даёт понятные структуры именно в эту сессию']
+      why:ru?['Эта сессия совпадает с вашим торговым стилем и уровнем концентрации','Волатильность и ликвидность в это время подходят вашему сетапу','Психологически вы в лучшем состоянии именно в эти часы','Рынок даёт понятные структуры именно в эту сессию']
             :['This session aligns with your trading style and concentration level','Volatility and liquidity at this time suit your setup','Psychologically you are at your best during these hours','The market provides clear structures in this session'],
-      fix:ru?['Сосредоточь большую часть сделок на этой сессии','Анализируй почему именно она работает','Не торгуй в этой сессии если устал или расстроен','Настрой уведомления под это время']
+      fix:ru?['Сосредоточьте большую часть сделок на этой сессии','Анализируйте почему именно она работает','Не торгуйте в этой сессии если устали или расстроены','Настройте уведомления под это время']
             :['Focus most trades on this session','Analyze why exactly it works','Don\'t trade in this session when tired or upset','Set notifications for this time'],
     },
     _worst_sess:{
-      why:ru?['Волатильность или ликвидность в этой сессии не совпадают с твоим сетапом','Возможна усталость или снижение концентрации в это время','Структуры рынка в эту сессию труднее читаются','Паттерн повторяется — это статистика, не случайность']
+      why:ru?['Волатильность или ликвидность в этой сессии не совпадают с вашим сетапом','Возможна усталость или снижение концентрации в это время','Структуры рынка в эту сессию труднее читаются','Паттерн повторяется — это статистика, не случайность']
             :['Volatility or liquidity in this session doesn\'t match your setup','Possible fatigue or reduced concentration at this time','Market structures are harder to read in this session','The pattern repeats — this is statistics, not coincidence'],
-      fix:ru?['Рассмотри пропуск этой сессии полностью','Снизь размер позиции вдвое в этой сессии','Веди наблюдение ещё 2 недели — нужна выборка','Анализируй причину убытков именно в это время']
+      fix:ru?['Рассмотрите пропуск этой сессии полностью','Снизьте размер позиции вдвое в этой сессии','Ведите наблюдение ещё 2 недели — нужна выборка','Анализируйте причину убытков именно в это время']
             :['Consider skipping this session entirely','Halve position size in this session','Observe for another 2 weeks — need a sample','Analyze the cause of losses at this time'],
     },
     _sess_loss:{
-      why:ru?['Убытки концентрируются в одной сессии — это паттерн, не случайность','Рынок в это время ведёт себя иначе, чем ожидает твоя система','Возможна систематическая ошибка в чтении структуры в эти часы','Статистика указывает на конкретную временную проблему']
+      why:ru?['Убытки концентрируются в одной сессии — это паттерн, не случайность','Рынок в это время ведёт себя иначе, чем ожидает ваша система','Возможна систематическая ошибка в чтении структуры в эти часы','Статистика указывает на конкретную временную проблему']
             :['Losses concentrate in one session — this is a pattern, not coincidence','The market behaves differently at this time than your system expects','Possible systematic error in reading structure at these hours','Statistics point to a specific time-based problem'],
-      fix:ru?['Сократи количество сделок в этой сессии','Повысь требования к подтверждению входа','Установи максимум 1-2 сделки в проблемной сессии','Разбери каждый убыток из этой сессии']
+      fix:ru?['Сократите количество сделок в этой сессии','Повысьте требования к подтверждению входа','Установите максимум 1-2 сделки в проблемной сессии','Разберите каждый убыток из этой сессии']
             :['Reduce trades in this session','Increase entry confirmation requirements','Set maximum 1-2 trades in the problem session','Review each loss from this session'],
     },
     _best_setup:{
-      why:ru?['Этот сетап даёт реальный edge в текущих рыночных условиях','Логика паттерна совпадает с твоим стилем исполнения','Статистика подтверждена достаточной выборкой сделок','Это твоё конкурентное преимущество — защищай его']
+      why:ru?['Этот сетап даёт реальный edge в текущих рыночных условиях','Логика паттерна совпадает с вашим стилем исполнения','Статистика подтверждена достаточной выборкой сделок','Это ваше конкурентное преимущество — защищайте его']
             :['This setup provides real edge in current market conditions','The pattern logic matches your execution style','Statistics are confirmed by a sufficient sample of trades','This is your competitive advantage — protect it'],
-      fix:ru?['Фокусируйся именно на этом сетапе','Не отвлекайся на менее надёжные паттерны','Постепенно увеличивай размер в этом сетапе','Изучи его глубже — найди ещё лучшие условия']
+      fix:ru?['Фокусируйтесь именно на этом сетапе','Не отвлекайтесь на менее надёжные паттерны','Постепенно увеличивайте размер в этом сетапе','Изучите его глубже — найдите ещё лучшие условия']
             :['Focus on this setup specifically','Don\'t get distracted by less reliable patterns','Gradually increase size in this setup','Study it deeper — find even better conditions'],
     },
     _worst_setup:{
       why:ru?['Этот сетап не даёт edge в текущих условиях рынка','Проблема может быть в исполнении, тайминге или самом паттерне','Рынок мог измениться — сетап работал раньше, но не сейчас','Продолжать торговать им = терять деньги без причины']
             :['This setup provides no edge in current market conditions','The issue may be execution, timing, or the pattern itself','The market may have changed — setup worked before but not now','Continuing to trade it = losing money for no reason'],
-      fix:ru?['Приостанови этот сетап на 1 месяц','Разбери последние 5 убыточных сделок по нему','Протестируй на истории — возможно он перестал работать','Снизь размер или исключи из торгового плана']
+      fix:ru?['Приостановите этот сетап на 1 месяц','Разберите последние 5 убыточных сделок по нему','Протестируйте на истории — возможно он перестал работать','Снизьте размер или исключите из торгового плана']
             :['Pause this setup for 1 month','Review last 5 losing trades from it','Test on history — it may have stopped working','Reduce size or remove from trading plan'],
     },
   };
 
   const content = map[key] || fallbacks[key] || {
-    why: ru?['Этот инсайт основан на твоей статистике','Паттерн повторяется достаточно часто, чтобы требовать внимания','Изучи связанные сделки для поиска причины','Приними меры до следующей торговой сессии']
+    why: ru?['Этот инсайт основан на вашей статистике','Паттерн повторяется достаточно часто, чтобы требовать внимания','Изучите связанные сделки для поиска причины','Примите меры до следующей торговой сессии']
            :['This insight is based on your statistics','The pattern repeats often enough to require attention','Review related trades to find the cause','Take action before your next trading session'],
-    fix: ru?['Проанализируй связанные сделки','Найди общую причину','Составь план улучшения','Проверь результат через 10 сделок']
+    fix: ru?['Проанализируйте связанные сделки','Найдите общую причину','Составьте план улучшения','Проверьте результат через 10 сделок']
            :['Analyze related trades','Find the common cause','Create an improvement plan','Check results after 10 trades'],
   };
 
@@ -4827,7 +4850,7 @@ function generateInsights(){
           `Худшая сессия: ${worst.name} (WR ${worst.wr?.toFixed(0)}%)`,
           `Worst session: ${worst.name} (WR ${worst.wr?.toFixed(0)}%)`,
           `${worst.total} сделок`,`${worst.total} trades`,
-          `${worst.name}: либо только A+ сетапы с уменьшенным размером, либо пропускай сессию`,
+          `${worst.name}: либо только A+ сетапы с уменьшенным размером, либо пропускайте сессию`,
           `${worst.name}: A+ setups with reduced size only — or skip the session entirely`,
           {id:'worst_sess_'+worst.name, count:worst.total}
         );
@@ -4841,7 +4864,7 @@ function generateInsights(){
         `Most losses: ${worstByLoss.name} session (${worstByLoss.losses.length} losses)`,
         `${((worstByLoss.losses.length/losses.length||0)*100).toFixed(0)}% всех убытков`,
         `${((worstByLoss.losses.length/losses.length||0)*100).toFixed(0)}% of all losses`,
-        `В ${worstByLoss.name} входи только с подтверждением HTF структуры + зоны — или не входишь`,
+        `В ${worstByLoss.name} входите только с подтверждением HTF структуры + зоны — или не входите`,
         `In ${worstByLoss.name}: require HTF structure + liquidity zone confirmation — otherwise skip`,
         {id:'sess_loss_'+worstByLoss.name, count:worstByLoss.losses.length}
       );
@@ -4905,7 +4928,7 @@ function generateInsights(){
           `Боковик убыточен (WR ${rWR.toFixed(0)}%)`,
           `Range setup losing (WR ${rWR.toFixed(0)}%)`,
           `${range.length} сделок`, `${range.length} trades`,
-          `Боковик = торгуй только от чётких уровней H/L ренджа. Нет чёткой границы — нет сделки`,
+          `Боковик = торгуйте только от чётких уровней H/L ренджа. Нет чёткой границы — нет сделки`,
           `Range = trade only from clear range H/L levels. No clear boundary — no trade`,
           {id:'range_wr', count:range.length}
         );
@@ -4914,7 +4937,7 @@ function generateInsights(){
           `Боковик работает (WR ${rWR.toFixed(0)}%)`,
           `Range setup working (WR ${rWR.toFixed(0)}%)`,
           `${range.length} сделок`, `${range.length} trades`,
-          `Хорошее чтение ренджа. Продолжай торговать от границ, добавляй объём в сильных зонах`,
+          `Хорошее чтение ренджа. Продолжайте торговать от границ, добавляйте объём в сильных зонах`,
           `Strong range reading. Keep trading from boundaries, add size at strong zones`,
           {id:'range_wr_good', count:range.length}
         );
@@ -4934,7 +4957,7 @@ function generateInsights(){
         `Clean trades are ${(wClean-wDirty).toFixed(0)}% better than dirty ones`,
         `${wClean.toFixed(0)}% WR vs ${wDirty.toFixed(0)}% WR`,
         `${wClean.toFixed(0)}% WR vs ${wDirty.toFixed(0)}% WR`,
-        `Твой edge работает — защити его. Торгуй только Clean, не разменивай статистику`,
+        `Ваш edge работает — защитите его. Торгуйте только Clean, не разменивайте статистику`,
         `Your edge works — protect it. Trade only Clean, don't dilute your stats`,
         {id:'clean_trades', count:clean.length}
       );
@@ -4945,7 +4968,7 @@ function generateInsights(){
         `${dirtyPct.toFixed(0)}% сделок — "грязные" (нарушения дисциплины)`,
         `${dirtyPct.toFixed(0)}% of trades are "dirty" (discipline issues)`,
         `Чеклист, план, контроль эмоций`,`Checklist, plan, impulsive trades`,
-        `Более половины входов — без edge. Правило: не уверен на 100% — не входишь`,
+        `Более половины входов — без edge. Правило: не уверены на 100% — не входите`,
         `More than half your entries have no edge. Rule: not 100% sure — you don't enter`,
         {id:'dirty_trades', count:dirty.length}
       );
@@ -4968,11 +4991,11 @@ function generateInsights(){
       `Top mistake: "${mLabel(topMistake)}" (${pct}% of trades)`,
       `${mistakeLosses} убытков связаны с этой ошибкой`,
       `${mistakeLosses} losses linked to this mistake`,
-      topMistake==='early_entry'?isRu?'Свеча не закрылась — нет сигнала. Жди BOS/CHOCH + реакцию от зоны, иначе входишь на предположении':'Candle hasn\'t closed — no signal. Wait for BOS/CHOCH + zone reaction, otherwise you\'re guessing'
+      topMistake==='early_entry'?isRu?'Свеча не закрылась — нет сигнала. Ждите BOS/CHOCH + реакцию от зоны, иначе входите на предположении':'Candle hasn\'t closed — no signal. Wait for BOS/CHOCH + zone reaction, otherwise you\'re guessing'
        :topMistake==='no_confirm'?isRu?'Неполный сигнал = случайный результат. 100% чеклист или нет входа — без исключений':'Incomplete signal = random result. 100% checklist or no entry — no exceptions'
        :topMistake==='overtrade'?isRu?'Лимит 2 сделки в день. Третья — только если первые две чистые. После 2 убытков — стоп на день':'Max 2 trades per day. Third only if first two were clean. After 2 losses — done for the day'
-       :topMistake==='broke_plan'?isRu?'Нарушил план — не знаешь где ошибся. Записывай entry/SL/TP до входа и не прикасайся к SL после':'Breaking plan = you can\'t tell where you went wrong. Write entry/SL/TP before entry, never touch SL after'
-       :isRu?'Системная ошибка. Разбери последние 5 случаев — найди триггер':'Systematic error. Review last 5 occurrences — find the trigger',
+       :topMistake==='broke_plan'?isRu?'Нарушили план — не знаете, где ошиблись. Записывайте entry/SL/TP до входа и не прикасайтесь к SL после':'Breaking plan = you can\'t tell where you went wrong. Write entry/SL/TP before entry, never touch SL after'
+       :isRu?'Системная ошибка. Разберите последние 5 случаев — найдите триггер':'Systematic error. Review last 5 occurrences — find the trigger',
       topMistake==='early_entry'?'Candle hasn\'t closed — no signal. Wait for BOS/CHOCH + zone reaction, otherwise you\'re guessing'
        :topMistake==='no_confirm'?'Incomplete signal = random result. 100% checklist or no entry — no exceptions'
        :topMistake==='overtrade'?'Max 2 trades per day. Third only if first two were clean. After 2 losses — done for the day'
@@ -4991,8 +5014,8 @@ function generateInsights(){
       isRu?'Not enough trades to evaluate strategy':'Недостаточно сделок для оценки стратегии',
       isRu?`${overallTotal} из 30 минимальных`:`${overallTotal} of 30 minimum`,
       isRu?`${overallTotal} of 30 minimum`:`${overallTotal} из 30 минимальных`,
-      isRu?'Набери 30 сделок по одному сетапу — только тогда статистика значима':'Collect 30 trades on one setup — only then does the data mean something',
-      isRu?'Collect 30 trades on one setup — only then does the data mean something':'Набери 30 сделок по одному сетапу — только тогда статистика значима',
+      isRu?'Наберите 30 сделок по одному сетапу — только тогда статистика значима':'Collect 30 trades on one setup — only then does the data mean something',
+      isRu?'Collect 30 trades on one setup — only then does the data mean something':'Наберите 30 сделок по одному сетапу — только тогда статистика значима',
       {id:'strategy_no_data', count:overallTotal}
     );
   } else {
@@ -5018,8 +5041,8 @@ function generateInsights(){
           `Weak strategy efficiency (E = ${expFmt})`,
           isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
           isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`,
-          isRu?'Expectancy близко к нулю — стратегия едва покрывает убытки. Проверь качество входов и дисциплину':'Expectancy near zero — strategy barely covers losses. Check entry quality and discipline',
-          isRu?'Check entry quality and discipline':'Проверь качество входов и дисциплину',
+          isRu?'Expectancy близко к нулю — стратегия едва покрывает убытки. Проверьте качество входов и дисциплину':'Expectancy near zero — strategy barely covers losses. Check entry quality and discipline',
+          isRu?'Check entry quality and discipline':'Проверьте качество входов и дисциплину',
           {id:'strategy_expectancy_ok', count:overallTotal}
         );
       } else {
@@ -5028,8 +5051,8 @@ function generateInsights(){
           `Strategy is profitable (E = ${expFmt})`,
           isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
           isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`,
-          isRu?'Положительный expectancy = система работает. Не меняй то, что работает — масштабируй постепенно':'Positive expectancy = system works. Don\'t change what\'s working — scale gradually',
-          isRu?'Don\'t change what\'s working — scale gradually':'Не меняй то, что работает — масштабируй постепенно',
+          isRu?'Положительный expectancy = система работает. Не меняйте то, что работает — масштабируйте постепенно':'Positive expectancy = system works. Don\'t change what\'s working — scale gradually',
+          isRu?'Don\'t change what\'s working — scale gradually':'Не меняйте то, что работает — масштабируйте постепенно',
           {id:'strategy_expectancy_good', count:overallTotal}
         );
       }
@@ -5068,9 +5091,9 @@ function generateInsights(){
     ins('warn','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline stroke-linecap="round" stroke-linejoin="round" points="17 18 23 18 23 12"/></svg>',
       `Макс. просадка: ${maxDD.toFixed(1)}%`,
       `Max drawdown: ${maxDD.toFixed(1)}%`,
-      isRu?'Снизь размер позиций':'Consider reducing position sizes',
+      isRu?'Снизьте размер позиций':'Consider reducing position sizes',
       'Consider reducing position sizes',
-      `Просадка = риск 0.5%, только A+ сетапы. На просадке мстишь рынку — не давай себе этой возможности`,
+      `Просадка = риск 0.5%, только A+ сетапы. На просадке мстите рынку — не давайте себе этой возможности`,
       `Drawdown = 0.5% risk, A+ setups only. In drawdown you revenge-trade — don't give yourself the option`,
       {id:'drawdown', count:t.length}
     );
@@ -5339,31 +5362,31 @@ function getGoalTip(g, pct, cur){
   const done = pct >= 100;
   switch(g.type){
     case 'winrate':
-      if(done)  return ru?'Цель достигнута. Поддерживай стабильность — не меняй рабочую систему':'Goal reached. Maintain consistency — don\'t change what\'s working';
-      if(pct<50) return ru?'WR отстаёт — входи только при 100% подтверждении сетапа. Меньше сделок, выше качество':'WR lagging — enter only at 100% setup confirmation. Fewer trades, higher quality';
-      if(pct<75) return ru?'Прогресс есть. Ищи A+ точки входа — один хороший вход лучше трёх сомнительных':'Progress made. Hunt A+ entries — one quality entry beats three mediocre ones';
-      return ru?'Близко к цели. Не меняй стратегию — продолжай торговать только свой сетап':'Close to target. Don\'t change strategy — keep trading your setup only';
+      if(done)  return ru?'Цель достигнута. Поддерживайте стабильность — не меняйте рабочую систему':'Goal reached. Maintain consistency — don\'t change what\'s working';
+      if(pct<50) return ru?'WR отстаёт — входите только при 100% подтверждении сетапа. Меньше сделок, выше качество':'WR lagging — enter only at 100% setup confirmation. Fewer trades, higher quality';
+      if(pct<75) return ru?'Прогресс есть. Ищите A+ точки входа — один хороший вход лучше трёх сомнительных':'Progress made. Hunt A+ entries — one quality entry beats three mediocre ones';
+      return ru?'Близко к цели. Не меняйте стратегию — продолжайте торговать только свой сетап':'Close to target. Don\'t change strategy — keep trading your setup only';
     case 'trades':
-      if(done)  return ru?'Выборка набрана. Теперь анализируй статистику и ищи паттерны':'Sample complete. Now analyze your statistics and find patterns';
-      if(pct<50) return ru?'Набирай выборку без спешки. Качество каждой сделки важнее скорости':'Build sample without rush. Quality of each trade matters more than speed';
-      return ru?'Хороший темп. Не торгуй ради числа — только подтверждённые сетапы':'Good pace. Don\'t trade for count — confirmed setups only';
+      if(done)  return ru?'Выборка набрана. Теперь анализируйте статистику и ищите паттерны':'Sample complete. Now analyze your statistics and find patterns';
+      if(pct<50) return ru?'Набирайте выборку без спешки. Качество каждой сделки важнее скорости':'Build sample without rush. Quality of each trade matters more than speed';
+      return ru?'Хороший темп. Не торгуйте ради числа — только подтверждённые сетапы':'Good pace. Don\'t trade for count — confirmed setups only';
     case 'pnl':
-      if(done)  return ru?'Цель по P&L выполнена. Зафиксируй подход, который привёл к результату':'P&L goal reached. Document the approach that got you here';
-      if(cur<0) return ru?'P&L в минусе — снизь риск до 0.5% на сделку, торгуй только лучшие сетапы':'P&L negative — reduce risk to 0.5% per trade, trade best setups only';
-      if(pct<50) return ru?'Медленный старт. Один убыток не должен съедать больше трёх побед — контролируй размер':'Slow start. One loss shouldn\'t cancel three wins — control position size';
-      return ru?'Прогресс есть. Не рискуй ради ускорения — стабильность важнее рывка':'Progress is there. Don\'t rush — consistency beats acceleration';
+      if(done)  return ru?'Цель по P&L выполнена. Зафиксируйте подход, который привёл к результату':'P&L goal reached. Document the approach that got you here';
+      if(cur<0) return ru?'P&L в минусе — снизьте риск до 0.5% на сделку, торгуйте только лучшие сетапы':'P&L negative — reduce risk to 0.5% per trade, trade best setups only';
+      if(pct<50) return ru?'Медленный старт. Один убыток не должен съедать больше трёх побед — контролируйте размер':'Slow start. One loss shouldn\'t cancel three wins — control position size';
+      return ru?'Прогресс есть. Не рискуйте ради ускорения — стабильность важнее рывка':'Progress is there. Don\'t rush — consistency beats acceleration';
     case 'discipline':
-      if(done)  return ru?'Дисциплина на уровне. Это твой главный edge — поддерживай':'Discipline level achieved. This is your main edge — maintain it';
+      if(done)  return ru?'Дисциплина на уровне. Это ваш главный edge — поддерживайте':'Discipline level achieved. This is your main edge — maintain it';
       if(pct<50) return ru?'Дисциплина просела. Чеклист перед каждым входом — не опционально. Одно нарушение = стоп на день':'Discipline dropped. Checklist before every entry — not optional. One violation = stop for the day';
-      return ru?'Прогресс есть. Система и среда важнее мотивации — убери лишние триггеры':'Progress made. Systems beat motivation — remove triggers that cause violations';
+      return ru?'Прогресс есть. Система и среда важнее мотивации — уберите лишние триггеры':'Progress made. Systems beat motivation — remove triggers that cause violations';
     case 'rr':
-      if(done)  return ru?'R:R достигнут. Не двигай SL — позволяй победителям идти до TP':'R:R reached. Don\'t move SL — let winners run to TP';
-      if(pct<50) return ru?'R:R ниже цели. Не бери ранний TP — один хороший выход компенсирует два убытка':'R:R below target. Don\'t take early TP — one good exit offsets two losses';
-      return ru?'R:R растёт. Режь убытки рано, держи победителей до TP — не выходи на эмоциях':'R:R growing. Cut losses early, hold winners to TP — don\'t exit emotionally';
+      if(done)  return ru?'R:R достигнут. Не двигайте SL — позволяйте победителям идти до TP':'R:R reached. Don\'t move SL — let winners run to TP';
+      if(pct<50) return ru?'R:R ниже цели. Не берите ранний TP — один хороший выход компенсирует два убытка':'R:R below target. Don\'t take early TP — one good exit offsets two losses';
+      return ru?'R:R растёт. Режьте убытки рано, держите победителей до TP — не выходите на эмоциях':'R:R growing. Cut losses early, hold winners to TP — don\'t exit emotionally';
     case 'drawdown':
       return ru?`Лимит просадки: ${g.target}%. После достижения — обязательный стоп, разбор причин, снижение риска до восстановления`:`Drawdown limit: ${g.target}%. When hit — mandatory stop, review causes, reduce risk until recovered`;
     default:
-      return ru?'Следуй плану. Стабильность важнее скорости':'Stick to the plan. Consistency beats speed';
+      return ru?'Следуйте плану. Стабильность важнее скорости':'Stick to the plan. Consistency beats speed';
   }
 }
 
@@ -5637,6 +5660,12 @@ function openStyledPopup(wrap){
     const r = wrap.getBoundingClientRect();
     const below = window.innerHeight - r.bottom;
     if(below < popup.offsetHeight + 16 && r.top > below) wrap.classList.add('up');
+    // keep it inside the screen sideways too: a wide calendar under a narrow field would leave the edge
+    popup.style.left = ''; popup.style.right = '';
+    // layout box (offsetLeft/Width), not the drawn one: the opening animation scales the popup
+    const left = r.left + popup.offsetLeft, right = left + popup.offsetWidth, gap = 8;
+    const shift = left < gap ? gap - left : right > window.innerWidth - gap ? (window.innerWidth - gap) - right : 0;
+    if(shift){ popup.style.left = Math.round(popup.offsetLeft + shift)+'px'; popup.style.right = 'auto'; }
     const cur = popup.querySelector('.ssel-opt.sel, .dp-day.sel') || popup.querySelector('button:not([disabled])');
     if(cur) cur.focus({preventScroll:true});
   }
@@ -5875,7 +5904,7 @@ function renderAnalytics(){
   document.getElementById('anSummary').innerHTML = `
     <div class="an-card"><div class="an-card-title">${T('an_total')}</div><div class="an-big" style="color:var(--text)">${total}</div></div>
     <div class="an-card"><div class="an-card-title">${T('an_winrate')}</div><div class="an-big" style="color:${wrColor(wr)}">${wr!==null?wr.toFixed(1)+'%':'—'}</div></div>
-    <div class="an-card" onclick="toggleRRView()" style="cursor:pointer" title="${lang==='ru'?'Нажми для переключения':'Click to toggle'}">
+    <div class="an-card" onclick="toggleRRView()" style="cursor:pointer" title="${lang==='ru'?'Нажмите для переключения':'Click to toggle'}">
       <div class="an-card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span id="anRRLabel">${rrViewMode==='wins'?(lang==='ru'?'R:R (победы)':'R:R (wins)'):(lang==='ru'?'Средний R:R':'Avg R:R')}</span>
         <span style="font-size:12px;color:var(--text-muted);margin-left:4px">${lang==='ru'?'сменить':'switch'}</span>
@@ -6482,6 +6511,17 @@ function deleteTrade(id){
   }
 }
 
+// A hidden toast is inert: its «Отменить» leaves the Tab order and screen readers, the fade-out stays as it is
+(()=>{ const t=document.getElementById('toast'); if(!t) return;
+  const sync=()=>{ t.inert = !t.classList.contains('show'); };
+  new MutationObserver(sync).observe(t, {attributes:true, attributeFilter:['class']}); sync(); })();
+// Keyboard: while «Отменить» is on screen, Ctrl+Z (⌘Z) undoes the delete — the toast sits last in Tab order
+document.addEventListener('keydown', e=>{
+  if(!(e.ctrlKey||e.metaKey) || e.key.toLowerCase()!=='z' || !undoTrade) return;
+  if(e.target.closest && e.target.closest('input,textarea,[contenteditable]')) return;   // text fields keep their own undo
+  if(!document.getElementById('toast').classList.contains('show')) return;
+  e.preventDefault(); undoDelete();
+});
 function undoDelete(){
   if(!undoTrade) return;
   // An undo left over from another account (or an earlier sign-in) does nothing
@@ -7176,7 +7216,7 @@ function applyIdeaModalLang(){
   _ideaTxt('iBtnConvLow','Низкая','Low');
   _ideaTxt('iBtnConvMed','Средняя','Med');
   _ideaTxt('iBtnConvHigh','Высокая','High');
-  _ideaPh('iNote','Что увидел, план входа, что ждёшь...','What you see, entry plan, what you wait for...');
+  _ideaPh('iNote','Что увидел, план входа, что ждёте...','What you see, entry plan, what you wait for...');
 }
 
 function openIdeaModal(editId){
@@ -7292,7 +7332,7 @@ function saveIdeaFromModal(){
   const pair = document.getElementById('iPair').value.trim();
   const note = document.getElementById('iNote').value.trim();
   if(!pair && !note){
-    toastWarn(lang==='ru'?'Укажи инструмент или заметку':'Add an instrument or a note');
+    toastWarn(lang==='ru'?'Укажите инструмент или заметку':'Add an instrument or a note');
     return;
   }
   const base = editingIdeaId ? (ideas.find(x=>x.id===editingIdeaId)||{}) : {};
@@ -7363,7 +7403,7 @@ function convertIdeaToTrade(id){
       document.getElementById('imgUploadArea').style.display='none';
     }
     if(typeof calcRR==='function') calcRR();
-    showToast(lang==='ru'?'Идея → сделка. Заполни результат':'Idea → trade. Add the result');
+    showToast(lang==='ru'?'Идея → сделка. Заполните результат':'Idea → trade. Add the result');
   },120);
 }
 
@@ -7447,7 +7487,7 @@ function renderIdeas(){
 
   let html='';
   if(!watching.length && !archived.length){
-    html = `<div class="idea-empty"><div>${lang==='ru'?'Пока нет идей. Нажми «+ Идея», чтобы быстро записать сетап перед входом.':'No ideas yet. Tap "+ Idea" to quickly capture a setup before you enter.'}</div></div>`;
+    html = `<div class="idea-empty"><div>${lang==='ru'?'Пока нет идей. Нажмите «+ Идея», чтобы быстро записать сетап перед входом.':'No ideas yet. Tap "+ Idea" to quickly capture a setup before you enter.'}</div></div>`;
   } else {
     html = watching.map(ideaCardHTML).join('');
     if(archived.length){
@@ -7484,7 +7524,7 @@ function openEditTrade(id){
     dir:    t.dir||'buy',        entry:  t.entry||'',
     sl:     t.sl||'',            tp:     t.tp||'',
     pnl:    t.pnl||'',           date:   t.date||new Date().toISOString().split('T')[0],
-    result: t.result||'win',     setup:  t.setup||null,
+    result: t.result,            setup:  t.setup||null,
     notes:  t.notes||'',         tags:   t.tags?[...t.tags]:[],
     img:    t.img||t.img_url||null, byPlan: t.byPlan,
     emotional:t.emotional,       checklistScore:t.checklistScore,
@@ -7632,7 +7672,7 @@ function saveGoal(){
   const target=parseFloat(document.getElementById('goalTarget').value);
   const days=parseInt(document.getElementById('goalDays').value)||30;
   const name=document.getElementById('goalName').value.trim();
-  if(!target||isNaN(target)){showToast(lang==='ru'?'Укажи целевое значение!':'Enter target value!');return;}
+  if(!target||isNaN(target)){showToast(lang==='ru'?'Укажите целевое значение!':'Enter target value!');return;}
   goals.push({id:Date.now().toString(), type, target, days, name, createdAt:new Date().toISOString()});
   syncSettings();
   closeModal('goalsModal');
@@ -7713,7 +7753,7 @@ function updateBackupStatus(){
     card.style.borderColor = 'var(--accent-muted)';
     warning.style.display = 'block';
     warning.textContent = lang==='ru'
-      ? `Эти сделки сохранены на твоём устройстве, но ещё не попали в облако. Они синхронизируются автоматически при следующем подключении к серверу.`
+      ? `Эти сделки сохранены на вашем устройстве, но ещё не попали в облако. Они синхронизируются автоматически при следующем подключении к серверу.`
       : `These trades are saved on your device but not yet in the cloud. They will sync automatically when the server is reachable.`;
   } else {
     dot.style.background = 'var(--positive)';
@@ -7945,6 +7985,8 @@ function openFullscreen(src){
     if(!src) return;
   }
   document.getElementById('fsImg').src=src;
+  document.getElementById('fsImg').alt=T('img_chart_alt');
+  document.getElementById('fullscreen').setAttribute('aria-label', lang==='ru'?'Скриншот':'Screenshot');
   document.getElementById('fullscreen').classList.add('open');
 }
 function closeFullscreen(){document.getElementById('fullscreen').classList.remove('open');setTimeout(()=>document.getElementById('fsImg').src='',300);}
@@ -8036,7 +8078,7 @@ const STRINGS = {
     range_hint:'Боковой рынок',
     offplan_hint:'Вне плана',
     // Checklist
-    checklist_hint:'Отметь что было выполнено перед входом в сделку.',
+    checklist_hint:'Отметьте что было выполнено перед входом в сделку.',
     cl_liq:'Ликвидность была снята перед входом',
     cl_str:'Подтверждение структуры присутствовало',
     cl_htf:'HTF был в синергии (выравнивание)',
@@ -8132,7 +8174,7 @@ const STRINGS = {
     bulk_selected:'выбрано',
     bulk_delete:'Удалить',
     // Toasts & errors
-    err_pair:'Введи инструмент!',err_result:'Выберите результат: Win, Loss или B/E',
+    err_pair:'Введите инструмент!',err_result:'Выберите результат: Win, Loss или B/E',
     toast_saved:'Сделка сохранена',
     toast_deleted:'Сделка удалена',
     toast_cap:'Депозит сохранён',
@@ -8140,14 +8182,14 @@ const STRINGS = {
     toast_goal_del:'Цель удалена',
     toast_backup:'Бэкап сохранён!',
     // Empty states
-    no_trades:'Нет сделок', no_trades_sub:'Нажми + чтобы добавить первую сделку',
-    no_filter_trades:'Нет сделок', no_filter_sub:'Попробуй изменить фильтры',
+    no_trades:'Нет сделок', no_trades_sub:'Нажмите + чтобы добавить первую сделку',
+    no_filter_trades:'Нет сделок', no_filter_sub:'Попробуйте изменить фильтры',
     no_data:'Нет данных',
     // Insights (dynamic — keys used in generateInsights)
-    ins_session_good:'Ты торгуешь лучше во время {0} сессии (+{1}% к винрейту)',
-    ins_session_bad:'{0} сессия снижает твой винрейт на {1}%',
-    ins_setup_best:'Сетап "{0}" — твой лучший. Винрейт {1}%',
-    ins_setup_bad:'Сетап "{0}" показывает слабые результаты ({1}% WR). Пересмотри его.',
+    ins_session_good:'Вы торгуете лучше во время {0} сессии (+{1}% к винрейту)',
+    ins_session_bad:'{0} сессия снижает ваш винрейт на {1}%',
+    ins_setup_best:'Сетап "{0}" — ваш лучший. Винрейт {1}%',
+    ins_setup_bad:'Сетап "{0}" показывает слабые результаты ({1}% WR). Пересмотрите его.',
     ins_rr_good:'Винрейт растёт когда R:R ≥ 1:2 (+{0}%)',
     ins_emo:'Эмоциональные сделки снижают винрейт на {0}%',
     ins_disc_low:'Дисциплина упала до {0}%. Рекомендуем сделать паузу.',
@@ -8498,10 +8540,13 @@ function applyLang(){
    ['qImgText','Выберите файл, перетащите или вставьте Ctrl+V','Choose a file, drop it or paste with Ctrl+V'],
    ['imgUploadTitle','Загрузить скриншот','Upload a screenshot'],
    ['capLbl','Депозит ($)','Deposit ($)'],
-   ['backupTip','Скачивай бэкап раз в неделю и сохраняй в облако (Google Диск, iCloud)','Download a backup once a week and keep it in the cloud (Google Drive, iCloud)']
+   ['backupTip','Скачивайте бэкап раз в неделю и сохраняйте в облако (Google Диск, iCloud)','Download a backup once a week and keep it in the cloud (Google Drive, iCloud)']
   ].forEach(([id,ru,en])=>{ const el=document.getElementById(id); if(el) el.textContent = lang==='ru' ? ru : en; });
   document.querySelectorAll('[data-i="btn_back"]').forEach(b=>{ b.textContent = T('back'); });
   _setT('capModalTitle', 'cap_modal_title');
+  [['tagInput','тег, Enter...','tag, Enter...'],['tNotes','Причина входа, что заметили...','Why you entered, what you noticed...'],
+   ['qNotes','Коротко о сделке...','The trade in a few words...']
+  ].forEach(([id,ru,en])=>{ const el=document.getElementById(id); if(el) el.placeholder = lang==='ru' ? ru : en; });
   _setT('capSaveLbl', 'save');
   const bst = document.getElementById('backupStatusText');   // the placeholder before the backup check answers
   if(bst && /^(Проверяю|Checking)\.\.\.$/.test(bst.textContent)) bst.textContent = lang==='ru' ? 'Проверяю...' : 'Checking...';
@@ -9330,7 +9375,7 @@ function renderPnlCalendar(){
       if(!c) return '<div class="pc-cell pc-blank"></div>';
       const a=c.v?(.10+Math.abs(c.v.pnl)/maxAbs*.24).toFixed(2):0;   // at most .34: the day's text stays ≥4.5:1
       const bg=c.v?(c.v.pnl>0?`rgba(79,209,165,${a})`:c.v.pnl<0?`rgba(255,107,107,${a})`:'var(--surface-3)'):'';
-      return `<button type="button" class="pc-cell${c.ds===today?' today':''}${c.ds===sel?' sel':''}${c.v?'':' none'}" ${c.v?`onclick="pnlCalPick('${c.ds}')"`:'disabled'} style="${bg?'background:'+bg:''}" aria-label="${c.ds}${c.v?', '+money(c.v.pnl):''}"><span>${c.d}</span>${c.v?`<b>${short(c.v.pnl)}</b>`:''}</button>`;
+      return `<button type="button" class="pc-cell${c.ds===today?' today':''}${c.ds===sel?' sel':''}${c.v?'':' none'}" ${c.v?`onclick="pnlCalPick('${c.ds}')"`:'disabled'} style="${bg?'background:'+bg:''}" aria-label="${new Date(c.ds+'T12:00:00').toLocaleDateString(ru?'ru-RU':'en-GB',{day:'numeric',month:'long'})}${c.v?', '+money(c.v.pnl):''}"><span>${c.d}</span>${c.v?`<b>${short(c.v.pnl)}</b>`:''}</button>`;
     }).join('') + `<div class="pc-week ${wsum>0?'green':wsum<0?'red':''}">${wn?short(wsum):''}</div>`;
   }
   const wd=ru?['Пн','Вт','Ср','Чт','Пт','Сб','Вс']:['Mo','Tu','We','Th','Fr','Sa','Su'];
@@ -9843,7 +9888,7 @@ function v4Operable(){
   let queued = false;
   const later = ()=>{ if(queued) return; queued = true; setTimeout(()=>{ queued = false; mark(document); v4A11yPass(); }, 0); };
   new MutationObserver(records=>{
-    if(records.some(r=>r.type==='childList' || r.target.classList.contains('mtab') || r.target.classList.contains('tbtn'))) later();
+    if(records.some(r=>r.type==='childList' || r.target.matches('.mtab, .tbtn, .tpill, .pc-chip, .nb, .s-seg button'))) later();
   }).observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['class']});
   document.addEventListener('keydown', e=>{
     if(e.key!=='Enter' && e.key!==' ') return;
@@ -9876,13 +9921,18 @@ function v4A11yPass(){
     if(field.id && !lbl.htmlFor) lbl.htmlFor = field.id;
     // one label over several fields (Entry / SL / TP): the others are named «label: placeholder»
     box.querySelectorAll('input:not([type=hidden]):not([type=file]),textarea').forEach(f=>{
-      if(f!==field && !f.labels.length && !f.hasAttribute('aria-label') && f.placeholder) f.setAttribute('aria-label', lbl.textContent.trim()+': '+f.placeholder);
+      if(f!==field && !f.labels.length && (!f.hasAttribute('aria-label') || f.dataset.v4Name) && f.placeholder){   // ours: renamed with the language
+        f.setAttribute('aria-label', lbl.textContent.trim()+': '+f.placeholder); f.dataset.v4Name = '1';
+      }
     });
     const wrap = field.dataset.enhanced && (document.getElementById('ssel_'+field.id) || document.getElementById('dp_'+field.id));
     const trg = wrap && wrap.querySelector('.ssel-trigger'), val = trg && trg.querySelector('.ssel-lbl');
     if(trg && val) trg.setAttribute('aria-labelledby', idOf(lbl)+' '+idOf(val));
   });
   document.querySelectorAll('.toggle-group .tbtn').forEach(b=>b.setAttribute('aria-pressed', String(/(^|\s)sel-/.test(b.className))));
+  document.querySelectorAll('.tpill, .s-seg button').forEach(b=>b.setAttribute('aria-pressed', String(b.classList.contains('active'))));
+  document.querySelectorAll('.pc-chip').forEach(b=>b.setAttribute('aria-pressed', String(b.classList.contains('on'))));
+  document.querySelectorAll('.nb').forEach(b=>{ if(b.classList.contains('active')) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   document.querySelectorAll('.s-row').forEach(row=>{
     const inp = row.querySelector('.s-toggle input, input.s-num'), lbl = row.querySelector('.s-row-lbl'), sub = row.querySelector('.s-row-sub');
     if(!inp || !lbl) return;
