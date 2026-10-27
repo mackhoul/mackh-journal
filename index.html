@@ -1558,6 +1558,20 @@ body.light .cal-day.today,body.light .cal-day.selected{color:var(--accent-ink)} 
   #bulkBar button{min-width:44px}
 }
 @media (pointer:coarse) and (max-width:639px){ .cal-popup{width:calc(100vw - 32px)} .dp-popup{width:calc(100vw - 32px);padding:10px} }   /* calendars span the phone: 7 days of ~44px */
+/* ── Last polish: 12px on cards with real data; screenshot buttons and «Отменить» answer a 44px touch ── */
+.tc-quality-lbl,.tag,.disc-item-lbl,.lr-mark span,.lr-mark em,.mistake-count,.img-act,.ideaPreviewRR{font-size:12px!important}
+.mistake-count{width:20px}
+@media (pointer:coarse){
+  .img-act,.toast-undo{position:relative}
+  :is(.img-act,.toast-undo)::after{content:'';position:absolute;top:50%;left:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+  .toast-undo{display:inline-block;padding:4px 2px}
+  .toast{padding-top:10px;padding-bottom:10px}   /* the toast holds the whole 44px zone, so it never reaches the menu below */
+}
+/* calendars on a phone: no gaps between days, so a 360px screen still gets 44px days; landscape phones get a wider calendar */
+@media (pointer:coarse) and (max-width:767px){
+  .cal-grid{gap:0;padding:8px 8px 8px} .dp-popup{padding:10px 8px} .dp-wd,.dp-grid{gap:0}
+}
+@media (pointer:coarse) and (min-width:640px) and (max-width:767px){ .cal-popup,.dp-popup{width:340px} }
 /* toasts and the quick entry's save button clear the home bar in Telegram too */
 @media (max-width:1023px){
   .toast{bottom:calc(88px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
@@ -1652,7 +1666,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     </div>
     <div class="phdr-tools">
       <!-- Sync status dot -->
-      <div id="syncDot" title="Статус синхронизации" style="width:8px;height:8px;border-radius:50%;background:var(--text-muted);flex-shrink:0;transition:background .3s" onclick="showSyncDetails()"></div>
+      <div id="syncDot" title="Статус синхронизации" aria-label="Статус синхронизации" style="width:8px;height:8px;border-radius:50%;background:var(--text-muted);flex-shrink:0;transition:background .3s" onclick="showSyncDetails()"></div>
       <button class="picon" onclick="toggleTheme()" id="themeBtn" title="Toggle theme"><svg fill="currentColor" viewBox="0 0 24 24" stroke="none" width="14" height="14"><path d="M20 14.5A8.5 8.5 0 1110.2 4.3a.6.6 0 01.7.9A6.7 6.7 0 0018.8 14a.6.6 0 01.9.7c.1.27.2.53.3.8z"/></svg></button>
       <button class="picon" onclick="openExportModal()" title="Export/Import"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4l4 4H8v9a2 2 0 002 2h1M17 20l-4-4h3V7a2 2 0 00-2-2h-1"/></svg></button>
       <button class="picon" onclick="openSettings()" title="Settings" id="settingsBtn"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-linecap="round"/></svg></button>
@@ -1846,7 +1860,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
   <div class="mtabs" id="homeMtabs">
     <div class="mtab active" data-market="all" id="hmtab_all">Все</div>
     <div class="mtab" data-market="forex" id="hmtab_forex">Forex</div>
-    <div class="mtab" data-market="crypto" id="hmtab_crypto">Крипта</div>
+    <div class="mtab" data-market="crypto" id="hmtab_crypto">Крипто</div>
     <div class="mtab" data-market="stocks" id="hmtab_stocks">Акции</div>
     <div class="mtab" data-market="metals" id="hmtab_metals">Металлы</div>
   </div>
@@ -1870,7 +1884,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
   <div class="mtabs" id="tradesMtabs">
     <div class="mtab active" data-market="all" id="tmtab_all">Все</div>
     <div class="mtab" data-market="forex" id="tmtab_forex">Forex</div>
-    <div class="mtab" data-market="crypto" id="tmtab_crypto">Крипта</div>
+    <div class="mtab" data-market="crypto" id="tmtab_crypto">Крипто</div>
     <div class="mtab" data-market="stocks" id="tmtab_stocks">Акции</div>
     <div class="mtab" data-market="metals" id="tmtab_metals">Металлы</div>
   </div>
@@ -2213,8 +2227,8 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <div class="img-preview" id="imgPreview">
           <img id="imgPreviewSrc" src="" alt="">
           <div class="img-acts">
-            <button class="img-act" onclick="openFullscreen(document.getElementById('imgPreviewSrc').src)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7"/></svg>Открыть</button>
-            <button class="img-act danger" onclick="removeImg()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>Удалить</button>
+            <button class="img-act" onclick="openFullscreen(document.getElementById('imgPreviewSrc').src)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7"/></svg><span data-img-act="open">Открыть</span></button>
+            <button class="img-act danger" onclick="removeImg()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg><span data-img-act="remove">Удалить</span></button>
           </div>
         </div>
       </div>
@@ -2637,7 +2651,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <div class="img-preview" id="qImgPreview" style="display:none">
           <img id="qImgPreviewSrc" src="" alt="" style="width:100%;border-radius:8px">
           <div class="img-acts">
-            <button class="img-act danger" onclick="removeQImg()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>Удалить</button>
+            <button class="img-act danger" onclick="removeQImg()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg><span data-img-act="remove">Удалить</span></button>
           </div>
         </div>
       </div>
@@ -2721,7 +2735,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <button type="button" class="idea-tag-chip" data-slug="#KillzoneNY" onclick="insertIdeaTag('Killzone NY',this)">Killzone NY</button>
           <button type="button" class="idea-tag-chip" data-slug="#KillzoneLondon" onclick="insertIdeaTag('Killzone London',this)">Killzone London</button>
         </div>
-        <textarea class="ftextarea" id="iNote" placeholder="Что увидел, план входа, что ждёте..."></textarea>
+        <textarea class="ftextarea" id="iNote" placeholder="Что увидели, план входа, чего ждёте..."></textarea>
       </div>
       <div class="fgroup">
         <label class="flabel" id="ilbl_ss">Скриншот</label>
@@ -2882,7 +2896,7 @@ async function doAuth(){
       let msg;
       if(m.includes('invalid login'))        msg = ru?'Неверный email или пароль':'Wrong email or password';
       else if(m.includes('already'))         msg = ru?'Такой аккаунт уже есть — войдите':'Account already exists — sign in';
-      else if(m.includes('rate'))            msg = ru?'Слишком много попыток, подожди немного':'Too many attempts, wait a moment';
+      else if(m.includes('rate'))            msg = ru?'Слишком много попыток, подождите немного':'Too many attempts, wait a moment';
       else                                   msg = data.error_description || data.msg || (ru?'Не получилось':'Something went wrong');
       showAuthMsg(msg);
       btn.disabled=false; setAuthMode(authMode); return;
@@ -5011,11 +5025,11 @@ function generateInsights(){
   if(overallTotal < 30){
     ins('info', stratIcon,
       isRu?'Недостаточно сделок для оценки стратегии':'Not enough trades to evaluate strategy',
-      isRu?'Not enough trades to evaluate strategy':'Недостаточно сделок для оценки стратегии',
+      'Not enough trades to evaluate strategy',
       isRu?`${overallTotal} из 30 минимальных`:`${overallTotal} of 30 minimum`,
-      isRu?`${overallTotal} of 30 minimum`:`${overallTotal} из 30 минимальных`,
+      `${overallTotal} of 30 minimum`,
       isRu?'Наберите 30 сделок по одному сетапу — только тогда статистика значима':'Collect 30 trades on one setup — only then does the data mean something',
-      isRu?'Collect 30 trades on one setup — only then does the data mean something':'Наберите 30 сделок по одному сетапу — только тогда статистика значима',
+      'Collect 30 trades on one setup — only then does the data mean something',
       {id:'strategy_no_data', count:overallTotal}
     );
   } else {
@@ -5030,9 +5044,9 @@ function generateInsights(){
           `Стратегия убыточна (E = ${expFmt})`,
           `Strategy is losing (E = ${expFmt})`,
           isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`,
-          isRu?'Отрицательный expectancy = система теряет деньги при любой дисциплине. Срочно пересмотри входы':'Negative expectancy = system loses money regardless of discipline. Urgently review entries',
-          isRu?'Urgently review entries and risk management':'Срочно пересмотри входы и управление рисками',
+          `WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
+          isRu?'Отрицательный expectancy = система теряет деньги при любой дисциплине. Срочно пересмотрите входы':'Negative expectancy = system loses money regardless of discipline. Urgently review entries',
+          'Urgently review entries and risk management',
           {id:'strategy_expectancy_bad', count:overallTotal}
         );
       } else if(exp < 0.2){
@@ -5040,9 +5054,9 @@ function generateInsights(){
           `Слабая эффективность стратегии (E = ${expFmt})`,
           `Weak strategy efficiency (E = ${expFmt})`,
           isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`,
+          `WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
           isRu?'Expectancy близко к нулю — стратегия едва покрывает убытки. Проверьте качество входов и дисциплину':'Expectancy near zero — strategy barely covers losses. Check entry quality and discipline',
-          isRu?'Check entry quality and discipline':'Проверьте качество входов и дисциплину',
+          'Check entry quality and discipline',
           {id:'strategy_expectancy_ok', count:overallTotal}
         );
       } else {
@@ -5050,9 +5064,9 @@ function generateInsights(){
           `Стратегия прибыльная (E = ${expFmt})`,
           `Strategy is profitable (E = ${expFmt})`,
           isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`,
+          `WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
           isRu?'Положительный expectancy = система работает. Не меняйте то, что работает — масштабируйте постепенно':'Positive expectancy = system works. Don\'t change what\'s working — scale gradually',
-          isRu?'Don\'t change what\'s working — scale gradually':'Не меняйте то, что работает — масштабируйте постепенно',
+          'Don\'t change what\'s working — scale gradually',
           {id:'strategy_expectancy_good', count:overallTotal}
         );
       }
@@ -5440,13 +5454,14 @@ function getGoalProgress(g){
   const disc = calcDiscipline();
   let cur=0, pct=0, label='';
   const target = parseFloat(g.target);
+  const ru = lang==='ru', now = ru?'Сейчас':'Now', goal = ru?'цель':'goal';
   switch(g.type){
-    case 'winrate': cur=wr||0; pct=cur/target*100; label=`Сейчас ${cur.toFixed(1)}% / цель ${target}%`; break;
-    case 'trades': cur=total; pct=cur/target*100; label=`${cur} из ${target} сделок`; break;
-    case 'pnl': cur=pnl; pct=cur/target*100; label=`$${cur.toFixed(0)} из $${target}`; break;
-    case 'discipline': cur=disc?disc.score:0; pct=cur/target*100; label=`Сейчас ${cur.toFixed(0)}% / цель ${target}%`; break;
-    case 'rr': cur=avgRR||0; pct=cur/target*100; label=`Сейчас 1:${cur.toFixed(2)} / цель 1:${target}`; break;
-    case 'drawdown': label=`Лимит просадки ${target}%`; pct=50; break;
+    case 'winrate': cur=wr||0; pct=cur/target*100; label=`${now} ${cur.toFixed(1)}% / ${goal} ${target}%`; break;
+    case 'trades': cur=total; pct=cur/target*100; label=ru?`${cur} из ${target} сделок`:`${cur} of ${target} trades`; break;
+    case 'pnl': cur=pnl; pct=cur/target*100; label=ru?`$${cur.toFixed(0)} из $${target}`:`$${cur.toFixed(0)} of $${target}`; break;
+    case 'discipline': cur=disc?disc.score:0; pct=cur/target*100; label=`${now} ${cur.toFixed(0)}% / ${goal} ${target}%`; break;
+    case 'rr': cur=avgRR||0; pct=cur/target*100; label=`${now} 1:${cur.toFixed(2)} / ${goal} 1:${target}`; break;
+    case 'drawdown': label=ru?`Лимит просадки ${target}%`:`Drawdown limit ${target}%`; pct=50; break;
   }
   return {pct, cur, label};
 }
@@ -6267,10 +6282,10 @@ function tcHTML(t){
 
   let qualityHTML = '';
   if(isClean){
-    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--positive)"><span class="tc-quality-dot" style="background:var(--positive)"></span>Clean</span>`;
+    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--positive)"><span class="tc-quality-dot" style="background:var(--positive)"></span>${lang==='ru'?'Чистая':'Clean'}</span>`;
   } else if(isDirty){
     const mistakeLabel = hasMistakes ? `, ${mLabel(t.mistakes[0])}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}` : '';
-    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--negative)"></span>Dirty${mistakeLabel}</span>`;
+    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--negative)"></span>${lang==='ru'?'Грязная':'Dirty'}${mistakeLabel}</span>`;
   } else if(hasMistakes){
     qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--warning)"></span>${mLabel(t.mistakes[0])}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}</span>`;
   }
@@ -7212,11 +7227,12 @@ function applyIdeaModalLang(){
   _ideaTxt('ilbl_ss','Скриншот','Screenshot');
   _ideaTxt('iImgText','Выберите файл, перетащите или вставьте Ctrl+V','Choose a file, drop it or paste with Ctrl+V');
   _ideaTxt('iImgDel','Удалить','Remove');
+  document.querySelectorAll('#iMarket option').forEach(o=>{ o.textContent = T('market_'+o.value); });
   _ideaTxt('iSaveLbl', editingIdeaId?'Сохранить':'Сохранить идею', editingIdeaId?'Save':'Save idea');
   _ideaTxt('iBtnConvLow','Низкая','Low');
   _ideaTxt('iBtnConvMed','Средняя','Med');
   _ideaTxt('iBtnConvHigh','Высокая','High');
-  _ideaPh('iNote','Что увидел, план входа, что ждёте...','What you see, entry plan, what you wait for...');
+  _ideaPh('iNote','Что увидели, план входа, чего ждёте...','What you see, entry plan, what you wait for...');
 }
 
 function openIdeaModal(editId){
@@ -7727,6 +7743,7 @@ function setSyncStatus(state){
     offline: lang==='ru'?'Нет соединения с сервером':'Server offline',
     loading: lang==='ru'?'Синхронизация...':'Syncing...',
   }[state] || '';
+  dot.setAttribute('aria-label', dot.title || (lang==='ru'?'Статус синхронизации':'Sync status'));
 }
 
 function showSyncDetails(){
@@ -8039,7 +8056,7 @@ const STRINGS = {
     insights_title:'Инсайты', insights_empty:'Инсайты появятся сами, когда в журнале наберётся достаточно сделок.',
     goals_title:'Цели', goals_add:'+ Добавить',
     // Market tabs
-    tab_all:'Все', tab_forex:'Forex', tab_crypto:'Крипта',
+    tab_all:'Все', tab_forex:'Forex', tab_crypto:'Крипто',
     tab_stocks:'Акции', tab_metals:'Металлы',
     // Insights section
     insights_see_all:'Все',
@@ -8477,6 +8494,9 @@ function applyLang(){
   // "No data" in discipline section — re-render progress if active
   if(document.getElementById('page-progress').classList.contains('active')) renderProgress();
   _setT('goalsAddBtn','goals_add');
+  _setT('goalsSTitle','goals_title');
+  document.querySelectorAll('[data-img-act]').forEach(el=>{ el.textContent = el.dataset.imgAct==='open' ? (lang==='ru'?'Открыть':'Open') : (lang==='ru'?'Удалить':'Remove'); });
+  setSyncStatus(syncStatus);   // the sync dot's name is re-read in the new language
 
   // Trades page filter select default option
   const sfd=document.getElementById('setupFilterDefault');
