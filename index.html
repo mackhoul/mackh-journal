@@ -1572,13 +1572,14 @@ body.light .cal-day.today,body.light .cal-day.selected{color:var(--accent-ink)} 
   .cal-grid{gap:0;padding:8px 8px 8px} .dp-popup{padding:10px 8px} .dp-wd,.dp-grid{gap:0}
 }
 @media (pointer:coarse) and (min-width:640px) and (max-width:767px){ .cal-popup,.dp-popup{width:340px} }
+/* an invisible tail under the calendar: a window that scrolls can show its bottom edge with a gap */
+.dp-popup::after{content:'';position:absolute;left:0;top:100%;width:1px;height:12px;pointer-events:none}
 /* toasts and the quick entry's save button clear the home bar in Telegram too */
 @media (max-width:1023px){
   .toast{bottom:calc(88px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
-  #quickModal #qSaveBtn{bottom:calc(8px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
 }
-/* the quick entry's «Сохранить» stays in reach at the bottom of the window */
-#quickModal #qSaveBtn{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:2;box-shadow:0 -14px 22px var(--surface)}
+/* the quick entry's «Сохранить» stays in reach at the bottom of the window, above the home bar in Telegram too */
+#quickModal #qSaveBtn{position:sticky;bottom:calc(8px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)));z-index:2;box-shadow:0 -14px 22px var(--surface)}
 /* the notch and the home bar: browsers (viewport-fit=cover) and Telegram (its safe-area variables) */
 @media (max-width:1023px){
   #app{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:var(--tg-content-safe-area-inset-top,0px)}
@@ -5672,14 +5673,34 @@ function openStyledPopup(wrap){
   wrap.classList.remove('up');
   const popup = wrap.querySelector('.ssel-popup, .dp-popup');
   if(popup){
-    const r = wrap.getBoundingClientRect();
-    const below = window.innerHeight - r.bottom;
-    if(below < popup.offsetHeight + 16 && r.top > below) wrap.classList.add('up');
-    // keep it inside the screen sideways too: a wide calendar under a narrow field would leave the edge
+    // the visible box: the screen, narrowed by every ancestor that clips (a window that scrolls inside)
+    const gap = 8, box = {top:0, left:0, bottom:window.innerHeight, right:window.innerWidth};
+    let scroller = null;
+    for(let el=wrap.parentElement; el && el!==document.body; el=el.parentElement){
+      const cs = getComputedStyle(el);
+      if(cs.overflowX==='visible' && cs.overflowY==='visible') continue;
+      const b = el.getBoundingClientRect();
+      box.top = Math.max(box.top, b.top); box.left = Math.max(box.left, b.left);
+      box.bottom = Math.min(box.bottom, b.bottom); box.right = Math.min(box.right, b.right);
+      if(!scroller && /auto|scroll/.test(cs.overflowY)) scroller = el;
+    }
+    let r = wrap.getBoundingClientRect();
+    const h = popup.offsetHeight + 6, below = box.bottom - r.bottom, above = r.top - box.top;
+    // upwards only when there is room for it — above the start of a scrolling window nothing can be reached
+    const up = below < h + gap && above > below && above + (scroller ? scroller.scrollTop : 0) >= h + gap;
+    if(up) wrap.classList.add('up');
+    // a window that scrolls brings the whole list or calendar into view
+    if(scroller){
+      const pTop = up ? r.top - h : r.bottom + 6, pBottom = pTop + popup.offsetHeight;
+      if(pTop < box.top + gap) scroller.scrollTop -= box.top + gap - pTop;
+      else if(pBottom > box.bottom - gap) scroller.scrollTop += Math.min(pBottom - (box.bottom - gap), pTop - (box.top + gap));
+      r = wrap.getBoundingClientRect();
+    }
+    // inside the box sideways too: a wide calendar under a narrow field would leave the edge
     popup.style.left = ''; popup.style.right = '';
     // layout box (offsetLeft/Width), not the drawn one: the opening animation scales the popup
-    const left = r.left + popup.offsetLeft, right = left + popup.offsetWidth, gap = 8;
-    const shift = left < gap ? gap - left : right > window.innerWidth - gap ? (window.innerWidth - gap) - right : 0;
+    const left = r.left + popup.offsetLeft, right = left + popup.offsetWidth;
+    const shift = left < box.left + gap ? box.left + gap - left : right > box.right - gap ? (box.right - gap) - right : 0;
     if(shift){ popup.style.left = Math.round(popup.offsetLeft + shift)+'px'; popup.style.right = 'auto'; }
     const cur = popup.querySelector('.ssel-opt.sel, .dp-day.sel') || popup.querySelector('button:not([disabled])');
     if(cur) cur.focus({preventScroll:true});
@@ -9204,13 +9225,13 @@ function initPairSuggest(){
   inp.addEventListener('input', draw);
   inp.addEventListener('keydown', e=>{
     if(e.key==='ArrowDown' && wrap.classList.contains('open')){ e.preventDefault(); const b=pop.querySelector('button'); if(b) b.focus(); }
-    if(e.key==='Escape') wrap.classList.remove('open');
+    if(e.key==='Escape' && wrap.classList.contains('open')){ e.stopPropagation(); wrap.classList.remove('open'); }   // the list closes, the form stays
   });
   pop.addEventListener('keydown', e=>{
     const rows=[...pop.querySelectorAll('button')], i=rows.indexOf(document.activeElement);
     if(e.key==='ArrowDown'){ e.preventDefault(); (rows[i+1]||rows[0]).focus(); }
     if(e.key==='ArrowUp'){ e.preventDefault(); if(i<=0) inp.focus(); else rows[i-1].focus(); }
-    if(e.key==='Escape'){ wrap.classList.remove('open'); inp.focus(); }
+    if(e.key==='Escape'){ e.stopPropagation(); wrap.classList.remove('open'); inp.focus(); }
   });
   pop.addEventListener('mousedown', e=>e.preventDefault());
   pop.addEventListener('click', e=>{
