@@ -9221,7 +9221,8 @@ function initPairSuggest(){
     pop.innerHTML=list.map(x=>`<button type="button" class="ssel-opt" role="option" data-v="${escapeHtml(x)}">${escapeHtml(x)}</button>`).join('');
     wrap.classList.add('open');
   };
-  inp.addEventListener('focus', draw);
+  let quiet = false;   // focus coming back after Escape does not reopen the list
+  inp.addEventListener('focus', ()=>{ if(quiet){ quiet = false; return; } draw(); });
   inp.addEventListener('input', draw);
   inp.addEventListener('keydown', e=>{
     if(e.key==='ArrowDown' && wrap.classList.contains('open')){ e.preventDefault(); const b=pop.querySelector('button'); if(b) b.focus(); }
@@ -9231,7 +9232,7 @@ function initPairSuggest(){
     const rows=[...pop.querySelectorAll('button')], i=rows.indexOf(document.activeElement);
     if(e.key==='ArrowDown'){ e.preventDefault(); (rows[i+1]||rows[0]).focus(); }
     if(e.key==='ArrowUp'){ e.preventDefault(); if(i<=0) inp.focus(); else rows[i-1].focus(); }
-    if(e.key==='Escape'){ e.stopPropagation(); wrap.classList.remove('open'); inp.focus(); }
+    if(e.key==='Escape'){ e.stopPropagation(); wrap.classList.remove('open'); quiet = true; inp.focus(); quiet = false; }
   });
   pop.addEventListener('mousedown', e=>e.preventDefault());
   pop.addEventListener('click', e=>{
@@ -9239,6 +9240,7 @@ function initPairSuggest(){
     inp.value=b.dataset.v; wrap.classList.remove('open');
     inp.dispatchEvent(new Event('input',{bubbles:true}));
     wrap.classList.remove('open');
+    quiet = true; inp.focus(); quiet = false;   // the choice is made: back to the field, the list stays closed
   });
   inp.addEventListener('blur', ()=>setTimeout(()=>{ if(!wrap.contains(document.activeElement)) wrap.classList.remove('open'); },120));
 }
