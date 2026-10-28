@@ -23,13 +23,17 @@
 
    ```sql
    select public.mj_save_doc('check_1', 1, 'note', '{"text":"проверка"}'::jsonb, 1);
-   select public.mj_save_doc('check_1', 1, 'note', '{"text":"старое"}'::jsonb, 1);
+   select public.mj_save_doc('check_1', 1, 'note', '{"text":"проверка"}'::jsonb, 1);
+   select public.mj_save_doc('check_1', 1, 'note', '{"text":"другой"}'::jsonb, 1);
    select public.mj_delete_doc('check_1', 1, 'note', 2);
    select public.mj_save_doc('check_1', 1, 'note', '{"text":"поздно"}'::jsonb, 3);
    delete from public.strategy_docs where id = 'check_1' and user_id = 1;
    ```
 
-   Ожидаемо по порядку: `saved`, `same`, `deleted`, `deleted`.
+   Ожидаемо по порядку: `saved`, `same`, `collision`, `deleted`, `deleted`.
+   `same` — повтор той же версии с тем же текстом (например, запрос ушёл
+   дважды). Та же версия с другим текстом — `collision`: запись не меняется,
+   приложение отправит документ ещё раз с новой версией.
 
 ## 2. Сервер
 

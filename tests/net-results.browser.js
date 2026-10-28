@@ -165,7 +165,26 @@
   await show([fx('P3', { date: D3, pnl: '1', commission: '2', swap: '' }), fx('U3', { pnl: '' })]);
   calState.home.date = D3; rerender(); await settle();
   check('English: «prelim.», «after costs · prelim.» and «1 no P&L»', /prelim\./.test($('#kpiWinsCtx').textContent) && /after costs · prelim\./.test($('#anSummary .an-note').textContent) && /1 no P&L/.test(split()) && sessPct('London') === '0%', { ctx: $('#kpiWinsCtx').textContent, note: $('#anSummary .an-note').textContent, split: split() });
-  lang = 'ru'; calState.home.date = null; window.removeEventListener('error', onErr);
+  lang = 'ru'; calState.home.date = null;
+
+  // ── home discipline card: a trade with no «по плану» answer is not counted as «нет» ──
+  const disc = () => ({ plan: $('#discPlan').textContent, cl: $('#discChecklist').textContent, card: $('#discCard').textContent });
+  const full = (id, o) => fx(id, { pnl: '1', commission: '2', swap: '-0.5', emotional: false, checklistScore: 1, ...o });
+  await show([full('D1', {})]);
+  let d = disc();
+  check('full trade without a «по плану» answer: «—», not NaN%', d.plan === '—' && d.cl === '100%' && !/NaN|Infinity/.test(d.card), d);
+  await show([full('D2', { byPlan: false })]);
+  check('… one «нет»: a real 0%', disc().plan === '0%', disc());
+  await show([full('D3', { byPlan: true })]);
+  check('… one «да»: 100%', disc().plan === '100%', disc());
+  await show([full('D4', { byPlan: true }), full('D5', { byPlan: false }), full('D6', {})]);
+  check('… «да», «нет» and no answer: 50%, the unanswered one is not a «нет»', disc().plan === '50%', disc());
+  await show([full('D7', { byPlan: true, checklistScore: null }), full('D8', { byPlan: true, checklistScore: null, quickTrade: true })]);
+  d = disc();
+  check('no checklist filled: «—», not NaN%', d.cl === '—' && d.plan === '100%' && !/NaN|Infinity/.test(d.card), d);
+  await show([full('D9', { checklistScore: 0.5 })]);
+  check('… a checklist below 80%: a real 0%', disc().cl === '0%', disc());
+  window.removeEventListener('error', onErr);
 
   localStorage.clear();
   console.table(results);

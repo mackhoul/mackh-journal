@@ -5539,8 +5539,11 @@ function renderHome(){
     document.getElementById('discScore').style.color = col;
     document.getElementById('discBar').style.width = disc.score+'%';
     document.getElementById('discBar').style.background = col;
-    document.getElementById('discPlan').textContent = disc.byPlan !== null ? Math.round(disc.byPlan / trades.filter(x=>x.byPlan===true||x.byPlan===false).length * 100) + '%' : '—';
-    document.getElementById('discChecklist').textContent = disc.clFull !== null ? Math.round(disc.clFull / trades.filter(x=>x.checklistScore!==null&&x.checklistScore!==undefined&&!x.quickTrade).length * 100) + '%' : '—';
+    // only trades with an answer count; none answered → «—», as in the progress tab
+    const planN = trades.filter(x=>x.byPlan===true||x.byPlan===false).length;
+    const clN   = trades.filter(x=>x.checklistScore!==null&&x.checklistScore!==undefined&&!x.quickTrade).length;
+    document.getElementById('discPlan').textContent = planN ? Math.round(disc.byPlan / planN * 100) + '%' : '—';
+    document.getElementById('discChecklist').textContent = clN ? Math.round(disc.clFull / clN * 100) + '%' : '—';
     document.getElementById('discEmotional').textContent = disc.emotional;
   } else dc.style.display='none';
 
