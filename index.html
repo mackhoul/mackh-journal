@@ -8256,6 +8256,8 @@ function srSwap(holder, html, dir){
   const cs = getComputedStyle(old), fromO = cs.opacity, fromT = cs.transform==='none' ? 'none' : cs.transform;
   old.getAnimations().forEach(a=>a.cancel());
   old.classList.add('sr-leaving'); old.removeAttribute('id'); old.inert = true; old.setAttribute('aria-hidden','true');
+  // the leaving copy gives up its ids and hooks: every lookup finds the visible surface, not the one fading out
+  old.querySelectorAll('[id],[data-sa],[data-sf]').forEach(n=>{ n.removeAttribute('id'); n.removeAttribute('data-sa'); n.removeAttribute('data-sf'); });
   old.style.top = old.offsetTop+'px';
   holder.appendChild(next);
   holder.classList.add('sr-swapping');      // the leaving copy never spills over what follows the surface
@@ -8279,7 +8281,7 @@ function srMoveTabInd(animate){
   if(tab && tab.parentElement.scrollWidth>tab.parentElement.clientWidth) tab.scrollIntoView({block:'nearest', inline:'nearest', behavior:animate&&srMoves()?'smooth':'auto'});
 }
 function srMoveStepInd(animate){
-  const steps = document.querySelector('.sr-steps'); if(!steps) return;
+  const steps = [...document.querySelectorAll('.sr-steps')].find(n=>!n.closest('.sr-leaving')); if(!steps) return;
   const cur = steps.querySelector('.sr-step[aria-current="step"]');
   const horizontal = getComputedStyle(steps).flexDirection==='row';
   srMoveInd(steps.querySelector('.sr-step-ind'), cur, horizontal, animate);
@@ -8322,8 +8324,9 @@ function srGoTab(tab, focusTab){
 }
 // The fold: the section's content really closes, its height and its rows together
 let _srFold = null;
-function srToggleFold(){
-  const body = document.getElementById('srCardBody'), btn = document.querySelector('[data-sa=fold]');
+function srToggleFold(pressed){
+  const btn = pressed || document.querySelector('#srCardHold > .sr-swap:not(.sr-leaving) [data-sa=fold]');
+  const body = btn && btn.closest('.sr-card')?.querySelector('.sr-card-b');
   if(!body || !btn) return;
   const inner = body.firstElementChild, from = body.getBoundingClientRect().height;
   if(_srFold){ _srFold.forEach(a=>a.cancel()); _srFold = null; }
@@ -8684,7 +8687,7 @@ document.addEventListener('click', e=>{
   if(a==='step') return srGoStep(+b.dataset.step);
   if(a==='prev') return srGoStep(SU.step-1);
   if(a==='next') return srGoStep(SU.step+1);
-  if(a==='fold') return srToggleFold();
+  if(a==='fold') return srToggleFold(b);
   if(a==='edit'){ if(SU.editing) return; SU.editing = true; SU.collapsed = false; srSwap(document.getElementById('srCardHold'), srCardHTML(srData()), 0); srAfterPanel(false); return; }
   if(a==='edit-cancel'){ if(SU.dirty && !confirm(srT('Отменить изменения раздела?','Discard the section changes?'))) return; SU.editing = false; SU.dirty = false; srSwap(document.getElementById('srCardHold'), srCardHTML(srData()), 0); if(SU.input==='keyboard') document.querySelector('[data-sa=edit]')?.focus(); return; }
   if(a==='row-add'){ const form = b.closest('form'), rows = form.querySelector('.sr-rows'); rows.insertAdjacentHTML('beforeend', srRuleRowHTML('', rows.children.length)); const row = rows.lastElementChild; if(srMoves()) row.animate([{opacity:0, transform:'translateY(-8px)'},{opacity:1, transform:'none'}], {duration:200, easing:SR_EASE_OUT}); row.querySelector('textarea').focus(); srMarkDirty(form); return; }

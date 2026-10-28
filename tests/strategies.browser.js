@@ -137,6 +137,31 @@
   check('edit: delivered to the account', M.users.A.docs[SU.id]?.data.sections[1].rules.includes('Новый пункт'));
   check('status: saved to the account', $('#stratStatus').textContent.includes('аккаунт') || $('#stratStatus').textContent.includes('account'));
 
+  // ── fast: fold right after a section switch, quick steps in the window ──
+  {
+    const moves = srMoves();
+    srGoStep(2);                                                   // no pause: the old card is still leaving
+    const bodies = $$('#srCardBody').length, leaving = $$('#srCardHold > .sr-leaving').length;
+    $('#srCardHold > .sr-swap:not(.sr-leaving) [data-sa=fold]').click();
+    await settle();
+    const body = $('#srCardBody'), btn = $('#srCardHold [data-sa=fold]');
+    check('fast fold: one card body while the old card leaves', bodies === 1 && (!moves || leaving === 1), { bodies, leaving, moves });
+    check('fast fold: the visible section folds, state matches the screen', SU.collapsed === true && body.hidden === true && btn.getAttribute('aria-expanded') === 'false', { collapsed: SU.collapsed, hidden: body.hidden, aria: btn.getAttribute('aria-expanded') });
+    btn.click(); await settle();
+    check('fast fold: opens again', SU.collapsed === false && !$('#srCardBody').hidden && $('#srCardHold [data-sa=fold]').getAttribute('aria-expanded') === 'true');
+    // the window: text → preview → back to the text, without pauses
+    await click($('#stratRoot [data-sa=new]'));
+    $('#stratModal [data-sa=start-text]').click();
+    $('#srImpName').value = 'Быстро'; $('#srImpText').value = '## Вход\n- BOS M5';
+    $('[data-sf=parse] button[type=submit]').click();
+    const forms = $$('#stratModal [data-sf]').length, stale = $$('#stratModal .sr-leaving [id], #stratModal .sr-leaving [data-sa]').length;
+    $('#stratModal [data-sa=back-text]').click();
+    await settle();
+    check('fast window steps: one live form, the leaving copy has no ids or hooks', forms === 1 && (!moves || stale === 0) && $$('#stratModal .sr-leaving').length === 0, { forms, stale, moves });
+    check('fast window steps: ends on the text with focus inside the window', !!$('#stratModal [data-sf=parse]') && $('#stratModal').contains(document.activeElement), document.activeElement?.outerHTML?.slice(0, 80));
+    stratCloseDialog(true); await settle();
+  }
+
   // ── trades: without and with a strategy ──
   const H4 = SU.id;
   openQuickAdd(); await settle();
