@@ -1594,7 +1594,7 @@ body.light .cal-day.today,body.light .cal-day.selected{color:var(--accent-ink)} 
 .sr-root{padding:0 16px}
 .sr-status{font-size:12px;color:var(--text-muted);text-align:right;max-width:260px;line-height:1.4}
 .sr-status[data-state=synced]{color:var(--text-secondary)}
-.sr-status[data-state=offline],.sr-status[data-state=unavailable]{color:var(--warning)}
+.sr-status[data-state=offline],.sr-status[data-state=unavailable],.sr-status[data-state=refused]{color:var(--warning)}
 .sr-ico{width:16px;height:16px;flex-shrink:0}
 /* buttons: a capsule, a quiet link, an icon; each answers a press */
 .sr-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 16px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;color:var(--text);font:500 13px/1.2 var(--sans);cursor:pointer;transition:transform 140ms var(--ease-out-strong),background-color 160ms ease,border-color 160ms ease,color 160ms ease}
@@ -7535,7 +7535,7 @@ const SDOC_KEY = 'strategy_docs_v1';
 const SDOC_KINDS = ['strategy','revision','note','hypothesis','week'];
 const SDOC_ORDER = {revision:0, strategy:1, hypothesis:2, note:3, week:4};   // revisions first: trades point to them
 let sdocs = {};
-let sdocStatus = 'local';      // local | loading | pending | synced | unavailable | offline
+let sdocStatus = 'local';      // local | loading | pending | synced | refused | unavailable | offline
 let _sdocRun = null, _sdocRetry = null;
 
 function sdocUid(prefix){
@@ -7550,7 +7550,10 @@ function sdocValid(d){
 function sdocRead(owner=dataOwner){
   const raw = lsJSON(SDOC_KEY, {}, owner), out = {};
   if(raw && typeof raw==='object') Object.values(raw).forEach(d=>{
-    if(sdocValid(d)) out[d.id] = {id:d.id, kind:d.kind, data:d.data, v:d.v, sv:Number.isSafeInteger(d.sv)?d.sv:0, del:!!d.del};
+    if(sdocValid(d)){
+      out[d.id] = {id:d.id, kind:d.kind, data:d.data, v:d.v, sv:Number.isSafeInteger(d.sv)?d.sv:0, del:!!d.del};
+      if(d.bad===d.v) out[d.id].bad = d.v;
+    }
   });
   return out;
 }
@@ -7576,7 +7579,10 @@ function sdocPersist(){
 }
 const sdocClone = x=>JSON.parse(JSON.stringify(x));
 function sdocAll(kind, pred){ return Object.values(sdocs).filter(d=>d.kind===kind && !d.del && (!pred || pred(d))); }
-function sdocUnsent(){ return Object.values(sdocs).filter(d=>d.v>d.sv); }
+// A version the server refused (bad === v) is not resent: it waits here until the next edit
+function sdocUnsent(){ return Object.values(sdocs).filter(d=>d.v>d.sv && d.bad!==d.v); }
+function sdocRefused(){ return Object.values(sdocs).filter(d=>d.v>d.sv && d.bad===d.v); }
+const sdocSettled = ()=> sdocUnsent().length ? 'pending' : sdocRefused().length ? 'refused' : 'synced';
 // Saves a document on this device and queues it for the server; returns it, or null if refused
 function sdocPut(kind, data, id){
   if(!dataOwner || !SDOC_KINDS.includes(kind)) return null;
@@ -7634,9 +7640,12 @@ function sdocSync(){
 }
 async function sdocPass(run){
   let reload = false;
+  // An answer is about the version that was sent, never about an edit made while it travelled.
+  // A version the server called stale stays unsent until the reload settles it; this run does not resend it.
+  const stale = run.stale || (run.stale = new Map());
   for(;;){
     if(!isCurrentOwner(run.owner, run.epoch)) return;
-    const next = sdocUnsent().sort((a,b)=>SDOC_ORDER[a.kind]-SDOC_ORDER[b.kind] || a.v-b.v)[0];
+    const next = sdocUnsent().filter(d=>stale.get(d.id)!==d.v).sort((a,b)=>SDOC_ORDER[a.kind]-SDOC_ORDER[b.kind] || a.v-b.v)[0];
     if(!next) break;
     const sentV = next.v, wasDel = next.del;
     const resp = wasDel
@@ -7653,18 +7662,20 @@ async function sdocPass(run){
       if(d) sdocs[next.id] = {...d, data:{}, del:true, sv:d.v};
       reload = true;
     } else if(out==='stale'){
-      // another device saved a newer version: the reload below shows it
-      if(d) d.sv = d.v;
+      // another device saved a newer version: the reload below shows it (and keeps an edit made here since)
+      stale.set(next.id, sentV);
       reload = true;
     } else {
-      // conflict / immutable / refused: the server can not store it this way — keep it here, stop resending
+      // conflict / immutable / refused: the server can not store it this way — keep it here unconfirmed, stop resending
       console.warn(`[STRAT] ${next.kind} ${next.id} not stored: ${out}`);
-      if(d) d.sv = d.v;
+      if(d && d.v===sentV) d.bad = sentV;
     }
     sdocPersist();
   }
   if(reload) await sdocLoadServer();
-  else stratSetStatus(sdocUnsent().length ? 'pending' : 'synced');
+  else stratSetStatus(sdocSettled());
+  // the reload did not settle a stale version (it failed, or the server disagrees with itself): try again later, not now
+  if(isCurrentOwner(run.owner, run.epoch) && sdocUnsent().some(d=>stale.get(d.id)===d.v)) sdocRetryLater();
 }
 
 // Reads the account's documents from the server and merges them with this device's copy
@@ -7700,7 +7711,7 @@ async function sdocLoadServer(){
   stratOnDocsChanged();
   if(lost) toastWarn(lang==='ru' ? 'На другом устройстве сохранена более новая версия стратегии — показана она'
                                  : 'A newer version of the strategy was saved on another device — it is shown here');
-  stratSetStatus(sdocUnsent().length ? 'pending' : 'synced');
+  stratSetStatus(sdocSettled());
   if(sdocUnsent().length) sdocSync();
 }
 function loadStrategies(){
@@ -7930,6 +7941,7 @@ function stratRenderStatus(){
     loading: srT('Загрузка…','Loading…'),
     pending: srT('Сохранено на устройстве · отправляется','Saved on this device · sending'),
     synced: has ? srT('Сохранено в аккаунте','Saved to your account') : '',
+    refused: srT('Сервер не принял изменение · оно осталось на этом устройстве','The server did not accept a change · it stays on this device'),
     offline: srT('Нет связи · сохранено на устройстве, отправим позже','Offline · saved on this device, will send later'),
     unavailable: srT('Сервер пока не принимает стратегии · сохранено на устройстве','The server does not take strategies yet · saved on this device'),
   }[sdocStatus] || '';

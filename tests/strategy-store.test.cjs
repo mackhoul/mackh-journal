@@ -64,7 +64,7 @@ function sandbox() {
 }
 
 const results = [];
-const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PASS' : 'FAIL', detail: ok ? '' : JSON.stringify(detail).slice(0, 300) });
+const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PASS' : 'FAIL', detail: ok ? '' : String(JSON.stringify(detail)).slice(0, 300) });
 const strategyData = (name, extra) => ({ name, version: '', sections: [{ id: 'sec_1', name: 'Вход', ordered: false, rules: ['BOS M5'] }], checklist: [], passport: {}, archived: false, ...extra });
 
 (async () => {
@@ -129,6 +129,46 @@ const strategyData = (name, extra) => ({ name, version: '', sections: [{ id: 'se
     release(); t.server.hold = null;
     await p;
     check('edit during a request: the newer version is sent too', [...t.server.docs.values()][0].data.name === 'v2' && t.ctx.sdocUnsent().length === 0);
+  }
+
+  // ── a stale answer is about the version sent, not about an edit made meanwhile ──
+  {
+    const t = sandbox(), real = t.ctx.api;
+    const s = t.ctx.sdocPut('strategy', strategyData('sent old edit'));
+    let release; const hold = new Promise(r => { release = r; });
+    let posts = 0;
+    // every save is stale (another device is ahead) and the reload has no network
+    t.ctx.api = async (method) => {
+      if (method === 'POST') { posts++; await hold; t.ctx.api._lastStatus = 200; return { ok: true, outcome: 'stale' }; }
+      t.ctx.api._lastStatus = 0; return null;
+    };
+    const p = t.ctx.sdocSync();
+    t.ctx.sdocPut('strategy', strategyData('new edit during request'), s.id);
+    release(); await p;
+    check('stale + failed reload: the newer edit stays unsent', t.docs()[s.id].data.name === 'new edit during request' && t.ctx.sdocUnsent().length === 1 && t.status() !== 'synced', { doc: t.docs()[s.id], status: t.status() });
+    await t.ctx.sdocSync();                                    // the later retry, still no reload
+    check('stale + failed reload: still not «in the account» on the next run', t.ctx.sdocUnsent().length === 1 && t.status() !== 'synced', t.status());
+    check('stale: no immediate resend loop', posts === 3, posts);
+    t.ctx.api = real;                                          // the network is back
+    await t.ctx.sdocSync();
+    check('stale: the newer edit is delivered when the network is back', [...t.server.docs.values()][0]?.data.name === 'new edit during request' && t.ctx.sdocUnsent().length === 0 && t.status() === 'synced', t.status());
+  }
+
+  // ── a refused save is not a confirmed one ──
+  {
+    const t = sandbox(), real = t.ctx.api;
+    const d = t.ctx.sdocPut('strategy', strategyData('not stored'));
+    let calls = 0;
+    t.ctx.api = async () => { calls++; t.ctx.api._lastStatus = 200; return { ok: true, outcome: 'immutable' }; };
+    await t.ctx.sdocSync();
+    check('refused: not confirmed, honest status', t.status() === 'refused' && t.docs()[d.id].sv === 0 && t.docs()[d.id].data.name === 'not stored', { status: t.status(), doc: t.docs()[d.id] });
+    await t.ctx.sdocSync();
+    check('refused: not resent automatically', calls === 1 && t.ctx.sdocUnsent().length === 0 && t.status() === 'refused', { calls, status: t.status() });
+    check('refused: remembered after reopening', t.ctx.sdocRead()[d.id].bad === d.v && t.ctx.sdocRead()[d.id].sv === 0);
+    t.ctx.api = real;
+    t.ctx.sdocPut('strategy', strategyData('edited again'), d.id);
+    await t.ctx.sdocSync();
+    check('refused: the next edit is sent again', t.status() === 'synced' && [...t.server.docs.values()][0]?.data.name === 'edited again', t.status());
   }
 
   // ── another device ──
