@@ -3135,6 +3135,7 @@ function setDataOwner(owner){
   ownerEpoch++;
   clearTimeout(syncPendingQueue._retryTimer);
   trades = []; baseCapital = 0; goals = []; ideas = [];
+  stratReset();
   _serverIds = null; _localChangeAt.clear(); _hiddenByOtherTab.clear();
   subState = null;
   if(typeof document!=='undefined' && document.getElementById('subGroup')) renderSubscription();
@@ -7263,6 +7264,328 @@ function saveQuickTrade(){
 }
 
 // ═══════════════════════════════════════════════════════
+//  STRATEGIES — documents of the account
+//  A strategy, its frozen revisions, notes, hypotheses and week notes are
+//  documents {id, kind, data, v}. A change gets a new version v and is kept on
+//  this device first (mj:<owner>:strategy_docs_v1); one runner then sends the
+//  changed documents to the server, one request at a time. sv is the version
+//  the server has confirmed: a document is unsent while v > sv. The server keeps
+//  only the newest version (a repeated or older send changes nothing), so a
+//  retry never duplicates and a late answer never undoes a newer edit.
+//  Account switches bump ownerEpoch: work started for one account never writes
+//  into another account's memory; its unsent copy stays on that account's device.
+// ═══════════════════════════════════════════════════════
+const SDOC_KEY = 'strategy_docs_v1';
+const SDOC_KINDS = ['strategy','revision','note','hypothesis','week'];
+const SDOC_ORDER = {revision:0, strategy:1, hypothesis:2, note:3, week:4};   // revisions first: trades point to them
+let sdocs = {};
+let sdocStatus = 'local';      // local | loading | pending | synced | unavailable | offline
+let _sdocRun = null, _sdocRetry = null;
+
+function sdocUid(prefix){
+  const r = (typeof crypto!=='undefined' && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g,'')
+    : Date.now().toString(36)+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,12);
+  return prefix+'_'+r;
+}
+function sdocValid(d){
+  return !!d && typeof d==='object' && typeof d.id==='string' && d.id.length>=1 && d.id.length<=128 && !/[\u0000-\u001f\u007f]/.test(d.id)
+    && SDOC_KINDS.includes(d.kind) && Number.isSafeInteger(d.v) && d.v>0 && !!d.data && typeof d.data==='object' && !Array.isArray(d.data);
+}
+function sdocRead(owner=dataOwner){
+  const raw = lsJSON(SDOC_KEY, {}, owner), out = {};
+  if(raw && typeof raw==='object') Object.values(raw).forEach(d=>{
+    if(sdocValid(d)) out[d.id] = {id:d.id, kind:d.kind, data:d.data, v:d.v, sv:Number.isSafeInteger(d.sv)?d.sv:0, del:!!d.del};
+  });
+  return out;
+}
+// Takes the newer version of every document another tab has written meanwhile
+function sdocAbsorbStored(){
+  if(!dataOwner) return false;
+  let changed = false;
+  Object.values(sdocRead()).forEach(o=>{
+    const d = sdocs[o.id];
+    if(!d || o.v>d.v || (o.v===d.v && o.sv>d.sv)){ sdocs[o.id] = o; changed = true; }
+  });
+  return changed;
+}
+function sdocPersist(){
+  const owner = dataOwner; if(!owner) return false;
+  sdocAbsorbStored();
+  try{ lsSet(SDOC_KEY, JSON.stringify(sdocs), owner); return true; }
+  catch(e){
+    toastWarn(lang==='ru' ? 'Память устройства заполнена: изменение стратегии может не сохраниться после закрытия'
+                          : 'Device storage is full: the strategy change may not survive closing the app');
+    return false;
+  }
+}
+const sdocClone = x=>JSON.parse(JSON.stringify(x));
+function sdocAll(kind, pred){ return Object.values(sdocs).filter(d=>d.kind===kind && !d.del && (!pred || pred(d))); }
+function sdocUnsent(){ return Object.values(sdocs).filter(d=>d.v>d.sv); }
+// Saves a document on this device and queues it for the server; returns it, or null if refused
+function sdocPut(kind, data, id){
+  if(!dataOwner || !SDOC_KINDS.includes(kind)) return null;
+  const cur = id ? sdocs[id] : null;
+  if(cur && (cur.kind!==kind || cur.del)) return null;
+  // a revision is frozen: only its notes (label, what, why, results) may change
+  if(cur && kind==='revision' && JSON.stringify(cur.data.content)!==JSON.stringify(data.content)) return null;
+  const doc = {id:id || sdocUid(kind.slice(0,3)), kind, data:sdocClone(data), v:Math.max((cur?cur.v:0)+1, Date.now()), sv:cur?cur.sv:0, del:false};
+  sdocs[doc.id] = doc;
+  sdocPersist(); sdocSchedule();
+  return doc;
+}
+// Notes and hypotheses can be deleted; strategies are archived, revisions and weeks stay
+function sdocRemove(id){
+  const cur = sdocs[id];
+  if(!cur || cur.del || !['note','hypothesis'].includes(cur.kind)) return false;
+  sdocs[id] = {...cur, data:{}, del:true, v:Math.max(cur.v+1, Date.now())};
+  sdocPersist(); sdocSchedule();
+  return true;
+}
+function stratSetStatus(state){
+  sdocStatus = state;
+  if(typeof stratRenderStatus==='function') stratRenderStatus();
+}
+function stratOnDocsChanged(){ if(typeof stratRefresh==='function') stratRefresh(); }
+function sdocSchedule(delay=350){
+  clearTimeout(_sdocRetry);
+  if(sdocUnsent().length) stratSetStatus('pending');
+  _sdocRetry = setTimeout(()=>sdocSync(), delay);
+}
+function sdocRetryLater(){ clearTimeout(_sdocRetry); _sdocRetry = setTimeout(()=>sdocSync(), 30000); }
+const sdocUnreachable = ()=> api._lastStatus===503 || api._lastStatus===404 ? 'unavailable' : 'offline';
+
+// One runner per account at a time; a call while it runs asks for one more pass
+function sdocSync(){
+  const owner = dataOwner, epoch = ownerEpoch;
+  if(!owner) return Promise.resolve();
+  if(_sdocRun && _sdocRun.owner===owner && _sdocRun.epoch===epoch){ _sdocRun.again = true; return _sdocRun.promise; }
+  const run = {owner, epoch, again:false};
+  run.promise = (async()=>{
+    try{ do{ run.again = false; await sdocPass(run); } while(run.again && isCurrentOwner(owner, epoch)); }
+    catch(e){ console.error('[STRAT] sync error:', e.message); }
+    finally{ if(_sdocRun===run) _sdocRun = null; }
+  })();
+  _sdocRun = run;
+  return run.promise;
+}
+async function sdocPass(run){
+  let reload = false;
+  for(;;){
+    if(!isCurrentOwner(run.owner, run.epoch)) return;
+    const next = sdocUnsent().sort((a,b)=>SDOC_ORDER[a.kind]-SDOC_ORDER[b.kind] || a.v-b.v)[0];
+    if(!next) break;
+    const sentV = next.v, wasDel = next.del;
+    const resp = wasDel
+      ? await api('DELETE', `/strategy-docs/${encodeURIComponent(next.id)}?kind=${next.kind}&v=${sentV}`)
+      : await api('POST', '/strategy-docs', {id:next.id, kind:next.kind, data:next.data, v:sentV});
+    // The account changed meanwhile: its copy stays unsent on its device and goes again later
+    if(!isCurrentOwner(run.owner, run.epoch)) return;
+    if(!resp || typeof resp.outcome!=='string'){ stratSetStatus(sdocUnreachable()); sdocRetryLater(); return; }
+    const d = sdocs[next.id], out = resp.outcome;
+    if(out==='saved' || out==='same' || (wasDel && out==='deleted')){
+      if(d && d.v>=sentV) d.sv = Math.max(d.sv, sentV);
+    } else if(out==='deleted'){
+      // deleted on another device: it does not come back here either
+      if(d) sdocs[next.id] = {...d, data:{}, del:true, sv:d.v};
+      reload = true;
+    } else if(out==='stale'){
+      // another device saved a newer version: the reload below shows it
+      if(d) d.sv = d.v;
+      reload = true;
+    } else {
+      // conflict / immutable / refused: the server can not store it this way — keep it here, stop resending
+      console.warn(`[STRAT] ${next.kind} ${next.id} not stored: ${out}`);
+      if(d) d.sv = d.v;
+    }
+    sdocPersist();
+  }
+  if(reload) await sdocLoadServer();
+  else stratSetStatus(sdocUnsent().length ? 'pending' : 'synced');
+}
+
+// Reads the account's documents from the server and merges them with this device's copy
+async function sdocLoadServer(){
+  const owner = dataOwner, epoch = ownerEpoch;
+  if(!owner) return;
+  const resp = await api('GET', '/strategy-docs');
+  if(!isCurrentOwner(owner, epoch)) return;
+  if(!resp || !Array.isArray(resp.docs)){
+    stratSetStatus(sdocUnreachable());
+    if(sdocUnsent().length) sdocRetryLater();
+    stratOnDocsChanged();
+    return;
+  }
+  sdocAbsorbStored();
+  let lost = 0;
+  const seen = new Set();
+  resp.docs.forEach(s=>{
+    const v = Number(s && s.v);
+    if(!s || typeof s.id!=='string' || !SDOC_KINDS.includes(s.kind) || !Number.isSafeInteger(v) || v<1) return;
+    seen.add(s.id);
+    const l = sdocs[s.id];
+    if(l && l.kind!==s.kind) return;
+    if(s.deleted){ const top = Math.max(v, l ? l.v : 0); sdocs[s.id] = {id:s.id, kind:s.kind, data:{}, v:top, sv:top, del:true}; return; }
+    if(!l){ sdocs[s.id] = {id:s.id, kind:s.kind, data:s.data || {}, v, sv:v, del:false}; return; }
+    if(l.v>v){ l.sv = Math.min(l.sv, v); return; }          // ours is newer: it is sent next
+    if(l.v>l.sv && v>=l.v) lost++;                          // a newer save from another device wins over an unsent edit
+    sdocs[s.id] = {id:s.id, kind:s.kind, data:s.data || {}, v, sv:v, del:false};
+  });
+  // confirmed earlier but missing on the server now: send it again
+  Object.values(sdocs).forEach(d=>{ if(!seen.has(d.id) && d.sv>0) d.sv = 0; });
+  sdocPersist();
+  stratOnDocsChanged();
+  if(lost) toastWarn(lang==='ru' ? 'На другом устройстве сохранена более новая версия стратегии — показана она'
+                                 : 'A newer version of the strategy was saved on another device — it is shown here');
+  stratSetStatus(sdocUnsent().length ? 'pending' : 'synced');
+  if(sdocUnsent().length) sdocSync();
+}
+function loadStrategies(){
+  if(!dataOwner) return Promise.resolve();
+  sdocs = sdocRead();
+  stratSetStatus('loading');
+  stratOnDocsChanged();
+  return sdocLoadServer();
+}
+// Account switch / sign-out: nothing of the previous account stays in memory
+function stratReset(){
+  sdocs = {}; clearTimeout(_sdocRetry); _sdocRetry = null; sdocStatus = 'local';
+  if(typeof stratUIReset==='function') stratUIReset();
+}
+window.addEventListener('storage', e=>{
+  if(!dataOwner || e.key!==scopedKey(SDOC_KEY)) return;
+  if(sdocAbsorbStored()) stratOnDocsChanged();
+});
+window.addEventListener('online', ()=>{ if(dataOwner && sdocUnsent().length) setTimeout(()=>sdocSync(), 1500); });
+
+// ── Revisions: the rules a trade was recorded with ──
+// A trade points to a frozen revision, so a later edit of the rules never
+// changes what an old trade shows. The same content reuses the same revision.
+const STRAT_PASSPORT_KEYS = ['instruments','sessions','killzones','timezone','endTime'];
+function stratContent(s){
+  const passport = {};
+  STRAT_PASSPORT_KEYS.forEach(k=>{ passport[k] = String((s.passport||{})[k]||''); });
+  return {
+    name: String(s.name||''),
+    sections: (s.sections||[]).map(x=>({id:String(x.id||''), name:String(x.name||''), ordered:!!x.ordered, rules:(x.rules||[]).map(String)})),
+    checklist: (s.checklist||[]).map(String),
+    passport,
+  };
+}
+function stratHash(obj){
+  const str = JSON.stringify(obj);
+  let h = 0x811c9dc5;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193)>>>0; }
+  return h.toString(16).padStart(8,'0')+':'+str.length;
+}
+function stratRevisions(strategyId){
+  return sdocAll('revision', d=>d.data.strategyId===strategyId).sort((a,b)=>String(b.data.createdAt||'').localeCompare(String(a.data.createdAt||'')));
+}
+// The revision for the strategy's current rules: an existing one with the same content, or a new frozen copy
+function stratEnsureRevision(strategyId, notes){
+  const s = sdocs[strategyId];
+  if(!s || s.kind!=='strategy' || s.del) return null;
+  const content = stratContent(s.data), hash = stratHash(content);
+  if(!notes){
+    const same = stratRevisions(strategyId).find(r=>r.data.hash===hash);
+    if(same) return same.id;
+  }
+  const rev = sdocPut('revision', {strategyId, auto:!notes, label:(notes&&notes.label)||s.data.version||'', what:(notes&&notes.what)||'',
+    why:(notes&&notes.why)||'', results:(notes&&notes.results)||'', createdAt:new Date().toISOString(), hash, content});
+  return rev ? rev.id : null;
+}
+// Strategy fields of a trade: a kept link keeps its revision; a new choice points to the current rules
+function stratTradeLink(selectedId, prev){
+  const none = {strategyId:null, strategyRevId:null, strategyName:null};
+  if(!selectedId) return none;
+  if(prev && prev.strategyId===selectedId) return {strategyId:prev.strategyId, strategyRevId:prev.strategyRevId||null, strategyName:prev.strategyName||null};
+  const s = sdocs[selectedId];
+  if(!s || s.kind!=='strategy' || s.del) return none;
+  return {strategyId:selectedId, strategyRevId:stratEnsureRevision(selectedId), strategyName:String(s.data.name||'')};
+}
+
+// ── Templates and text import ──
+// The template gives only section names; rules, hours, risk and RR are the trader's own.
+const STRAT_TEMPLATE = [
+  {tpl:'context', ru:'Контекст', en:'Context'},
+  {tpl:'poi',     ru:'Зоны интереса', en:'Areas of interest'},
+  {tpl:'entry',   ru:'Модель входа', en:'Entry model'},
+  {tpl:'targets', ru:'Стоп и цели', en:'Stop and targets'},
+  {tpl:'risk',    ru:'Риск', en:'Risk'},
+  {tpl:'notrade', ru:'Когда не торгую', en:'When I do not trade'},
+];
+function stratEmptyPassport(){ const p = {}; STRAT_PASSPORT_KEYS.forEach(k=>p[k]=''); return p; }
+function stratNewSection(name, extra){ return {id:sdocUid('sec'), name, ordered:false, rules:[], ...(extra||{})}; }
+// Only the task mark at the start of a line goes: «[ ]», «[x]», «☐», «☑», «□» and the like.
+// Ranges such as [0,62–0,79], percentages, signs and the rest of the line stay.
+function stripTaskMarker(text){
+  return String(text ?? '').replace(/^\s*(?:[-*•+]\s+)?(?:\[(?:\s|x|X|✓|✔|v|V)?\]|[☐☑☒□▢✅])\s*/u, '').trim();
+}
+// Local reading of a pasted strategy: headings and lists only. Nothing is added,
+// guessed or rated; text without headings stays one block.
+function parseStrategyText(text){
+  const ru = lang==='ru';
+  if(typeof text!=='string' || !text.trim()) throw new Error(ru?'Вставьте текст стратегии.':'Paste the strategy text.');
+  if(text.length>100000) throw new Error(ru?'Текст длиннее 100 000 знаков: разделите его на части.':'The text is over 100,000 characters: split it into parts.');
+  const lines = text.replace(/^﻿/,'').replace(/\r\n?/g,'\n').split('\n');
+  const sections = [], checklist = [];
+  let active = null, checkMode = false, headings = 0;
+  const clean = x=>x.replace(/\*\*(.+?)\*\*/g,'$1').replace(/__(.+?)__/g,'$1').trim();
+  const isChecklist = t=>/^(?:чек[\s-]*лист|checklist)(?:\s+(?:перед\s+входом|before\s+entry))?\s*[:：]?$/i.test(t);
+  const known = /^(?:контекст(?:\s+и\s+bias)?|bias|зоны\s+интереса(?:\s*[—-]\s*poi)?|poi|модель\s+входа|вход|стоп\s+и\s+цели|выход|риск(?:-менеджмент)?|когда\s+не\s+торгую|ограничения|условия|context|entry(?:\s+model)?|stop\s+and\s+targets|exit|risk(?:\s+management)?|when\s+i\s+do\s+not\s+trade|conditions)$/i;
+  const addHeading = title=>{
+    headings++;
+    checkMode = isChecklist(title);
+    active = checkMode ? null : {name:title.slice(0,120), rules:[], ordered:false};
+    if(active) sections.push(active);
+  };
+  for(const rawLine of lines){
+    let line = rawLine.trim().replace(/^>\s?/, '');
+    if(!line || /^(?:---+|___+|\*\*\*+)\s*$/.test(line)) continue;
+    const markdown = line.match(/^#{1,6}\s+(.+?)\s*#*$/);
+    const numbered = line.match(/^\d{1,2}[.)]\s+(.{2,85})$/);
+    const bare = clean(line).replace(/[:：]$/,'');
+    if(markdown){ addHeading(clean(markdown[1]).replace(/[:：]$/,'')); continue; }
+    if(numbered && (known.test(clean(numbered[1]).replace(/[:：]$/,'')) || isChecklist(clean(numbered[1])))){ addHeading(clean(numbered[1]).replace(/[:：]$/,'')); continue; }
+    if(known.test(bare) || isChecklist(bare)){ addHeading(bare); continue; }
+    const ordered = /^\d+[.)]\s+/.test(line);
+    line = stripTaskMarker(clean(line.replace(/^[-*•+]\s+/,'').replace(/^\d+[.)]\s+/,'')));
+    if(!line) continue;
+    if(checkMode){ checklist.push(line); continue; }
+    if(!active){ active = {name: headings ? (ru?'Мои правила':'My rules') : (ru?'Описание и условия':'Description and conditions'), rules:[], ordered:false}; sections.push(active); }
+    active.rules.push(line);
+    if(ordered) active.ordered = true;
+  }
+  if(!sections.length) sections.push({name:ru?'Мои правила':'My rules', rules:[], ordered:false});
+  const warnings = [];
+  if(!headings) warnings.push(ru?'Заголовки не найдены: текст оставлен одним разделом. Его можно разделить вручную.':'No headings found: the text is kept as one section. You can split it by hand.');
+  if(sections.some(x=>!x.rules.length)) warnings.push(ru?'Есть разделы без пунктов — они останутся черновиками.':'Some sections have no points — they stay as drafts.');
+  return {rawText:text, sections, checklist, warnings, headings, pointCount:sections.reduce((n,x)=>n+x.rules.length,0)};
+}
+
+// ── Numbers of a strategy: its own trades only ──
+// Period: 'all', or a number of days back from today, or {from, to} (YYYY-MM-DD, inclusive)
+function stratTrades(strategyId, period){
+  const today = new Date().toISOString().split('T')[0];
+  let from = null, to = null;
+  if(typeof period==='number'){ from = new Date(Date.now()-(period-1)*864e5).toISOString().split('T')[0]; to = today; }
+  else if(period && typeof period==='object'){ from = period.from; to = period.to; }
+  return trades.filter(t=>t.strategyId===strategyId && (!from || (t.date && t.date>=from)) && (!to || (t.date && t.date<=to)));
+}
+function stratStats(list){
+  const withMoney = list.filter(t=>!isNaN(tradeNet(t)));
+  const total = Math.round(withMoney.reduce((s,t)=>s+tradeNet(t),0)*100)/100;
+  const byResult = {win:0, loss:0, be:0, none:0};
+  list.forEach(t=>{ byResult[t.result==='win'||t.result==='loss'||t.result==='be' ? t.result : 'none']++; });
+  const decided = byResult.win + byResult.loss + byResult.be;
+  return {
+    count:list.length, total, withMoney:withMoney.length, noMoney:list.length-withMoney.length,
+    prelim:list.filter(tradeCostsPending).length, byResult,
+    winShare: decided ? byResult.win/decided : null,
+    planKnown:list.filter(t=>t.byPlan===true||t.byPlan===false).length, byPlan:list.filter(t=>t.byPlan===true).length,
+  };
+}
+
+// ═══════════════════════════════════════════════════════
 //  TRADE IDEAS — fast capture, kept separate from stats
 // ═══════════════════════════════════════════════════════
 let ideas = [];
@@ -9836,6 +10159,7 @@ async function startApp(){
   renderTrades();
   applyLang();
   loadIdeas();
+  loadStrategies();
   loadSubscription();
   handleCheckoutReturn();
 }

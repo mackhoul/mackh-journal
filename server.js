@@ -614,6 +614,64 @@ app.delete('/trades/:id', auth, async (req, res) => {
   }
 });
 
+// ── Strategy documents ───────────────────────────────────
+// Strategies, their frozen revisions, notes, hypotheses and week notes of one
+// account (db/migrations/2026-10-28-strategy-docs.sql). Every write goes through
+// mj_save_doc / mj_delete_doc: an older version never overwrites a newer one, a
+// deleted note never comes back, a revision trades point to never changes.
+// Until the migration is applied the routes answer 503 and the app keeps the
+// documents on the device.
+const DOC_KINDS = ['strategy', 'revision', 'note', 'hypothesis', 'week'];
+const DOC_MAX_CHARS = 400 * 1024;
+// Postgres / PostgREST saying the table or the function is not there yet
+function isMissingStrategyStore(e) {
+  const code = e && e.pg && e.pg.code;
+  return code === '42P01' || code === '42883' || code === 'PGRST202' || code === 'PGRST205';
+}
+function strategyStoreError(res, route, e) {
+  if (isMissingStrategyStore(e)) return res.status(503).json({ error: 'strategy_store_unavailable' });
+  console.error(`[API] ${route} error:`, e.message);
+  return res.status(500).json({ error: 'Failed' });
+}
+function isValidDocVersion(v) { return Number.isSafeInteger(v) && v > 0; }
+
+// GET /strategy-docs — every document of the account, deletion marks included
+app.get('/strategy-docs', auth, async (req, res) => {
+  try {
+    const rows = await supabase('GET', `strategy_docs?user_id=eq.${req.userId}&select=id,kind,data,v,deleted_at`);
+    const docs = (rows || []).map(r => ({ id: r.id, kind: r.kind, data: r.deleted_at ? {} : (r.data || {}), v: Number(r.v), deleted: !!r.deleted_at }));
+    res.json({ docs });
+  } catch (e) { strategyStoreError(res, 'GET /strategy-docs', e); }
+});
+
+// POST /strategy-docs — save one document: { id, kind, data, v }
+app.post('/strategy-docs', auth, async (req, res) => {
+  const { id, kind, data, v } = req.body || {};
+  if (!isValidTradeId(id) || typeof id !== 'string') return res.status(400).json({ error: 'Invalid id' });
+  if (!DOC_KINDS.includes(kind))                     return res.status(400).json({ error: 'Invalid kind' });
+  if (!isValidDocVersion(v))                         return res.status(400).json({ error: 'Invalid version' });
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return res.status(400).json({ error: 'Invalid data' });
+  if (JSON.stringify(data).length > DOC_MAX_CHARS)   return res.status(413).json({ error: 'Document too large' });
+  try {
+    const outcome = await supabase('POST', 'rpc/mj_save_doc', { p_id: id, p_user_id: req.userId, p_kind: kind, p_data: data, p_v: v });
+    console.log(`[API] POST /strategy-docs → ${kind} ${id} v${v}: ${outcome} for user ${req.userId}`);
+    res.json({ ok: true, outcome });
+  } catch (e) { strategyStoreError(res, 'POST /strategy-docs', e); }
+});
+
+// DELETE /strategy-docs/:id?kind=note&v=123 — notes and hypotheses only
+app.delete('/strategy-docs/:id', auth, async (req, res) => {
+  const id = req.params.id, kind = String(req.query.kind || ''), v = Number(req.query.v);
+  if (!isValidTradeId(id))         return res.status(400).json({ error: 'Invalid id' });
+  if (!DOC_KINDS.includes(kind))   return res.status(400).json({ error: 'Invalid kind' });
+  if (!isValidDocVersion(v))       return res.status(400).json({ error: 'Invalid version' });
+  try {
+    const outcome = await supabase('POST', 'rpc/mj_delete_doc', { p_id: id, p_user_id: req.userId, p_kind: kind, p_v: v });
+    console.log(`[API] DELETE /strategy-docs/${id} → ${outcome} for user ${req.userId}`);
+    res.json({ ok: true, outcome });
+  } catch (e) { strategyStoreError(res, 'DELETE /strategy-docs', e); }
+});
+
 // GET /settings — fetch base capital and goals
 app.get('/settings', auth, async (req, res) => {
   try {
