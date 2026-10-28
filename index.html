@@ -1589,6 +1589,220 @@ body.light .cal-day.today,body.light .cal-day.selected{color:var(--accent-ink)} 
 .cost-row .mono{color:var(--text);font-variant-numeric:tabular-nums}
 .cost-note{font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5}
 @media (pointer:coarse){ #tCommission,#tSwap,#qCommission,#qSwap{font-size:16px} }
+/* ═══ Strategies (v4): a route through one strategy, quiet surfaces, copper only where it leads ═══ */
+:root{--ease-out-strong:cubic-bezier(.23,1,.32,1);--ease-drawer:cubic-bezier(.32,.72,0,1)}
+.sr-root{padding:0 16px}
+.sr-status{font-size:12px;color:var(--text-muted);text-align:right;max-width:260px;line-height:1.4}
+.sr-status[data-state=synced]{color:var(--text-secondary)}
+.sr-status[data-state=offline],.sr-status[data-state=unavailable]{color:var(--warning)}
+.sr-ico{width:16px;height:16px;flex-shrink:0}
+/* buttons: a capsule, a quiet link, an icon; each answers a press */
+.sr-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 16px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;color:var(--text);font:500 13px/1.2 var(--sans);cursor:pointer;transition:transform 140ms var(--ease-out-strong),background-color 160ms ease,border-color 160ms ease,color 160ms ease}
+.sr-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.sr-btn:disabled{opacity:.4;cursor:default}
+.sr-link{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 2px;background:none;border:none;color:var(--accent-ink);font:500 13px/1.3 var(--sans);cursor:pointer;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:4px;transition:text-decoration-color 160ms ease,color 160ms ease,transform 140ms var(--ease-out-strong)}
+.sr-link.sr-quiet{color:var(--text-secondary)}
+.sr-link.sr-danger{color:var(--negative)}
+.sr-link:disabled{opacity:.4;cursor:default}
+.sr-ibtn{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;border:1px solid transparent;background:none;color:var(--text-secondary);cursor:pointer;position:relative;transition:transform 140ms var(--ease-out-strong),background-color 160ms ease,color 160ms ease}
+.sr-ibtn:disabled{opacity:.35;cursor:default}
+.sr-danger-btn{color:var(--negative);border-color:transparent;margin-right:auto}
+@media (hover:hover) and (pointer:fine){
+  .sr-btn:not(:disabled):hover{border-color:var(--text-secondary)}
+  .sr-btn.primary:not(:disabled):hover{background:var(--accent-soft);border-color:var(--accent-soft)}
+  .sr-link:not(:disabled):hover{text-decoration-color:currentColor}
+  .sr-ibtn:not(:disabled):hover{background:var(--surface-2);color:var(--text)}
+  .sr-step:not([aria-current]):hover .sr-step-name{color:var(--text)}
+  .sr-path:hover{border-color:var(--accent-muted);background:var(--surface-2)}
+}
+.sr-btn:not(:disabled):active,.sr-ibtn:not(:disabled):active,.sr-path:active,.sr-step:active,.sr-tab:active{transform:scale(.97)}
+.sr-link:not(:disabled):active{transform:scale(.98)}
+.sr-muted{font-size:13px;color:var(--text-secondary);line-height:1.6}
+.sr-unset{color:var(--text-muted)}
+.sr-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;border:1px solid var(--border-strong);font-size:12px;color:var(--text-secondary)}
+.sr-visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* library and head */
+.sr-lib{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-bottom:16px;margin-bottom:22px;border-bottom:1px solid var(--border)}
+.sr-pick{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1;max-width:360px}
+.sr-pick span{font-size:12px;color:var(--text-muted)}
+.sr-pick select,.sr-select{width:100%;min-height:44px;padding:9px 12px;border-radius:12px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);font:400 14px var(--sans)}
+.sr-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.sr-name{font:600 clamp(26px,5vw,38px)/1.1 var(--serif);letter-spacing:-.02em;color:var(--text)}
+.sr-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--text-secondary)}
+.sr-head-acts{display:flex;flex-wrap:wrap;gap:4px 18px}
+/* tabs: a rail with a copper mark that glides to the chosen tab */
+.sr-tabs{position:relative;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border);margin:0 -16px 20px;padding:0 16px}
+.sr-tabs::-webkit-scrollbar{display:none}
+.sr-tab{flex-shrink:0;min-height:44px;padding:10px 14px;background:none;border:none;color:var(--text-secondary);font:500 14px var(--sans);cursor:pointer;white-space:nowrap;transition:color 180ms ease,transform 140ms var(--ease-out-strong)}
+.sr-tab[aria-selected=true]{color:var(--text)}
+.sr-tab-ind{position:absolute;left:0;bottom:-1px;height:2px;width:0;background:var(--accent);border-radius:2px;pointer-events:none;transition:transform 260ms var(--ease-out-strong),width 260ms var(--ease-out-strong)}
+/* surfaces that swap: the leaving copy sits on top of the same place */
+.sr-stage,.sr-cardhold,.sr-mbody{position:relative}
+.sr-swap{min-width:0}
+.sr-leaving{position:absolute;left:0;right:0;pointer-events:none!important;z-index:1}
+.sr-swapping{overflow:hidden}
+.sr-leaving *{pointer-events:none!important}
+/* the route */
+.sr-route{display:grid;grid-template-columns:240px minmax(0,1fr) 260px;gap:28px;align-items:start}
+.sr-route.single{grid-template-columns:minmax(0,1fr) 260px}
+.sr-steps{position:relative;display:flex;flex-direction:column;gap:2px;padding-left:2px}
+.sr-steps::before{content:'';position:absolute;left:19px;top:22px;bottom:22px;width:1px;background:var(--border-strong)}
+.sr-step-ind{position:absolute;left:0;top:0;width:2px;height:0;background:var(--accent);border-radius:2px;pointer-events:none;transition:transform 280ms var(--ease-out-strong),height 280ms var(--ease-out-strong)}
+.sr-step{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;gap:10px;min-height:52px;padding:6px 8px 6px 0;background:none;border:none;text-align:left;color:inherit;cursor:pointer;border-radius:12px;transition:transform 140ms var(--ease-out-strong)}
+.sr-step-n{position:relative;z-index:1;width:30px;height:30px;margin-left:4px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid var(--border-strong);background:var(--bg);font:500 12px var(--sans);font-variant-numeric:tabular-nums;color:var(--text-secondary);transition:background-color 220ms ease,border-color 220ms ease,color 220ms ease,transform 260ms var(--ease-out-strong)}
+.sr-step-c{display:flex;flex-direction:column;gap:2px;min-width:0;transition:transform 260ms var(--ease-out-strong)}
+.sr-step-name{font-size:14px;font-weight:500;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;transition:color 200ms ease}
+.sr-step-hint{font-size:12px;color:var(--text-muted)}
+.sr-step[aria-current=step] .sr-step-n{background:var(--accent);border-color:var(--accent);color:var(--on-accent);transform:scale(1.08)}
+.sr-step[aria-current=step] .sr-step-name{color:var(--text)}
+.sr-step[aria-current=step] .sr-step-c{transform:translateX(4px)}
+/* the section card */
+.sr-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px 24px;box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+.sr-card-meta{font-size:12px;color:var(--text-muted);margin-bottom:6px}
+.sr-card-tl{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sr-card-t{font:600 clamp(22px,4vw,28px)/1.15 var(--serif);letter-spacing:-.015em;color:var(--text);overflow-wrap:anywhere}
+.sr-card-tools{display:flex;gap:2px;flex-shrink:0;margin-top:-4px}
+.sr-foldbtn .sr-ico{transition:transform 240ms var(--ease-out-strong)}
+.sr-card.collapsed .sr-foldbtn .sr-ico{transform:rotate(180deg)}
+.sr-purpose{font-size:13px;color:var(--text-secondary);margin-top:8px;line-height:1.6}
+.sr-card-b{overflow:hidden}
+.sr-card-in{padding-top:14px;transform-origin:top center}
+.sr-rules{list-style:none;counter-reset:r;display:flex;flex-direction:column}
+.sr-rules li{position:relative;padding:12px 0 12px 22px;border-top:1px solid var(--border);font-size:15px;line-height:1.6;color:var(--text);overflow-wrap:anywhere}
+.sr-rules li:first-child{border-top:none}
+.sr-rules li::before{content:'';position:absolute;left:4px;top:22px;width:6px;height:1px;background:var(--text-muted)}
+.sr-rules.ordered li{counter-increment:r;padding-left:30px}
+.sr-rules.ordered li::before{content:counter(r);width:auto;height:auto;top:12px;left:0;background:none;font-size:13px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.sr-blank{padding:18px 0 4px;font-size:14px;color:var(--text-secondary);line-height:1.6}
+.sr-blank p{margin-bottom:8px}
+.sr-next{display:flex;justify-content:space-between;gap:10px;margin-top:16px}
+.sr-short{display:none}
+.sr-sectools{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:14px}
+.sr-aside{display:flex;flex-direction:column;gap:24px}
+.sr-aside-b{padding-top:14px;border-top:1px solid var(--border)}
+.sr-aside-t{font:600 16px var(--serif);color:var(--text);margin-bottom:10px}
+.sr-plain{list-style:none;display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.sr-plain li{font-size:13px;line-height:1.55;color:var(--text-secondary)}
+.sr-dl{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.sr-dl dt{font-size:12px;color:var(--text-muted)}
+.sr-dl dd{font-size:13px;color:var(--text);line-height:1.5;overflow-wrap:anywhere}
+/* editing */
+.sr-form{display:flex;flex-direction:column}
+.sr-rows{display:flex;flex-direction:column;gap:8px;margin:6px 0 8px}
+.sr-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:start}
+.sr-row-n{font-size:12px;color:var(--text-muted);padding-top:12px;text-align:right;font-variant-numeric:tabular-nums}
+.sr-row .ftextarea{min-height:46px;resize:vertical}
+.sr-row-tools{display:flex;gap:0;padding-top:2px}
+.sr-check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px;color:var(--text-secondary);cursor:pointer}
+.sr-check input{width:18px;height:18px;accent-color:var(--accent)}
+.sr-actions{display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px}
+.sr-saved{font-size:12px;color:var(--text-muted);margin-right:auto}
+.sr-formhint{font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5}
+.sr-note{font-size:12px;color:var(--text-secondary);line-height:1.6;padding:10px 12px;border-left:2px solid var(--accent);background:var(--surface-2);border-radius:0 10px 10px 0;margin:4px 0 8px}
+.sr-bigtext{min-height:220px;font-size:14px}
+.sr-chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.sr-chips span{font-size:12px;padding:6px 11px;border:1px solid var(--border-strong);border-radius:999px;color:var(--text-secondary)}
+.sr-sum{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.sr-sum b{font:600 18px var(--serif)}
+.sr-sum span{font-size:12px;color:var(--text-muted)}
+.sr-prev{border:1px solid var(--border);border-radius:14px;padding:6px 14px 4px;margin-bottom:12px;transition:opacity 180ms ease}
+.sr-prev.off{opacity:.5}
+.sr-src{margin:6px 0}
+.sr-src summary,.sr-auto summary{min-height:44px;display:flex;align-items:center;font-size:13px;color:var(--accent-ink);cursor:pointer}
+/* start paths */
+.sr-empty{max-width:720px;padding:8px 0 24px}
+.sr-empty-t{font:600 clamp(24px,5vw,34px)/1.15 var(--serif);letter-spacing:-.02em;margin-bottom:10px}
+.sr-empty-p{font-size:15px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px}
+.sr-paths{display:flex;flex-direction:column;gap:10px;margin:18px 0}
+.sr-path{display:grid;grid-template-columns:36px minmax(0,1fr) 18px;align-items:center;gap:14px;width:100%;padding:16px 18px;border-radius:18px;border:1px solid var(--border);background:var(--surface);text-align:left;color:var(--text);cursor:pointer;transition:transform 140ms var(--ease-out-strong),border-color 180ms ease,background-color 180ms ease}
+.sr-path strong{display:block;font-size:15px;font-weight:600;margin-bottom:3px}
+.sr-path small{display:block;font-size:13px;color:var(--text-secondary);line-height:1.5}
+.sr-path-n{width:36px;height:36px;border-radius:12px;border:1px solid var(--accent-muted);display:inline-flex;align-items:center;justify-content:center;font:600 18px var(--serif);color:var(--accent-ink)}
+/* trades, notes, week, hypotheses, history */
+.sr-seg{display:inline-flex;flex-wrap:wrap;gap:4px;padding:3px;border-radius:999px;border:1px solid var(--border);margin-bottom:16px}
+.sr-seg button,.sr-radio span{min-height:36px;padding:7px 14px;border-radius:999px;border:none;background:none;color:var(--text-secondary);font:500 13px var(--sans);cursor:pointer;transition:background-color 180ms ease,color 180ms ease,transform 140ms var(--ease-out-strong);display:inline-flex;align-items:center}
+.sr-seg button[aria-pressed=true],.sr-radio input:checked+span{background:var(--surface-3);color:var(--text)}
+.sr-radio input{position:absolute;opacity:0;width:1px;height:1px}
+.sr-radio input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.sr-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.sr-kpi{padding:14px 16px;border-radius:16px;background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.sr-kpi span{font-size:12px;color:var(--text-muted)}
+.sr-kpi b{font:600 20px var(--sans);font-variant-numeric:lining-nums tabular-nums;color:var(--text)}
+.sr-facts{list-style:none;display:flex;flex-direction:column;gap:6px;margin:0 0 16px;font-size:13px;color:var(--text-secondary);line-height:1.5}
+.sr-tradelist{padding:0!important}
+.sr-panel-h{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px}
+.sr-panel-h .sr-muted{max-width:560px}
+.sr-items{display:flex;flex-direction:column}
+.sr-item{padding:14px 0;border-top:1px solid var(--border)}
+.sr-item-m{font-size:12px;color:var(--text-muted);margin-bottom:6px}
+.sr-item-h{font:600 17px/1.3 var(--serif);color:var(--text);margin-bottom:6px;overflow-wrap:anywhere}
+.sr-item-t{font-size:14px;color:var(--text-secondary);line-height:1.6;margin-bottom:4px;overflow-wrap:anywhere}
+.sr-item-acts{display:flex;flex-wrap:wrap;gap:4px 18px}
+.sr-k{color:var(--text-muted)}
+.sr-weeknav{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sr-weeklbl{display:flex;flex-direction:column;gap:2px;font-size:14px;min-width:180px;text-align:center}
+.sr-weeklbl span{font-size:12px;color:var(--text-muted)}
+.sr-week .sr-muted{margin-bottom:16px}
+.sr-week{max-width:760px}
+.sr-revview{display:flex;flex-direction:column;gap:16px}
+.sr-tradestrat{display:flex;flex-direction:column;gap:2px;font-size:14px;color:var(--text);margin:2px 0 4px}
+/* the way in from Progress on a phone */
+.sr-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;width:calc(100% - 32px);margin:4px 16px 8px;padding:16px 18px;border-radius:18px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:left;cursor:pointer;transition:transform 140ms var(--ease-out-strong),border-color 180ms ease}
+.sr-entry svg{width:18px;height:18px;color:var(--text-muted);flex-shrink:0}
+.sr-entry-c{display:flex;flex-direction:column;gap:3px}
+.sr-entry-t{font:600 18px var(--serif)}
+.sr-entry-s{font-size:13px;color:var(--text-secondary)}
+.sr-entry:active{transform:scale(.98)}
+.nb-strat{display:none}
+/* the window: motion is driven from script, so the shared pop-in stays off here */
+#stratModal .modal{animation:none;max-width:640px}
+#stratModal.sr-closing{pointer-events:none}
+.sr-mhead{min-width:0}
+.sr-mkind{font-size:12px;color:var(--text-muted);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(min-width:1024px){
+  .nb-strat{display:flex}
+  .sr-entry{display:none}
+  .sr-root{padding:0}
+  .sr-tabs{margin-left:0;margin-right:0;padding:0}
+}
+/* tablets and phones: steps become a scrolling row; checklist and conditions go under the card */
+@media(max-width:1199px){
+  .sr-route,.sr-route.single{grid-template-columns:minmax(0,1fr)}
+  .sr-steps{flex-direction:row;overflow-x:auto;scrollbar-width:none;gap:6px;padding:0 0 10px;margin:0 -16px;padding-left:16px;padding-right:16px;scroll-padding:0 16px}
+  .sr-steps::-webkit-scrollbar{display:none}
+  .sr-steps::before{left:16px;right:16px;top:auto;bottom:4px;width:auto;height:1px}
+  .sr-step-ind{top:auto;bottom:3px;height:3px;width:0;left:0}
+  .sr-step{grid-template-columns:auto minmax(0,auto);flex-shrink:0;min-height:48px;padding:6px 12px 10px 4px;max-width:230px}
+  .sr-step-n{margin-left:0;width:28px;height:28px}
+  .sr-step[aria-current=step] .sr-step-c{transform:none}
+  .sr-step-name{white-space:nowrap}
+  .sr-aside{flex-direction:row;flex-wrap:wrap;gap:16px 28px}
+  .sr-aside-b{flex:1 1 260px}
+}
+@media(max-width:1199px) and (min-width:1024px){ .sr-steps{margin:0;padding-left:0;padding-right:0} }
+@media(max-width:639px){
+  .sr-card{padding:18px 16px;border-radius:18px}
+  .sr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sr-head-acts{gap:2px 16px}
+  .sr-panel-h{flex-direction:column}
+  .sr-next .sr-btn{flex:1}
+  .sr-long{display:none}.sr-short{display:inline}
+  .sr-row{grid-template-columns:minmax(0,1fr) auto}
+  .sr-row-n{display:none}
+  .sr-row-tools{flex-direction:column}
+  .sr-actions .sr-btn{flex:1 1 auto}
+  .sr-danger-btn{flex:0 0 auto!important}
+}
+@media (pointer:coarse){
+  .sr-ibtn::after,.sr-link::after{content:'';position:absolute;top:50%;left:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+  .sr-link{position:relative;min-height:44px}
+  .sr-btn{min-height:44px}
+  .sr-pick select,.sr-select,#stratModal .finput,#stratModal .ftextarea,#srCardHold .finput,#srCardHold .ftextarea,.sr-week .ftextarea{font-size:16px}
+}
+@media(prefers-reduced-motion:reduce){
+  .sr-tab-ind,.sr-step-ind,.sr-step-n,.sr-step-c,.sr-foldbtn .sr-ico{transition:none}
+  .sr-step[aria-current=step] .sr-step-c,.sr-step[aria-current=step] .sr-step-n{transform:none}
+}
 /* toasts and the quick entry's save button clear the home bar in Telegram too */
 @media (max-width:1023px){
   .toast{bottom:calc(88px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
@@ -2042,6 +2256,11 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     </div>
   </div>
 
+  <button type="button" class="sr-entry" id="stratEntry" onclick="openStrategies()">
+    <span class="sr-entry-c"><span class="sr-entry-t" id="stratEntryTitle">Мои стратегии</span><span class="sr-entry-s" id="stratEntrySub">Правила, наблюдения и итог недели</span></span>
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+  </button>
+
   <div class="an-detail-grid">
 
   <!-- Week in review -->
@@ -2077,6 +2296,15 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
   </div><!-- /an-detail-grid -->
 </div>
 
+<!-- ═══════════ STRATEGIES ═══════════ -->
+<div id="page-strategies" class="page">
+  <div class="phdr">
+    <h1 class="ptitle" id="stratPTitle">Стратегии</h1>
+    <div class="phdr-tools"><span class="sr-status" id="stratStatus" role="status" aria-live="polite"></span></div>
+  </div>
+  <div class="sr-root" id="stratRoot"></div>
+</div>
+
 <!-- ═══════════ NAV ═══════════ -->
 <nav class="nav">
   <div class="nav-logo">MackH <span>Journal</span></div>
@@ -2099,6 +2327,10 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
   <button class="nb" onclick="goPage('progress',this)">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8.3"/><circle cx="12" cy="12" r="4.3"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
     Progress<div class="nb-dot"></div>
+  </button>
+  <button class="nb nb-strat" id="nbStrat" onclick="openStrategies()">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 4v16M5 5h11l-2 3.5L16 12H5"/></svg>
+    <span id="nbStratLbl">Стратегии</span><div class="nb-dot"></div>
   </button>
 </nav>
 
@@ -2244,6 +2476,11 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <button class="tbtn" id="btnSetupOffplan" onclick="setTrade('setup','Off-plan')">Off-plan</button>
         </div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:5px;line-height:1.5"><span id="trendHint">Движение по тренду</span> &nbsp;·&nbsp; <span id="rangeHint">Боковой рынок</span> &nbsp;·&nbsp; <span id="offplanHint">Вне плана</span></div>
+      </div>
+      <div class="fgroup" id="tStrategyGroup" hidden>
+        <label class="flabel" for="tStrategy" id="lbl_strategy_el">Моя стратегия</label>
+        <select class="fselect" id="tStrategy"><option value="">Без стратегии</option></select>
+        <p class="sr-formhint" id="tStrategyHint">Необязательно. Отдельно от «Тренд / Боковик / Вне плана».</p>
       </div>
       <div class="fsection" id="fsecNotes1">Заметки</div>
       <div class="fgroup">
@@ -2604,6 +2841,15 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
   </div>
 </div>
 
+<!-- STRATEGY WINDOW -->
+<div class="overlay sr-overlay" id="stratModal">
+  <div class="modal sr-modal">
+    <div class="mhandle"></div>
+    <div class="mhdr"><div class="sr-mhead"><p class="sr-mkind" id="stratModalKind"></p><div class="mtitle" id="stratModalTitle"></div></div><button class="mclose" type="button" onclick="stratCloseDialog()" aria-label="Закрыть окно"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mbody sr-mbody" id="stratModalBody"></div>
+  </div>
+</div>
+
 <!-- QUICK ADD MODAL -->
 <div class="overlay" id="quickModal">
   <div class="modal">
@@ -2663,6 +2909,10 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
         <div class="fgroup">
           <label class="flabel" id="qlbl_date">Дата</label>
           <input class="finput" id="qDate" type="date">
+        </div>
+        <div class="fgroup" id="qStrategyGroup" hidden>
+          <label class="flabel" for="qStrategy" id="qlbl_strategy">Моя стратегия</label>
+          <select class="fselect" id="qStrategy"><option value="">Без стратегии</option></select>
         </div>
       </div>
       <div class="frow2">
@@ -6613,6 +6863,7 @@ function openDetail(id){
       ${t.pnl?`<div class="dstat"><div class="dstat-val" style="color:${pnlNum>=0?'var(--positive)':'var(--negative)'}">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</div><div class="dstat-lbl">${t.pnlMode==='gross'||t.pnlMode==='net'?(lang==='ru'?'Итог':'Total'):T('detail_pnl')}</div></div>`:''}
     </div>
     ${costBlockHTML(t)}
+    ${stratTradeBlockHTML(t)}
     ${t.entry||t.sl||t.tp?`<div class="dstat-row">
       ${t.entry?`<div class="dstat"><div class="dstat-val mono" style="font-size:12px">${escapeHtml(t.entry)}</div><div class="dstat-lbl">${T('detail_entry')}</div></div>`:''}
       ${t.sl?`<div class="dstat"><div class="dstat-val mono red" style="font-size:12px">${escapeHtml(t.sl)}</div><div class="dstat-lbl">${T('detail_sl')}</div></div>`:''}
@@ -7016,6 +7267,7 @@ function syncFormToState(){
   tForm.sl    =document.getElementById('tSL').value;
   tForm.tp    =document.getElementById('tTP').value;
   tForm.pnl   =document.getElementById('tPnl').value;
+  tForm.strategyId=document.getElementById('tStrategy').value;
   tForm.commission=document.getElementById('tCommission').value;
   tForm.swap      =document.getElementById('tSwap').value;
   if(tForm.pnlModeTouched || tForm.pnlMode) tForm.pnlMode = document.getElementById('tPnlNet').checked ? 'net' : 'gross';
@@ -7060,6 +7312,7 @@ function syncStateToForm(){
   document.getElementById('tSL').value     = tForm.sl     ||'';
   document.getElementById('tTP').value     = tForm.tp     ||'';
   document.getElementById('tPnl').value    = tForm.pnl    ||'';
+  stratFillSelect('tStrategy', 'tStrategyGroup', tForm.strategyId || '');
   document.getElementById('tCommission').value = tForm.commission ?? '';
   document.getElementById('tSwap').value       = tForm.swap ?? '';
   document.getElementById('tPnlNet').checked   = tForm.pnlMode==='net';
@@ -7190,6 +7443,7 @@ function openQuickAdd(){
   document.getElementById('qSwap').value='';
   document.getElementById('qPnlNet').checked = defaultPnlMode()==='net';
   document.getElementById('qCostFold').open = false;
+  stratFillSelect('qStrategy', 'qStrategyGroup', '');
   costError('q', '');
   updateCostTotal('q');
   document.getElementById('qRR').value='';
@@ -7231,6 +7485,7 @@ function saveQuickTrade(){
   const costs = readCosts(document.getElementById('qCommission').value, document.getElementById('qSwap').value);
   if(costs.error){ document.getElementById('qCostFold').open = true; costError('q', costs.error); return; }
   const qMode = document.getElementById('qPnlNet').checked ? 'net' : 'gross';
+  const qLink = stratTradeLink(document.getElementById('qStrategy').value, null);
   const rrRaw = document.getElementById('qRR').value.trim();
   let rrVal = null;
   if(rrRaw){
@@ -7246,6 +7501,7 @@ function saveQuickTrade(){
     result:qForm.result,
     pnl:document.getElementById('qPnl').value||'',
     commission:costs.commission, swap:costs.swap, pnlMode:qMode,
+    ...(qLink.strategyId ? qLink : {}),
     rr:rrVal,
     date:document.getElementById('qDate').value||new Date().toISOString().split('T')[0],
     quickTrade:true,
@@ -7352,7 +7608,15 @@ function sdocSchedule(delay=350){
   _sdocRetry = setTimeout(()=>sdocSync(), delay);
 }
 function sdocRetryLater(){ clearTimeout(_sdocRetry); _sdocRetry = setTimeout(()=>sdocSync(), 30000); }
-const sdocUnreachable = ()=> api._lastStatus===503 || api._lastStatus===404 ? 'unavailable' : 'offline';
+// The status of this request only: api() keeps the last HTTP status and leaves it as is on a network error
+let _sdocLastStatus = 0;
+async function sdocApi(method, path, body){
+  api._lastStatus = 0;
+  const resp = await api(method, path, body);
+  _sdocLastStatus = api._lastStatus || 0;
+  return resp;
+}
+const sdocUnreachable = ()=> _sdocLastStatus===503 || _sdocLastStatus===404 ? 'unavailable' : 'offline';
 
 // One runner per account at a time; a call while it runs asks for one more pass
 function sdocSync(){
@@ -7376,8 +7640,8 @@ async function sdocPass(run){
     if(!next) break;
     const sentV = next.v, wasDel = next.del;
     const resp = wasDel
-      ? await api('DELETE', `/strategy-docs/${encodeURIComponent(next.id)}?kind=${next.kind}&v=${sentV}`)
-      : await api('POST', '/strategy-docs', {id:next.id, kind:next.kind, data:next.data, v:sentV});
+      ? await sdocApi('DELETE', `/strategy-docs/${encodeURIComponent(next.id)}?kind=${next.kind}&v=${sentV}`)
+      : await sdocApi('POST', '/strategy-docs', {id:next.id, kind:next.kind, data:next.data, v:sentV});
     // The account changed meanwhile: its copy stays unsent on its device and goes again later
     if(!isCurrentOwner(run.owner, run.epoch)) return;
     if(!resp || typeof resp.outcome!=='string'){ stratSetStatus(sdocUnreachable()); sdocRetryLater(); return; }
@@ -7407,7 +7671,7 @@ async function sdocPass(run){
 async function sdocLoadServer(){
   const owner = dataOwner, epoch = ownerEpoch;
   if(!owner) return;
-  const resp = await api('GET', '/strategy-docs');
+  const resp = await sdocApi('GET', '/strategy-docs');
   if(!isCurrentOwner(owner, epoch)) return;
   if(!resp || !Array.isArray(resp.docs)){
     stratSetStatus(sdocUnreachable());
@@ -7583,6 +7847,917 @@ function stratStats(list){
     winShare: decided ? byResult.win/decided : null,
     planKnown:list.filter(t=>t.byPlan===true||t.byPlan===false).length, byPlan:list.filter(t=>t.byPlan===true).length,
   };
+}
+
+// ═══════════════════════════════════════════════════════
+//  STRATEGIES — screens
+//  The «Стратегии» page: a library of the trader's strategies, the route through
+//  one strategy's sections, its trades, notes, week notes, hypotheses and
+//  history. Everything optional: the journal works the same without it.
+//  Motion: a section or tab change slides the old surface out and the new one in
+//  from the side it comes from; windows rise as a sheet on a phone and lift with
+//  a slight scale on a computer; a section folds for real. Keyboard actions and
+//  reduced motion get the end state at once. Animations are WAAPI on transform
+//  and opacity (height only for the fold), cancelled by the next change.
+// ═══════════════════════════════════════════════════════
+const SR_EASE_OUT = 'cubic-bezier(.23,1,.32,1)';
+const SR_EASE_DRAWER = 'cubic-bezier(.32,.72,0,1)';
+const SU = {id:null, tab:'rules', step:0, editing:false, dirty:false, collapsed:false, period:30, week:null, weekDirty:false, dlgDirty:false, input:'pointer', pending:null};
+const SR_TABS = ['rules','trades','notes','week','hypotheses','history'];
+const srRu = ()=>lang==='ru';
+const srT = (ru, en)=>lang==='ru' ? ru : en;
+const srEsc = s=>escapeHtml(String(s ?? ''));
+const srReduce = ()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const srMoves = ()=>SU.input==='pointer' && !srReduce();
+const srSheet = ()=>!matchMedia('(min-width:1024px)').matches;
+document.addEventListener('pointerdown', ()=>{ SU.input = 'pointer'; }, true);
+document.addEventListener('keydown', e=>{ if(!e.repeat && e.key!=='Shift') SU.input = 'keyboard'; }, true);
+
+function srIcon(name){
+  const p = {
+    edit:'<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m14 6 4 4"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>', up:'<path d="m6 15 6-6 6 6"/>', down:'<path d="m6 9 6 6 6-6"/>',
+    close:'<path d="M6 6l12 12M18 6 6 18"/>', next:'<path d="M5 12h14m-5-5 5 5-5 5"/>', prev:'<path d="M19 12H5m5-5-5 5 5 5"/>',
+    check:'<path d="m5 12 4 4 10-10"/>', fold:'<path d="m6 15 6-6 6 6"/>', text:'<path d="M5 6h14M5 12h14M5 18h9"/>',
+  }[name] || '';
+  return `<svg class="sr-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+}
+const SR_PURPOSE = {
+  context:['Направление, роль таймфреймов и что отменяет сценарий.','Direction, the role of each timeframe and what cancels the scenario.'],
+  poi:['Какие зоны вы берёте в работу и когда зона перестаёт быть рабочей.','Which areas you work with and when an area stops counting.'],
+  entry:['Что должно случиться до заявки и когда её снимать.','What has to happen before the order and when to cancel it.'],
+  targets:['Где стоп, где цели и как вы ведёте позицию.','Where the stop and targets are and how you manage the position.'],
+  risk:['Ограничения на одну сделку и на весь день.','Limits for one trade and for the whole day.'],
+  notrade:['Условия, при которых вы пропускаете вход.','Conditions under which you skip the entry.'],
+};
+const srPoints = n=>srRu() ? n+' '+(n%100>=11&&n%100<=14?'пунктов':n%10===1?'пункт':n%10>=2&&n%10<=4?'пункта':'пунктов') : n+' '+(n===1?'point':'points');
+const srTradesWord = n=>srRu() ? n+' '+(n%100>=11&&n%100<=14?'сделок':n%10===1?'сделка':n%10>=2&&n%10<=4?'сделки':'сделок') : n+' '+(n===1?'trade':'trades');
+const srDate = iso=>{ if(!iso) return ''; const d = new Date(iso.length===10 ? iso+'T12:00:00' : iso); return isNaN(d) ? '' : d.toLocaleDateString(srRu()?'ru-RU':'en-GB',{day:'numeric',month:'short',year:'numeric'}).replace(' г.',''); };
+
+// ── which strategy is open ──
+function srList(){ return sdocAll('strategy').sort((a,b)=>String(a.data.createdAt||'').localeCompare(String(b.data.createdAt||''))); }
+function srActiveList(){ return srList().filter(d=>!d.data.archived); }
+function srCurrent(){
+  const all = srList();
+  if(!SU.id || !sdocs[SU.id] || sdocs[SU.id].del){
+    const saved = lsGet('strategy_open_v1');
+    SU.id = (saved && sdocs[saved] && !sdocs[saved].del) ? saved : ((srActiveList()[0] || all[0] || {}).id || null);
+  }
+  return SU.id ? sdocs[SU.id] : null;
+}
+function srOpen(id){
+  SU.id = id; SU.step = 0; SU.editing = false; SU.dirty = false; SU.collapsed = false;
+  try{ lsSet('strategy_open_v1', id); }catch(e){}
+}
+function srSaveStrategy(data){ const d = srCurrent(); if(!d) return null; data.updatedAt = new Date().toISOString(); return sdocPut('strategy', data, d.id); }
+function srData(){ const d = srCurrent(); return d ? sdocClone(d.data) : null; }
+
+// ── leaving with unsaved edits ──
+function stratCanLeave(){
+  if(!SU.dirty && !SU.weekDirty) return true;
+  if(!confirm(srT('Есть несохранённые изменения. Уйти без сохранения?','You have unsaved changes. Leave without saving?'))) return false;
+  SU.dirty = false; SU.weekDirty = false; SU.editing = false;
+  return true;
+}
+window.addEventListener('beforeunload', e=>{ if(SU.dirty || SU.weekDirty || SU.dlgDirty){ e.preventDefault(); e.returnValue = ''; } });
+
+// ── status: «в аккаунте» only after the server confirmed ──
+function stratRenderStatus(){
+  const el = document.getElementById('stratStatus'); if(!el) return;
+  const has = Object.keys(sdocs).length>0;
+  el.dataset.state = sdocStatus;
+  el.textContent = !dataOwner ? '' : {
+    loading: srT('Загрузка…','Loading…'),
+    pending: srT('Сохранено на устройстве · отправляется','Saved on this device · sending'),
+    synced: has ? srT('Сохранено в аккаунте','Saved to your account') : '',
+    offline: srT('Нет связи · сохранено на устройстве, отправим позже','Offline · saved on this device, will send later'),
+    unavailable: srT('Сервер пока не принимает стратегии · сохранено на устройстве','The server does not take strategies yet · saved on this device'),
+  }[sdocStatus] || '';
+}
+
+// ── page ──
+function openStrategies(){
+  const desktop = matchMedia('(min-width:1024px)').matches;
+  const btn = desktop ? document.getElementById('nbStrat') : document.querySelector('.nb[onclick*="progress"]');
+  goPage('strategies', btn);
+}
+function stratRefresh(){
+  stratRenderStatus();
+  const entry = document.getElementById('stratEntrySub');
+  if(entry){ const n = srActiveList().length; entry.textContent = n ? srT('Ваших стратегий: ','Your strategies: ')+n : srT('Правила, наблюдения и итог недели','Rules, notes and the week'); }
+  if(!document.getElementById('page-strategies')?.classList.contains('active')) return;
+  if(SU.editing || SU.weekDirty) return;                // an open edit is never redrawn under the cursor
+  stratRender();
+}
+function stratUIReset(){
+  Object.assign(SU, {id:null, tab:'rules', step:0, editing:false, dirty:false, collapsed:false, week:null, weekDirty:false, dlgDirty:false, pending:null});
+  const root = document.getElementById('stratRoot'); if(root) root.innerHTML = '';
+  const ov = document.getElementById('stratModal'); if(ov){ ov.classList.remove('open','sr-closing'); ov.inert = false; }
+  stratRenderStatus();
+}
+function stratRender(){
+  const root = document.getElementById('stratRoot'); if(!root) return;
+  stratRenderStatus();
+  const cur = srCurrent();
+  if(!cur){ root.innerHTML = srEmptyHTML(); return; }
+  const s = cur.data, all = srList();
+  const sections = s.sections || [];
+  SU.step = Math.min(SU.step, Math.max(0, sections.length-1));
+  const pts = sections.reduce((n,x)=>n+(x.rules||[]).length, 0);
+  const opts = all.map(d=>`<option value="${srEsc(d.id)}" ${d.id===cur.id?'selected':''}>${srEsc(d.data.name||srT('Без названия','Untitled'))}${d.data.archived?srT(' · в архиве',' · archived'):''}</option>`).join('');
+  const tabNames = {rules:srT('Правила','Rules'), trades:srT('Сделки','Trades'), notes:srT('Наблюдения','Notes'), week:srT('Неделя','Week'), hypotheses:srT('Гипотезы','Hypotheses'), history:srT('История','History')};
+  root.innerHTML = `
+    <div class="sr-lib">
+      <label class="sr-pick"><span>${srT('Мои стратегии','My strategies')}</span><select id="stratPick" aria-label="${srEsc(srT('Открыть стратегию','Open a strategy'))}">${opts}</select></label>
+      <button type="button" class="sr-btn" data-sa="new">${srIcon('plus')}${srT('Новая','New')}</button>
+    </div>
+    <header class="sr-head">
+      <div class="sr-head-t">
+        <h2 class="sr-name">${srEsc(s.name||srT('Без названия','Untitled'))}</h2>
+        <p class="sr-meta">${s.version?`<span class="sr-pill">${srEsc(s.version)}</span>`:''}${s.archived?`<span class="sr-pill">${srT('В архиве','Archived')}</span>`:''}<span>${sections.length===1?srT('1 раздел','1 section'):srRu()?sections.length+' '+(sections.length%10>=2&&sections.length%10<=4&&(sections.length%100<12||sections.length%100>14)?'раздела':'разделов'):sections.length+' sections'} · ${srPoints(pts)}</span></p>
+      </div>
+      <div class="sr-head-acts">
+        <button type="button" class="sr-link" data-sa="passport">${srT('Условия','Conditions')}</button>
+        <button type="button" class="sr-link" data-sa="fix">${srT('Зафиксировать редакцию','Fix a revision')}</button>
+        <button type="button" class="sr-link sr-quiet" data-sa="archive">${s.archived?srT('Вернуть из архива','Restore'):srT('В архив','Archive')}</button>
+      </div>
+    </header>
+    <div class="sr-tabs" role="tablist" aria-label="${srEsc(srT('Разделы стратегии','Strategy views'))}">
+      ${SR_TABS.map(t=>`<button type="button" role="tab" class="sr-tab" id="srTab-${t}" data-sa="tab" data-tab="${t}" aria-selected="${t===SU.tab}" aria-controls="srPanel" tabindex="${t===SU.tab?0:-1}">${tabNames[t]}</button>`).join('')}
+      <span class="sr-tab-ind" aria-hidden="true"></span>
+    </div>
+    <div class="sr-stage" id="srStage"><div class="sr-swap" id="srPanel" role="tabpanel" aria-labelledby="srTab-${SU.tab}">${srTabHTML(SU.tab)}</div></div>`;
+  srAfterPanel(false);
+  srMoveTabInd(false);
+}
+function srEmptyHTML(){
+  return `<section class="sr-empty">
+    <h2 class="sr-empty-t">${srT('Запишите свою стратегию','Write down your strategy')}</h2>
+    <p class="sr-empty-p">${srT('Правила, условия работы и чеклист — в одном месте. Сделку можно связать со стратегией, а можно записывать и без неё.','Rules, conditions and a checklist in one place. A trade can be linked to a strategy — or recorded without one.')}</p>
+    ${srStartPathsHTML()}
+  </section>`;
+}
+function srStartPathsHTML(){
+  return `<div class="sr-paths">
+    <button type="button" class="sr-path" data-sa="start-template"><span class="sr-path-n">6</span><span><strong>${srT('По шаблону','From a template')}</strong><small>${srT('Шесть пустых разделов: от контекста до ограничений. Риск, RR, инструменты и часы задаёте вы.','Six empty sections, from context to limits. Risk, RR, instruments and hours are yours to set.')}</small></span>${srIcon('next')}</button>
+    <button type="button" class="sr-path" data-sa="start-blank"><span class="sr-path-n">1</span><span><strong>${srT('С чистого листа','From scratch')}</strong><small>${srT('Один раздел. Добавляйте только то, что нужно вашей стратегии.','One section. Add only what your strategy needs.')}</small></span>${srIcon('next')}</button>
+    <button type="button" class="sr-path" data-sa="start-text"><span class="sr-path-n">${srIcon('text')}</span><span><strong>${srT('Из текста','From text')}</strong><small>${srT('Вставьте свою ТС из заметок: увидите разделы и пункты до создания.','Paste your strategy from notes: see the sections and points before creating it.')}</small></span>${srIcon('next')}</button>
+  </div>`;
+}
+
+// ── tab panels ──
+function srTabHTML(tab){
+  const s = srCurrent().data;
+  if(tab==='rules') return srRulesHTML(s);
+  if(tab==='trades') return srTradesHTML();
+  if(tab==='notes') return srNotesHTML();
+  if(tab==='week') return srWeekHTML();
+  if(tab==='hypotheses') return srHypHTML();
+  return srHistoryHTML();
+}
+function srRulesHTML(s){
+  const sections = s.sections || [], single = sections.length<=1;
+  const steps = sections.map((sec,i)=>`<button type="button" class="sr-step" data-sa="step" data-step="${i}" ${i===SU.step?'aria-current="step"':''}>
+      <span class="sr-step-n">${(i+1)}</span>
+      <span class="sr-step-c"><span class="sr-step-name">${srEsc(sec.name)}</span><span class="sr-step-hint">${(sec.rules||[]).length?srPoints(sec.rules.length):srT('Пока пусто','Empty for now')}</span></span>
+    </button>`).join('');
+  const checklist = s.checklist || [], p = s.passport || {};
+  const rows = [['instruments',srT('Инструменты','Instruments')],['sessions',srT('Сессии','Sessions')],['killzones',srT('Часы киллзон','Kill zone hours')],['timezone',srT('Часовой пояс','Time zone')],['endTime',srT('Завершение торговли','End of trading')]];
+  return `<div class="sr-route${single?' single':''}">
+    ${single?'':`<nav class="sr-steps" aria-label="${srEsc(srT('Разделы стратегии','Strategy sections'))}"><span class="sr-step-ind" aria-hidden="true"></span>${steps}</nav>`}
+    <div class="sr-mainwrap">
+      <div class="sr-cardhold" id="srCardHold"><div class="sr-swap">${srCardHTML(s)}</div></div>
+      ${single?'':`<div class="sr-next">
+        <button type="button" class="sr-btn" data-sa="prev" ${SU.step===0?'disabled':''}>${srIcon('prev')}${srT('Назад','Back')}</button>
+        <button type="button" class="sr-btn" data-sa="next" aria-label="${srEsc(srT('Следующий раздел','Next section'))}" ${SU.step>=sections.length-1?'disabled':''}><span class="sr-long">${srT('Следующий раздел','Next section')}</span><span class="sr-short" aria-hidden="true">${srT('Дальше','Next')}</span>${srIcon('next')}</button>
+      </div>`}
+      <div class="sr-sectools">
+        <button type="button" class="sr-link" data-sa="add-section">${srIcon('plus')}${srT('Свой раздел','Add a section')}</button>
+        ${single?'':`<button type="button" class="sr-link" data-sa="sec-up" ${SU.step===0?'disabled':''}>${srT('Выше','Move up')}</button>
+        <button type="button" class="sr-link" data-sa="sec-down" ${SU.step>=sections.length-1?'disabled':''}>${srT('Ниже','Move down')}</button>
+        <button type="button" class="sr-link sr-danger" data-sa="sec-remove">${srT('Убрать раздел','Remove section')}</button>`}
+        ${s.source&&s.source.text?`<button type="button" class="sr-link" data-sa="source">${srT('Исходный текст','Source text')}</button>`:''}
+      </div>
+    </div>
+    <aside class="sr-aside">
+      <div class="sr-aside-b">
+        <h3 class="sr-aside-t">${srT('Чеклист перед входом','Checklist before entry')}</h3>
+        ${checklist.length?`<ul class="sr-plain">${checklist.map(x=>`<li>${srEsc(x)}</li>`).join('')}</ul>`:`<p class="sr-muted">${srT('Пока пусто.','Empty for now.')}</p>`}
+        <button type="button" class="sr-link" data-sa="checklist">${checklist.length?srT('Изменить чеклист','Edit the checklist'):srT('Добавить чеклист','Add a checklist')}</button>
+      </div>
+      <div class="sr-aside-b">
+        <h3 class="sr-aside-t">${srT('Условия работы','Conditions')}</h3>
+        <dl class="sr-dl">${rows.map(([k,l])=>`<div><dt>${l}</dt><dd>${p[k]?srEsc(p[k]).replace(/\n/g,'<br>'):`<span class="sr-unset">${srT('Не указано','Not set')}</span>`}</dd></div>`).join('')}</dl>
+        <button type="button" class="sr-link" data-sa="passport">${srT('Уточнить условия','Edit the conditions')}</button>
+      </div>
+    </aside>
+  </div>`;
+}
+function srCardHTML(s){
+  const sections = s.sections || [], sec = sections[SU.step];
+  if(!sec) return '';
+  const purpose = sec.tpl && SR_PURPOSE[sec.tpl] ? SR_PURPOSE[sec.tpl][srRu()?0:1] : '';
+  const head = `<header class="sr-card-h">
+      <p class="sr-card-meta">${sections.length>1?srT(`Раздел ${SU.step+1} из ${sections.length}`,`Section ${SU.step+1} of ${sections.length}`):srT('Раздел','Section')}</p>
+      <div class="sr-card-tl"><h3 class="sr-card-t" id="srCardTitle">${srEsc(sec.name)}</h3>
+        ${SU.editing?'':`<div class="sr-card-tools">
+          <button type="button" class="sr-ibtn" data-sa="edit" aria-label="${srEsc(srT('Изменить раздел ','Edit section ')+sec.name)}">${srIcon('edit')}</button>
+          <button type="button" class="sr-ibtn sr-foldbtn" data-sa="fold" aria-expanded="${!SU.collapsed}" aria-controls="srCardBody" aria-label="${srEsc(SU.collapsed?srT('Развернуть раздел','Expand section'):srT('Свернуть раздел','Collapse section'))}">${srIcon('fold')}</button>
+        </div>`}
+      </div>
+      ${purpose?`<p class="sr-purpose">${srEsc(purpose)}</p>`:''}
+    </header>`;
+  if(SU.editing) return `<section class="sr-card editing" aria-labelledby="srCardTitle">${head}
+    <form class="sr-form" data-sf="section" data-id="${srEsc(sec.id)}">${srRuleEditorHTML(sec, true)}
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="edit-cancel">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Сохранить раздел','Save section')}</button></div>
+    </form></section>`;
+  const rules = sec.rules || [];
+  const body = rules.length
+    ? `<${sec.ordered?'ol':'ul'} class="sr-rules${sec.ordered?' ordered':''}">${rules.map(r=>`<li>${srEsc(r)}</li>`).join('')}</${sec.ordered?'ol':'ul'}>`
+    : `<div class="sr-blank"><p>${srT('Здесь пока нет правил. Можно записать один пункт или подробный список.','No rules here yet. Write one point or a detailed list.')}</p><button type="button" class="sr-link" data-sa="edit">${srIcon('edit')}${srT('Заполнить раздел','Fill in the section')}</button></div>`;
+  return `<section class="sr-card${SU.collapsed?' collapsed':''}" aria-labelledby="srCardTitle">${head}
+    <div class="sr-card-b" id="srCardBody" ${SU.collapsed?'hidden':''}><div class="sr-card-in">${body}</div></div>
+  </section>`;
+}
+// One editor for sections, the checklist and new sections: rows that can be moved and removed
+function srRuleEditorHTML(sec, withTitle){
+  const rows = (sec.rules && sec.rules.length ? sec.rules : ['']).map((r,i)=>srRuleRowHTML(r,i)).join('');
+  return `${withTitle?`<div class="fgroup"><label class="flabel" for="srSecTitle">${srT('Название раздела','Section name')}</label><input class="finput" id="srSecTitle" name="title" maxlength="120" required value="${srEsc(sec.name||'')}"></div>
+    <label class="sr-check"><input type="checkbox" name="ordered" ${sec.ordered?'checked':''}><span>${srT('Пункты выполняются по порядку','Points go in order')}</span></label>`:''}
+    <div class="sr-rows">${rows}</div>
+    <button type="button" class="sr-link" data-sa="row-add">${srIcon('plus')}${srT('Добавить пункт','Add a point')}</button>`;
+}
+function srRuleRowHTML(text, i){
+  const n = i+1;
+  return `<div class="sr-row"><span class="sr-row-n" aria-hidden="true">${String(n)}</span>
+    <textarea class="ftextarea" name="rule" rows="2" aria-label="${srEsc(srT('Пункт ','Point ')+n)}">${srEsc(text)}</textarea>
+    <div class="sr-row-tools">
+      <button type="button" class="sr-ibtn" data-sa="row-up" aria-label="${srEsc(srT(`Пункт ${n} выше`,`Move point ${n} up`))}">${srIcon('up')}</button>
+      <button type="button" class="sr-ibtn" data-sa="row-down" aria-label="${srEsc(srT(`Пункт ${n} ниже`,`Move point ${n} down`))}">${srIcon('down')}</button>
+      <button type="button" class="sr-ibtn" data-sa="row-del" aria-label="${srEsc(srT(`Удалить пункт ${n}`,`Remove point ${n}`))}">${srIcon('close')}</button>
+    </div></div>`;
+}
+function srRenumber(form){
+  form.querySelectorAll('.sr-row').forEach((row,i)=>{
+    const n = i+1;
+    row.querySelector('.sr-row-n').textContent = String(n);
+    row.querySelector('textarea').setAttribute('aria-label', srT('Пункт ','Point ')+n);
+    row.querySelector('[data-sa=row-up]').setAttribute('aria-label', srT(`Пункт ${n} выше`,`Move point ${n} up`));
+    row.querySelector('[data-sa=row-down]').setAttribute('aria-label', srT(`Пункт ${n} ниже`,`Move point ${n} down`));
+    row.querySelector('[data-sa=row-del]').setAttribute('aria-label', srT(`Удалить пункт ${n}`,`Remove point ${n}`));
+  });
+}
+const srRulesOf = form=>[...form.querySelectorAll('textarea[name=rule]')].map(x=>stripTaskMarker(x.value)).filter(Boolean);
+
+function srTradesHTML(){
+  const id = SU.id, list = stratTrades(id, SU.period==='all' ? 'all' : Number(SU.period)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const st = stratStats(list);
+  const periods = [[7,srT('7 дней','7 days')],[30,srT('30 дней','30 days')],[90,srT('90 дней','90 days')],['all',srT('Всё время','All time')]];
+  const facts = [];
+  if(st.count){
+    if(st.noMoney) facts.push(srT(`Без P&L: ${st.noMoney} — в сумму не входят.`,`Without P&L: ${st.noMoney} — not in the total.`));
+    if(st.prelim) facts.push(srT(`Итог предварительный у ${st.prelim}: не все расходы указаны.`,`Preliminary total on ${st.prelim}: not all costs given.`));
+    if(st.count<20) facts.push(srT(`Выборка ${srTradesWord(st.count)} — мала для выводов о стратегии.`,`A sample of ${srTradesWord(st.count)} is small for conclusions.`));
+    if(st.byResult.none) facts.push(srT(`Без отмеченного результата: ${st.byResult.none}.`,`Without a marked result: ${st.byResult.none}.`));
+  }
+  const allLinked = trades.filter(t=>t.strategyId===id).length;
+  return `<div class="sr-trades">
+    <div class="sr-seg" role="group" aria-label="${srEsc(srT('Период','Period'))}">${periods.map(([v,l])=>`<button type="button" data-sa="period" data-v="${v}" aria-pressed="${String(SU.period)===String(v)}">${l}</button>`).join('')}</div>
+    ${st.count ? `<div class="sr-kpis">
+      <div class="sr-kpi"><span>${srT('Сделок','Trades')}</span><b class="num">${st.count}</b></div>
+      <div class="sr-kpi"><span>${srT('Итог','Total')}${st.prelim?srT(' · предв.',' · prelim.'):''}</span><b class="num" style="color:${st.total>0?'var(--positive)':st.total<0?'var(--negative)':'var(--text)'}">${st.withMoney?moneySigned(st.total):'—'}</b></div>
+      <div class="sr-kpi"><span>${srT('Win / Loss / B/E','Win / Loss / B/E')}</span><b class="num">${st.byResult.win} / ${st.byResult.loss} / ${st.byResult.be}</b></div>
+      <div class="sr-kpi"><span>${srT('По плану','By plan')}</span><b class="num">${st.planKnown?st.byPlan+' / '+st.planKnown:'—'}</b></div>
+    </div>
+    ${facts.length?`<ul class="sr-facts">${facts.map(f=>`<li>${srEsc(f)}</li>`).join('')}</ul>`:''}
+    <div class="trade-grid sr-tradelist">${list.slice(0,60).map(tcHTML).join('')}</div>
+    ${list.length>60?`<p class="sr-muted">${srT(`Показаны последние 60 из ${list.length}.`,`Showing the last 60 of ${list.length}.`)}</p>`:''}`
+    : `<div class="sr-blank"><p>${allLinked ? srT('За этот период сделок с этой стратегией нет.','No trades with this strategy in this period.') : srT('С этой стратегией пока не связана ни одна сделка. Выберите её при записи сделки — поле «Моя стратегия» в форме.','No trade is linked to this strategy yet. Choose it when you record a trade — the «My strategy» field in the form.')}</p></div>`}
+  </div>`;
+}
+function srNotesHTML(){
+  const notes = sdocAll('note', d=>d.data.strategyId===SU.id).sort((a,b)=>String(b.data.date||'').localeCompare(String(a.data.date||'')));
+  return `<div class="sr-listpanel">
+    <div class="sr-panel-h"><p class="sr-muted">${srT('Что вы заметили в торговле по этой стратегии. Наблюдение не меняет правила.','What you noticed trading this strategy. A note does not change the rules.')}</p>
+      <button type="button" class="sr-btn" data-sa="note-new">${srIcon('plus')}${srT('Наблюдение','Note')}</button></div>
+    ${notes.length?`<div class="sr-items">${notes.map(n=>{ const t = n.data.tradeId ? trades.find(x=>x.id===n.data.tradeId) : null;
+      return `<article class="sr-item"><p class="sr-item-m">${srDate(n.data.date)}${t?` · ${srEsc(t.pair||'')} ${srDate(t.date)}`:''}</p><p class="sr-item-t">${escapeHtmlNl(n.data.text||'')}</p>
+        <button type="button" class="sr-link" data-sa="note-edit" data-id="${srEsc(n.id)}">${srT('Изменить','Edit')}</button></article>`; }).join('')}</div>`
+    : `<div class="sr-blank"><p>${srT('Пока пусто. Запишите наблюдение после сессии, чтобы вернуться к нему при разборе.','Empty for now. Write a note after a session to come back to it in your review.')}</p></div>`}
+  </div>`;
+}
+function srWeekStart(d){ const x = new Date((d||new Date().toISOString().split('T')[0])+'T12:00:00'); const dow = (x.getDay()+6)%7; x.setDate(x.getDate()-dow); return x.toISOString().split('T')[0]; }
+function srShiftWeek(ws, n){ const x = new Date(ws+'T12:00:00'); x.setDate(x.getDate()+7*n); return x.toISOString().split('T')[0]; }
+function srWeekHTML(){
+  if(!SU.week) SU.week = srWeekStart();
+  const ws = SU.week, we = srShiftWeek(ws,1), end = new Date(new Date(we+'T12:00:00').getTime()-864e5).toISOString().split('T')[0];
+  const doc = sdocs['wk:'+SU.id+':'+ws], w = doc && !doc.del ? doc.data : {};
+  const st = stratStats(stratTrades(SU.id, {from:ws, to:end}));
+  const isNow = ws===srWeekStart();
+  const fields = [['worked',srT('Что сработало','What worked'),srT('Что удалось повторить по правилам?','What did you repeat by the rules?')],
+    ['friction',srT('Что мешало','What got in the way'),srT('Что замечаете в своих решениях и исполнении?','What do you notice in your decisions and execution?')],
+    ['lesson',srT('Что берёте из этой недели','What you take from this week'),srT('Наблюдение, которое хотите проверить дальше.','A note you want to test further.')],
+    ['next',srT('Фокус на следующую неделю','Focus for next week'),srT('Одна конкретная вещь, которую выберете сами.','One concrete thing you choose yourself.')]];
+  return `<div class="sr-week">
+    <div class="sr-weeknav">
+      <button type="button" class="sr-ibtn" data-sa="week-prev" aria-label="${srEsc(srT('Предыдущая неделя','Previous week'))}">${srIcon('prev')}</button>
+      <p class="sr-weeklbl"><b>${srDate(ws)} — ${srDate(end)}</b>${isNow?`<span>${srT('текущая','this week')}</span>`:''}</p>
+      <button type="button" class="sr-ibtn" data-sa="week-next" aria-label="${srEsc(srT('Следующая неделя','Next week'))}" ${isNow?'disabled':''}>${srIcon('next')}</button>
+    </div>
+    <p class="sr-muted">${st.count ? srT(`За неделю: ${srTradesWord(st.count)} с этой стратегией`,`This week: ${srTradesWord(st.count)} with this strategy`)+(st.withMoney?`, ${srT('итог','total')} ${moneySigned(st.total)}${st.prelim?srT(' (предварительно)',' (preliminary)'):''}`:'')+'.' : srT('За эту неделю сделок с этой стратегией нет.','No trades with this strategy this week.')}</p>
+    <form class="sr-form" data-sf="week" data-ws="${ws}">
+      ${fields.map(([k,l,ph])=>`<div class="fgroup"><label class="flabel" for="srWk-${k}">${l}</label><textarea class="ftextarea" id="srWk-${k}" name="${k}" rows="3" placeholder="${srEsc(ph)}">${srEsc(w[k]||'')}</textarea></div>`).join('')}
+      <div class="sr-actions"><span class="sr-saved" id="srWeekState">${w.savedAt?srT('Сохранено ','Saved ')+new Date(w.savedAt).toLocaleString(srRu()?'ru-RU':'en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):srT('Ещё не сохранено','Not saved yet')}</span><button type="submit" class="sr-btn primary">${srIcon('check')}${srT('Сохранить итог недели','Save the week')}</button></div>
+    </form>
+  </div>`;
+}
+const SR_HSTATUS = {testing:['На проверке','Testing'], confirmed:['Подтвердилась','Confirmed'], rejected:['Не подтвердилась','Not confirmed']};
+function srHypHTML(){
+  const list = sdocAll('hypothesis', d=>d.data.strategyId===SU.id).sort((a,b)=>String(b.data.createdAt||'').localeCompare(String(a.data.createdAt||'')));
+  return `<div class="sr-listpanel">
+    <div class="sr-panel-h"><p class="sr-muted">${srT('Идеи, которые вы проверяете до того, как менять правила. Статус не переносит идею в правила сам.','Ideas you test before changing the rules. A status never moves an idea into the rules by itself.')}</p>
+      <button type="button" class="sr-btn" data-sa="hyp-new">${srIcon('plus')}${srT('Гипотеза','Hypothesis')}</button></div>
+    ${list.length?`<div class="sr-items">${list.map(h=>`<article class="sr-item"><p class="sr-item-m"><span class="sr-pill">${(SR_HSTATUS[h.data.status]||SR_HSTATUS.testing)[srRu()?0:1]}</span></p>
+      <h4 class="sr-item-h">${srEsc(h.data.title||'')}</h4>${h.data.text?`<p class="sr-item-t">${escapeHtmlNl(h.data.text)}</p>`:`<p class="sr-muted">${srT('Условия и результаты пока не записаны.','Conditions and results not written yet.')}</p>`}
+      <button type="button" class="sr-link" data-sa="hyp-edit" data-id="${srEsc(h.id)}">${srT('Изменить','Edit')}</button></article>`).join('')}</div>`
+    : `<div class="sr-blank"><p>${srT('Пока нет гипотез.','No hypotheses yet.')}</p></div>`}
+  </div>`;
+}
+function srHistoryHTML(){
+  const revs = stratRevisions(SU.id), fixed = revs.filter(r=>!r.data.auto), auto = revs.filter(r=>r.data.auto);
+  return `<div class="sr-listpanel">
+    <div class="sr-panel-h"><p class="sr-muted">${srT('Дата → изменение → причина → проверка. Сохранённая редакция только для чтения.','Date → change → reason → check. A fixed revision is read-only.')}</p>
+      <button type="button" class="sr-btn" data-sa="fix">${srIcon('check')}${srT('Зафиксировать редакцию','Fix a revision')}</button></div>
+    ${fixed.length?`<div class="sr-items">${fixed.map(r=>`<article class="sr-item">
+      <p class="sr-item-m">${r.data.label?`<span class="sr-pill">${srEsc(r.data.label)}</span> `:''}${srDate(r.data.createdAt)}</p>
+      <h4 class="sr-item-h">${srEsc(r.data.what||'')}</h4>
+      ${r.data.why?`<p class="sr-item-t"><span class="sr-k">${srT('Причина','Reason')}:</span> ${escapeHtmlNl(r.data.why)}</p>`:''}
+      <p class="sr-item-t"><span class="sr-k">${srT('Проверка','Check')}:</span> ${r.data.results?escapeHtmlNl(r.data.results):`<span class="sr-unset">${srT('не записана','not written')}</span>`}</p>
+      <div class="sr-item-acts"><button type="button" class="sr-link" data-sa="rev-view" data-id="${srEsc(r.id)}">${srT('Прочитать правила','Read the rules')}</button><button type="button" class="sr-link" data-sa="rev-results" data-id="${srEsc(r.id)}">${srT('Дописать проверку','Add the check')}</button></div>
+    </article>`).join('')}</div>` : `<div class="sr-blank"><p>${srT('Зафиксированных редакций пока нет. Зафиксируйте копию правил, когда будете готовы.','No fixed revisions yet. Fix a copy of the rules when you are ready.')}</p></div>`}
+    ${auto.length?`<details class="sr-auto"><summary>${srT(`Снимки правил при записи сделок: ${auto.length}`,`Rule snapshots made when trades were recorded: ${auto.length}`)}</summary>
+      <div class="sr-items">${auto.map(r=>`<article class="sr-item"><p class="sr-item-m">${srDate(r.data.createdAt)} · ${srTradesWord(trades.filter(t=>t.strategyRevId===r.id).length)}</p><button type="button" class="sr-link" data-sa="rev-view" data-id="${srEsc(r.id)}">${srT('Прочитать правила','Read the rules')}</button></article>`).join('')}</div></details>`:''}
+  </div>`;
+}
+
+// ── motion ──
+// The old surface leaves toward where it goes, the new one arrives from where it comes
+// from. The leaving copy is inert, hidden from assistive tech and removed when done or
+// when the next change comes. Interrupted motion starts from where it visibly is.
+function srSwap(holder, html, dir){
+  if(!holder) return null;
+  holder.querySelectorAll(':scope > .sr-leaving').forEach(n=>n.remove());
+  holder.classList.remove('sr-swapping');
+  const old = holder.querySelector(':scope > .sr-swap');
+  const next = document.createElement('div');
+  next.className = 'sr-swap';
+  if(old && old.id){ next.id = old.id; ['role','aria-labelledby'].forEach(a=>old.hasAttribute(a) && next.setAttribute(a, old.getAttribute(a))); }
+  next.innerHTML = html;
+  if(!old || !dir || !srMoves()){
+    if(old) old.replaceWith(next); else holder.appendChild(next);
+    if(old && dir && SU.input==='pointer' && srReduce()) next.animate([{opacity:.35},{opacity:1}], {duration:140, easing:'ease'});
+    return next;
+  }
+  const cs = getComputedStyle(old), fromO = cs.opacity, fromT = cs.transform==='none' ? 'none' : cs.transform;
+  old.getAnimations().forEach(a=>a.cancel());
+  old.classList.add('sr-leaving'); old.removeAttribute('id'); old.inert = true; old.setAttribute('aria-hidden','true');
+  old.style.top = old.offsetTop+'px';
+  holder.appendChild(next);
+  holder.classList.add('sr-swapping');      // the leaving copy never spills over what follows the surface
+  const out = old.animate([{opacity:fromO, transform:fromT}, {opacity:0, transform:`translateX(${-40*dir}px) scale(.98)`}], {duration:200, easing:SR_EASE_OUT, fill:'forwards'});
+  const gone = ()=>{ old.remove(); if(!holder.querySelector(':scope > .sr-leaving')) holder.classList.remove('sr-swapping'); };
+  out.finished.then(gone, gone);
+  next.animate([{opacity:0, transform:`translateX(${56*dir}px)`}, {opacity:1, transform:'none'}], {duration:280, easing:SR_EASE_OUT});
+  return next;
+}
+// The copper mark under the active step or tab glides to it (a transition retargets on fast clicks)
+function srMoveInd(ind, target, horizontal, animate){
+  if(!ind || !target) return;
+  ind.style.transition = animate && srMoves() ? '' : 'none';
+  if(horizontal){ ind.style.width = target.offsetWidth+'px'; ind.style.height = ''; ind.style.transform = `translateX(${target.offsetLeft}px)`; }
+  else { ind.style.height = target.offsetHeight+'px'; ind.style.width = ''; ind.style.transform = `translateY(${target.offsetTop}px)`; }
+  if(!animate || !srMoves()) requestAnimationFrame(()=>{ ind.style.transition = ''; });
+}
+function srMoveTabInd(animate){
+  const tab = document.querySelector('.sr-tab[aria-selected="true"]');
+  srMoveInd(document.querySelector('.sr-tab-ind'), tab, true, animate);
+  if(tab && tab.parentElement.scrollWidth>tab.parentElement.clientWidth) tab.scrollIntoView({block:'nearest', inline:'nearest', behavior:animate&&srMoves()?'smooth':'auto'});
+}
+function srMoveStepInd(animate){
+  const steps = document.querySelector('.sr-steps'); if(!steps) return;
+  const cur = steps.querySelector('.sr-step[aria-current="step"]');
+  const horizontal = getComputedStyle(steps).flexDirection==='row';
+  srMoveInd(steps.querySelector('.sr-step-ind'), cur, horizontal, animate);
+  if(cur && horizontal) steps.scrollTo({left:Math.max(0, cur.offsetLeft-24), behavior:animate&&srMoves()?'smooth':'auto'});
+}
+function srAfterPanel(animate){
+  if(SU.tab==='rules') requestAnimationFrame(()=>srMoveStepInd(animate));
+  if(SU.editing) document.querySelector('#srCardHold #srSecTitle')?.focus({preventScroll:true});
+}
+
+// ── moving between sections and tabs ──
+function srGoStep(i){
+  const s = srCurrent()?.data; if(!s) return;
+  i = Math.max(0, Math.min((s.sections||[]).length-1, i));
+  if(i===SU.step && !SU.editing) return;
+  if(!stratCanLeave()) return;
+  const dir = i>SU.step ? 1 : i<SU.step ? -1 : 0;
+  SU.step = i; SU.editing = false; SU.collapsed = false;
+  document.querySelectorAll('.sr-step').forEach(b=>{ if(+b.dataset.step===i) b.setAttribute('aria-current','step'); else b.removeAttribute('aria-current'); });
+  srSwap(document.getElementById('srCardHold'), srCardHTML(s), dir);
+  const n = (s.sections||[]).length;
+  const prev = document.querySelector('[data-sa=prev]'), next = document.querySelector('[data-sa=next]');
+  if(prev) prev.disabled = i===0; if(next) next.disabled = i>=n-1;
+  const up = document.querySelector('[data-sa=sec-up]'), down = document.querySelector('[data-sa=sec-down]');
+  if(up) up.disabled = i===0; if(down) down.disabled = i>=n-1;
+  srMoveStepInd(true);
+  if(SU.input==='keyboard') document.querySelector('.sr-step[aria-current="step"]')?.focus({preventScroll:true});
+}
+function srGoTab(tab, focusTab){
+  if(tab===SU.tab || !SR_TABS.includes(tab)) return;
+  if(!stratCanLeave()) return;
+  const dir = SR_TABS.indexOf(tab)>SR_TABS.indexOf(SU.tab) ? 1 : -1;
+  SU.tab = tab; SU.editing = false; SU.collapsed = false;
+  document.querySelectorAll('.sr-tab').forEach(b=>{ const on = b.dataset.tab===tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+  const panel = srSwap(document.getElementById('srStage'), srTabHTML(tab), dir);
+  if(panel) panel.setAttribute('aria-labelledby', 'srTab-'+tab);
+  srMoveTabInd(true);
+  srAfterPanel(false);
+  if(focusTab) document.getElementById('srTab-'+tab)?.focus();
+}
+// The fold: the section's content really closes, its height and its rows together
+let _srFold = null;
+function srToggleFold(){
+  const body = document.getElementById('srCardBody'), btn = document.querySelector('[data-sa=fold]');
+  if(!body || !btn) return;
+  const inner = body.firstElementChild, from = body.getBoundingClientRect().height;
+  if(_srFold){ _srFold.forEach(a=>a.cancel()); _srFold = null; }
+  SU.collapsed = !SU.collapsed;
+  btn.setAttribute('aria-expanded', String(!SU.collapsed));
+  btn.setAttribute('aria-label', SU.collapsed ? srT('Развернуть раздел','Expand section') : srT('Свернуть раздел','Collapse section'));
+  body.closest('.sr-card').classList.toggle('collapsed', SU.collapsed);
+  if(!srMoves()){ body.hidden = SU.collapsed; return; }
+  body.hidden = false;
+  const to = SU.collapsed ? 0 : body.scrollHeight;
+  const anims = [
+    body.animate([{height:from+'px'},{height:to+'px'}], {duration:260, easing:SR_EASE_OUT}),
+    inner.animate(SU.collapsed ? [{opacity:1, transform:'none'},{opacity:0, transform:'translateY(-14px) scaleY(.97)'}]
+                               : [{opacity:0, transform:'translateY(-14px) scaleY(.97)'},{opacity:1, transform:'none'}], {duration:SU.collapsed?200:260, easing:SR_EASE_OUT, fill:'both'}),
+  ];
+  _srFold = anims;
+  const closing = SU.collapsed;
+  anims[0].finished.then(()=>{ if(_srFold!==anims) return; anims.forEach(a=>a.cancel()); _srFold = null; body.hidden = closing; }, ()=>{});
+}
+
+// ── windows: a sheet on a phone, a lifted card on a computer ──
+let _srDlg = {anim:[], closing:false, rev:0};
+function stratOpenDialog(kind, title, html, dir){
+  const ov = document.getElementById('stratModal'), modal = ov.querySelector('.modal');
+  const open = ov.classList.contains('open');
+  const reopen = open && _srDlg.closing;
+  _srDlg.rev++; _srDlg.closing = false;
+  ov.classList.remove('sr-closing'); ov.inert = false;
+  document.getElementById('stratModalKind').textContent = kind || '';
+  document.getElementById('stratModalTitle').textContent = title;
+  SU.dlgDirty = false;
+  const holder = document.getElementById('stratModalBody');
+  if(open && !reopen){
+    srSwap(holder, html, dir===undefined ? 1 : dir);
+    modal.scrollTop = 0;
+    modal.focus({preventScroll:true});
+    return;
+  }
+  const from = reopen ? getComputedStyle(modal).transform : null, fromO = reopen ? getComputedStyle(modal).opacity : null;
+  _srDlg.anim.forEach(a=>a.cancel()); _srDlg.anim = [];
+  holder.replaceChildren(); const box = document.createElement('div'); box.className = 'sr-swap'; box.innerHTML = html; holder.appendChild(box);
+  if(!open) ov.classList.add('open');
+  modal.scrollTop = 0;
+  if(SU.input!=='pointer') return;
+  const sheet = srSheet(), still = srReduce();
+  const start = still ? 'none' : sheet ? 'translateY(100%)' : 'translateY(24px) scale(.94)';
+  _srDlg.anim = [
+    modal.animate([{opacity:reopen?fromO:(sheet&&!still?1:0), transform:reopen&&from!=='none'?from:start}, {opacity:1, transform:'none'}], {duration:still?140:sheet?340:280, easing:sheet?SR_EASE_DRAWER:SR_EASE_OUT}),
+    srBackdrop(ov, reopen ? null : 'rgba(0,0,0,0)', null, still?140:240),
+  ];
+}
+// Only the dimmed backdrop fades; the window itself stays solid while it moves
+function srBackdrop(ov, from, to, ms){
+  const bg = getComputedStyle(ov).backgroundColor;   // read after earlier motion was cancelled: the theme's own colour
+  return ov.animate([{backgroundColor:from || bg}, {backgroundColor:to || bg}], {duration:ms, easing:SR_EASE_OUT, fill:to ? 'forwards' : 'none'});
+}
+function stratCloseDialog(force){
+  const ov = document.getElementById('stratModal'), modal = ov.querySelector('.modal');
+  if(!ov.classList.contains('open') || _srDlg.closing) return;
+  if(!force && SU.dlgDirty && !confirm(srT('Закрыть окно без сохранения?','Close the window without saving?'))) return;
+  SU.dlgDirty = false; SU.pending = null;
+  const rev = ++_srDlg.rev;
+  _srDlg.closing = true; ov.classList.add('sr-closing'); ov.inert = true;   // a closing window never catches a click
+  const done = ()=>{
+    if(rev!==_srDlg.rev) return;                                          // opened again meanwhile
+    _srDlg.anim.forEach(a=>a.cancel()); _srDlg.anim = [];
+    ov.classList.remove('open','sr-closing'); ov.inert = false; _srDlg.closing = false;
+    document.getElementById('stratModalBody').replaceChildren();
+  };
+  if(SU.input!=='pointer'){ done(); return; }
+  const sheet = srSheet(), still = srReduce();
+  const cs = getComputedStyle(modal), fromT = cs.transform==='none' ? 'none' : cs.transform;
+  _srDlg.anim.forEach(a=>a.cancel());
+  const end = still ? 'none' : sheet ? 'translateY(100%)' : 'translateY(16px) scale(.96)';
+  _srDlg.anim = [
+    modal.animate([{opacity:cs.opacity, transform:fromT}, {opacity:sheet&&!still?1:0, transform:end}], {duration:still?120:sheet?260:200, easing:SR_EASE_OUT, fill:'forwards'}),
+    srBackdrop(ov, null, 'rgba(0,0,0,0)', still?120:220),
+  ];
+  _srDlg.anim[0].finished.then(done, ()=>{});
+}
+
+// ── dialogs ──
+function srStartDialog(dir){
+  stratOpenDialog(srT('Новая стратегия','New strategy'), srT('Как начнём?','How do you want to start?'),
+    `<p class="sr-muted">${srT('Можно начать с короткой записи, заполнить шаблон или перенести свой текст. Длину и разделы выбираете вы; прежние стратегии останутся.','Start with a short note, fill a template or bring your own text. You choose the length and the sections; earlier strategies stay.')}</p>${srStartPathsHTML()}`, dir);
+}
+function srCreateDialog(kind, dir){
+  const tpl = kind==='template';
+  stratOpenDialog(srT('Новая стратегия','New strategy'), tpl?srT('По шаблону','From a template'):srT('С чистого листа','From scratch'),
+    `<form class="sr-form" data-sf="create" data-kind="${kind}">
+      <div class="fgroup"><label class="flabel" for="srNewName">${srT('Название стратегии','Strategy name')}</label><input class="finput" id="srNewName" name="name" maxlength="80" required placeholder="${srEsc(srT('Например, моя ТС','For example, my system'))}"></div>
+      ${tpl?`<p class="sr-muted">${srT('Внутри будут только названия разделов. Правила, часы, риск и RR вы зададите сами.','Inside are only section names. You set the rules, hours, risk and RR yourself.')}</p><div class="sr-chips">${STRAT_TEMPLATE.map(x=>`<span>${srEsc(srRu()?x.ru:x.en)}</span>`).join('')}</div>`
+        :`<div class="fgroup"><label class="flabel" for="srNewSec">${srT('Первый раздел','First section')}</label><input class="finput" id="srNewSec" name="section" maxlength="120" value="${srEsc(srT('Мои правила','My rules'))}"></div>
+          <p class="sr-muted">${srT('Достаточно одного раздела. Стратегия может оставаться короткой.','One section is enough. A strategy can stay short.')}</p>`}
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="back-start">${srIcon('prev')}${srT('Назад','Back')}</button><button type="submit" class="sr-btn primary">${srT('Создать стратегию','Create the strategy')}</button></div>
+    </form>`, dir);
+}
+function srImportDialog(text, name, dir){
+  stratOpenDialog(srT('Из текста','From text'), srT('Вставьте свою стратегию','Paste your strategy'),
+    `<form class="sr-form" data-sf="parse">
+      <div class="fgroup"><label class="flabel" for="srImpName">${srT('Название стратегии','Strategy name')}</label><input class="finput" id="srImpName" name="name" maxlength="80" required value="${srEsc(name||'')}" placeholder="${srEsc(srT('Например, моя ТС','For example, my system'))}"></div>
+      <div class="fgroup"><label class="flabel" for="srImpText">${srT('Текст стратегии','Strategy text')}</label><textarea class="ftextarea sr-bigtext" id="srImpText" name="text" maxlength="100000" required placeholder="${srEsc(srT('Вставьте текст из своих заметок. Заголовки и списки помогут разделить его на разделы.','Paste the text from your notes. Headings and lists help split it into sections.'))}">${srEsc(text||'')}</textarea></div>
+      <p class="sr-note">${srT('Разбор идёт на вашем устройстве — по заголовкам и спискам, без ИИ. Перед созданием вы увидите и поправите результат; исходный текст сохранится целиком.','The text is read on your device — by headings and lists, without AI. You see and correct the result before creating; the source text is kept whole.')}</p>
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="back-start">${srIcon('prev')}${srT('Назад','Back')}</button><button type="submit" class="sr-btn primary">${srT('Разобрать и посмотреть','Read and preview')}</button></div>
+    </form>`, dir);
+}
+function srPreviewDialog(parsed, name){
+  SU.pending = {parsed, name};
+  const n = parsed.sections.length;
+  stratOpenDialog(srT('Перед созданием','Before creating'), srT('Проверьте разделы','Check the sections'),
+    `<form class="sr-form" data-sf="import">
+      <div class="fgroup"><label class="flabel" for="srPrevName">${srT('Название стратегии','Strategy name')}</label><input class="finput" id="srPrevName" name="name" maxlength="80" required value="${srEsc(name)}"></div>
+      <p class="sr-sum"><b>${srRu()?n+' '+(n%10===1&&n%100!==11?'раздел':n%10>=2&&n%10<=4&&(n%100<12||n%100>14)?'раздела':'разделов'):n+' '+(n===1?'section':'sections')}</b><span>${srPoints(parsed.pointCount)}${parsed.checklist.length?srT(` · чеклист: ${parsed.checklist.length}`,` · checklist: ${parsed.checklist.length}`):''}</span></p>
+      ${parsed.sections.map((sec,i)=>`<fieldset class="sr-prev">
+        <legend class="sr-visually-hidden">${srEsc(sec.name)}</legend>
+        <label class="sr-check"><input type="checkbox" name="keep-${i}" checked data-sa="prev-keep"><span>${srT('Включить раздел','Include the section')}</span></label>
+        <div class="fgroup"><label class="flabel" for="srPrevT${i}">${srT('Название','Name')}</label><input class="finput" id="srPrevT${i}" name="title-${i}" maxlength="120" value="${srEsc(sec.name)}"></div>
+        <div class="fgroup"><label class="flabel" for="srPrevR${i}">${srT('Пункты — по одному в строке','Points — one per line')}</label><textarea class="ftextarea" id="srPrevR${i}" name="rules-${i}" rows="${Math.min(10, Math.max(3, sec.rules.length+1))}">${srEsc(sec.rules.join('\n'))}</textarea></div>
+      </fieldset>`).join('')}
+      ${parsed.checklist.length?`<div class="fgroup"><label class="flabel" for="srPrevCL">${srT('Чеклист — по одному в строке','Checklist — one per line')}</label><textarea class="ftextarea" id="srPrevCL" name="checklist" rows="${Math.min(10, parsed.checklist.length+1)}">${srEsc(parsed.checklist.join('\n'))}</textarea></div>`:''}
+      ${parsed.warnings.length?`<p class="sr-note">${parsed.warnings.map(srEsc).join(' ')}</p>`:''}
+      <details class="sr-src"><summary>${srT('Сравнить с исходным текстом','Compare with the source text')}</summary><textarea class="ftextarea" readonly rows="8" aria-label="${srEsc(srT('Исходный текст','Source text'))}">${srEsc(parsed.rawText)}</textarea></details>
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="back-text">${srIcon('prev')}${srT('К тексту','Back to the text')}</button><button type="submit" class="sr-btn primary">${srT('Создать отдельную стратегию','Create a separate strategy')}</button></div>
+    </form>`, 1);
+}
+function srPassportDialog(){
+  const s = srData(), p = s.passport || {};
+  const f = (k,l,ph,area)=>`<div class="fgroup"><label class="flabel" for="srP-${k}">${l}</label>${area?`<textarea class="ftextarea" id="srP-${k}" name="${k}" rows="3" placeholder="${srEsc(ph)}">${srEsc(p[k]||'')}</textarea>`:`<input class="finput" id="srP-${k}" name="${k}" maxlength="200" value="${srEsc(p[k]||'')}" placeholder="${srEsc(ph)}">`}</div>`;
+  stratOpenDialog(s.name, srT('Условия стратегии','Strategy conditions'),
+    `<form class="sr-form" data-sf="passport">
+      <div class="fgroup"><label class="flabel" for="srP-name">${srT('Название стратегии','Strategy name')}</label><input class="finput" id="srP-name" name="name" maxlength="80" required value="${srEsc(s.name||'')}"></div>
+      ${f('instruments',srT('Инструменты','Instruments'),srT('Не указаны','Not set'),true)}
+      ${f('sessions',srT('Сессии','Sessions'),srT('Не указаны','Not set'),true)}
+      <div class="frow2">${f('killzones',srT('Часы киллзон','Kill zone hours'),srT('Не указаны','Not set'))}${f('timezone',srT('Часовой пояс','Time zone'),srT('Укажите явно','Set it explicitly'))}</div>
+      ${f('endTime',srT('Завершение торговли','End of trading'),srT('Не указано','Not set'))}
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="close">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Сохранить условия','Save the conditions')}</button></div>
+    </form>`);
+}
+function srChecklistDialog(){
+  const s = srData();
+  stratOpenDialog(s.name, srT('Чеклист перед входом','Checklist before entry'),
+    `<form class="sr-form" data-sf="checklist">${srRuleEditorHTML({rules:s.checklist||[]}, false)}
+      <p class="sr-muted">${srT('Проверки, которые вы хотите делать перед входом. Отметки в сделке остаются в её форме.','Checks you want to do before entry. The marks of a trade stay in its own form.')}</p>
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="close">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Сохранить чеклист','Save the checklist')}</button></div>
+    </form>`);
+}
+function srAddSectionDialog(){
+  stratOpenDialog(srData().name, srT('Свой раздел','Add a section'),
+    `<form class="sr-form" data-sf="add-section">${srRuleEditorHTML({name:'', rules:[]}, true)}
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="close">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Добавить раздел','Add the section')}</button></div>
+    </form>`);
+}
+function srFixDialog(){
+  const s = srData();
+  stratOpenDialog(s.name, srT('Зафиксировать редакцию','Fix a revision'),
+    `<form class="sr-form" data-sf="fix">
+      <div class="fgroup"><label class="flabel" for="srF-label">${srT('Обозначение','Label')}</label><input class="finput" id="srF-label" name="label" maxlength="30" required value="${srEsc(s.version||'')}" placeholder="v1.0"></div>
+      <div class="fgroup"><label class="flabel" for="srF-what">${srT('Что изменили','What changed')}</label><textarea class="ftextarea" id="srF-what" name="what" rows="2" required></textarea></div>
+      <div class="fgroup"><label class="flabel" for="srF-why">${srT('Почему','Why')}</label><textarea class="ftextarea" id="srF-why" name="why" rows="2" required></textarea></div>
+      <div class="fgroup"><label class="flabel" for="srF-res">${srT('Что проверено — можно дописать позже','What was checked — can be added later')}</label><textarea class="ftextarea" id="srF-res" name="results" rows="2"></textarea></div>
+      <p class="sr-muted">${srT('Сохраняется копия текущих правил. Это не подтверждение того, что стратегия работает.','A copy of the current rules is saved. It does not confirm that the strategy works.')}</p>
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="close">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Зафиксировать','Fix it')}</button></div>
+    </form>`);
+}
+function srRevisionHTML(c){
+  return `<div class="sr-revview">${(c.sections||[]).map(sec=>`<section><h4 class="sr-item-h">${srEsc(sec.name)}</h4>${(sec.rules||[]).length?`<${sec.ordered?'ol':'ul'} class="sr-rules${sec.ordered?' ordered':''}">${sec.rules.map(r=>`<li>${srEsc(r)}</li>`).join('')}</${sec.ordered?'ol':'ul'}>`:`<p class="sr-muted">${srT('Пусто','Empty')}</p>`}</section>`).join('')}
+    ${(c.checklist||[]).length?`<section><h4 class="sr-item-h">${srT('Чеклист','Checklist')}</h4><ul class="sr-plain">${c.checklist.map(x=>`<li>${srEsc(x)}</li>`).join('')}</ul></section>`:''}</div>`;
+}
+function stratShowRevision(revId){
+  const r = sdocs[revId];
+  if(!r || r.del){ stratOpenDialog('', srT('Правила этой редакции','Rules of this revision'), `<p class="sr-muted">${srT('Эта редакция ещё не загружена на это устройство. Она появится после синхронизации.','This revision is not on this device yet. It appears after syncing.')}</p>`); return; }
+  stratOpenDialog(srT('Только чтение','Read-only'), (r.data.content.name||'')+(r.data.label?' · '+r.data.label:''),
+    `<p class="sr-muted">${srT('Зафиксировано ','Fixed ')}${srDate(r.data.createdAt)}${r.data.auto?srT(' при записи сделки',' when a trade was recorded'):''}.</p>${srRevisionHTML(r.data.content)}`);
+}
+function srResultsDialog(revId){
+  const r = sdocs[revId]; if(!r) return;
+  stratOpenDialog(r.data.label||'', srT('Дописать проверку','Add the check'),
+    `<form class="sr-form" data-sf="rev-results" data-id="${srEsc(revId)}">
+      <p class="sr-muted">${srEsc(r.data.what||'')}</p>
+      <div class="fgroup"><label class="flabel" for="srRR">${srT('Что проверено и с каким результатом','What was checked and the result')}</label><textarea class="ftextarea" id="srRR" name="results" rows="4">${srEsc(r.data.results||'')}</textarea></div>
+      <p class="sr-muted">${srT('Правила этой редакции не меняются.','The rules of this revision do not change.')}</p>
+      <div class="sr-actions"><button type="button" class="sr-btn" data-sa="close">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Сохранить','Save')}</button></div>
+    </form>`);
+}
+function srNoteDialog(id){
+  const n = id ? sdocs[id] : null, d = n ? n.data : {};
+  const recent = stratTrades(SU.id, 'all').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).slice(0,30);
+  stratOpenDialog(srData().name, n?srT('Изменить наблюдение','Edit the note'):srT('Наблюдение','Note'),
+    `<form class="sr-form" data-sf="note" data-id="${srEsc(id||'')}">
+      <div class="fgroup"><label class="flabel" for="srN-text">${srT('Что вы заметили','What you noticed')}</label><textarea class="ftextarea" id="srN-text" name="text" rows="5" required placeholder="${srEsc(srT('Ситуация → ваше действие → что хотите проверить','Situation → your action → what to check'))}">${srEsc(d.text||'')}</textarea></div>
+      ${recent.length?`<div class="fgroup"><label class="flabel" for="srN-trade">${srT('О сделке — необязательно','About a trade — optional')}</label><select class="sr-select" id="srN-trade" name="tradeId"><option value="">${srT('Без сделки','No trade')}</option>${recent.map(t=>`<option value="${srEsc(t.id)}" ${t.id===d.tradeId?'selected':''}>${srEsc((t.pair||'—')+' · '+srDate(t.date))}</option>`).join('')}</select></div>`:''}
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions">${n?`<button type="button" class="sr-btn sr-danger-btn" data-sa="note-del" data-id="${srEsc(id)}">${srT('Удалить','Delete')}</button>`:''}<button type="button" class="sr-btn" data-sa="close">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Сохранить','Save')}</button></div>
+    </form>`);
+}
+function srHypDialog(id){
+  const h = id ? sdocs[id] : null, d = h ? h.data : {status:'testing'};
+  stratOpenDialog(srData().name, h?srT('Гипотеза','Hypothesis'):srT('Новая гипотеза','New hypothesis'),
+    `<form class="sr-form" data-sf="hyp" data-id="${srEsc(id||'')}">
+      <div class="fgroup"><label class="flabel" for="srH-title">${srT('Что проверяете','What you test')}</label><input class="finput" id="srH-title" name="title" maxlength="160" required value="${srEsc(d.title||'')}"></div>
+      <div class="fgroup"><span class="flabel" id="srH-stl">${srT('Статус','Status')}</span><div class="sr-seg" role="radiogroup" aria-labelledby="srH-stl">${Object.entries(SR_HSTATUS).map(([k,v])=>`<label class="sr-radio"><input type="radio" name="status" value="${k}" ${d.status===k?'checked':''}><span>${v[srRu()?0:1]}</span></label>`).join('')}</div></div>
+      <div class="fgroup"><label class="flabel" for="srH-text">${srT('Условия, выборка и результаты','Conditions, sample and results')}</label><textarea class="ftextarea" id="srH-text" name="text" rows="5" placeholder="${srEsc(srT('Пока не записаны','Not written yet'))}">${srEsc(d.text||'')}</textarea></div>
+      <p class="sr-muted">${srT('Вывод записываете вы. Статус не меняет правила.','You write the conclusion. The status does not change the rules.')}</p>
+      <p class="ferr" role="alert" hidden></p>
+      <div class="sr-actions">${h?`<button type="button" class="sr-btn sr-danger-btn" data-sa="hyp-del" data-id="${srEsc(id)}">${srT('Удалить','Delete')}</button>`:''}<button type="button" class="sr-btn" data-sa="close">${srT('Отмена','Cancel')}</button><button type="submit" class="sr-btn primary">${srT('Сохранить','Save')}</button></div>
+    </form>`);
+}
+
+// ── actions ──
+function srCreate(name, sections, checklist, sourceText){
+  const now = new Date().toISOString();
+  const doc = sdocPut('strategy', {name, version:'', sections, checklist:checklist||[], passport:stratEmptyPassport(), archived:false,
+    source: sourceText ? {text:sourceText, importedAt:now} : null, createdAt:now, updatedAt:now});
+  if(!doc){ toastWarn(srT('Сначала войдите в аккаунт','Sign in first')); return; }
+  srOpen(doc.id); SU.tab = 'rules';
+  stratCloseDialog(true);
+  stratRender();
+  showToast(srT('Стратегия создана. Прежние остались в списке.','Strategy created. Earlier ones stay in the list.'));
+}
+function srFormError(form, text){ const el = form.querySelector('.ferr'); if(el){ el.textContent = text; el.hidden = !text; } }
+document.addEventListener('submit', e=>{
+  const form = e.target.closest('[data-sf]');
+  if(!form || !form.closest('#page-strategies, #stratModal')) return;
+  e.preventDefault();
+  if(_srDlg.closing && form.closest('#stratModal')) return;
+  const f = new FormData(form), type = form.dataset.sf, ru = srRu();
+  const need = (v, msg)=>{ if(!String(v||'').trim()){ srFormError(form, msg); return false; } return true; };
+  if(type==='create'){
+    const name = String(f.get('name')||'').trim(); if(!need(name, srT('Укажите название стратегии.','Enter the strategy name.'))) return;
+    const sections = form.dataset.kind==='template'
+      ? STRAT_TEMPLATE.map(x=>stratNewSection(ru?x.ru:x.en, {tpl:x.tpl}))
+      : [stratNewSection(String(f.get('section')||'').trim() || srT('Мои правила','My rules'))];
+    return srCreate(name, sections);
+  }
+  if(type==='parse'){
+    const name = String(f.get('name')||'').trim(); if(!need(name, srT('Укажите название стратегии.','Enter the strategy name.'))) return;
+    try{ srPreviewDialog(parseStrategyText(String(f.get('text')||'')), name); }catch(err){ srFormError(form, err.message); }
+    return;
+  }
+  if(type==='import'){
+    const p = SU.pending && SU.pending.parsed; if(!p) return;
+    const name = String(f.get('name')||'').trim(); if(!need(name, srT('Укажите название стратегии.','Enter the strategy name.'))) return;
+    const sections = p.sections.flatMap((sec,i)=> f.has('keep-'+i) ? [stratNewSection(String(f.get('title-'+i)||'').trim() || sec.name,
+      {ordered:sec.ordered, rules:String(f.get('rules-'+i)||'').split('\n').map(stripTaskMarker).filter(Boolean)})] : []);
+    if(!sections.length){ srFormError(form, srT('Оставьте хотя бы один раздел.','Keep at least one section.')); return; }
+    const checklist = f.has('checklist') ? String(f.get('checklist')||'').split('\n').map(stripTaskMarker).filter(Boolean) : [];
+    const raw = p.rawText; SU.pending = null;
+    return srCreate(name, sections, checklist, raw);
+  }
+  const s = srData(); if(!s) return;
+  if(type==='section' || type==='add-section'){
+    const title = String(f.get('title')||'').trim(); if(!need(title, srT('Укажите название раздела.','Enter the section name.'))) return;
+    const rules = srRulesOf(form);
+    if(type==='add-section'){ s.sections.push(stratNewSection(title, {ordered:f.has('ordered'), rules})); SU.step = s.sections.length-1; }
+    else { const sec = s.sections.find(x=>x.id===form.dataset.id); if(!sec) return; Object.assign(sec, {name:title, ordered:f.has('ordered'), rules}); }
+    srSaveStrategy(s);
+    SU.editing = false; SU.dirty = false; SU.collapsed = false;
+    if(type==='add-section') stratCloseDialog(true);
+    stratRender();
+    showToast(type==='add-section' ? srT('Раздел добавлен','Section added') : srT('Раздел сохранён','Section saved'));
+    if(SU.input==='keyboard') document.querySelector('[data-sa=edit]')?.focus();
+    return;
+  }
+  if(type==='checklist'){ s.checklist = srRulesOf(form); srSaveStrategy(s); stratCloseDialog(true); stratRender(); showToast(srT('Чеклист сохранён','Checklist saved')); return; }
+  if(type==='passport'){
+    const name = String(f.get('name')||'').trim(); if(!need(name, srT('Укажите название стратегии.','Enter the strategy name.'))) return;
+    s.name = name; s.passport = stratEmptyPassport(); STRAT_PASSPORT_KEYS.forEach(k=>{ s.passport[k] = String(f.get(k)||'').trim(); });
+    srSaveStrategy(s); stratCloseDialog(true); stratRender(); showToast(srT('Условия сохранены','Conditions saved')); return;
+  }
+  if(type==='fix'){
+    const label = String(f.get('label')||'').trim(), what = String(f.get('what')||'').trim(), why = String(f.get('why')||'').trim();
+    if(!label || !what || !why){ srFormError(form, srT('Заполните обозначение, изменение и причину.','Fill in the label, the change and the reason.')); return; }
+    if(stratRevisions(SU.id).some(r=>!r.data.auto && r.data.label===label)){ srFormError(form, srT('Такое обозначение уже есть. Укажите новое.','This label exists already. Use a new one.')); return; }
+    s.version = label; srSaveStrategy(s);
+    stratEnsureRevision(SU.id, {label, what, why, results:String(f.get('results')||'').trim()});
+    stratCloseDialog(true); SU.tab = 'history'; stratRender(); showToast(srT('Редакция зафиксирована','Revision fixed')); return;
+  }
+  if(type==='rev-results'){
+    const r = sdocs[form.dataset.id]; if(!r) return;
+    sdocPut('revision', {...r.data, results:String(f.get('results')||'').trim()}, r.id);
+    stratCloseDialog(true); stratRender(); showToast(srT('Проверка записана','Check saved')); return;
+  }
+  if(type==='note'){
+    const text = String(f.get('text')||'').trim(); if(!need(text, srT('Запишите наблюдение.','Write the note.'))) return;
+    const id = form.dataset.id, old = id ? sdocs[id] : null;
+    sdocPut('note', {strategyId:SU.id, text, tradeId:String(f.get('tradeId')||'')||null, date:old?old.data.date:new Date().toISOString(), updatedAt:new Date().toISOString()}, id||undefined);
+    stratCloseDialog(true); stratRender(); showToast(srT('Наблюдение сохранено','Note saved')); return;
+  }
+  if(type==='hyp'){
+    const title = String(f.get('title')||'').trim(); if(!need(title, srT('Укажите, что проверяете.','Say what you test.'))) return;
+    const id = form.dataset.id, old = id ? sdocs[id] : null;
+    sdocPut('hypothesis', {strategyId:SU.id, title, status:String(f.get('status')||'testing'), text:String(f.get('text')||''), createdAt:old?old.data.createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()}, id||undefined);
+    stratCloseDialog(true); stratRender(); showToast(srT('Гипотеза сохранена','Hypothesis saved')); return;
+  }
+  if(type==='week'){
+    const ws = form.dataset.ws, data = {strategyId:SU.id, weekStart:ws, savedAt:new Date().toISOString()};
+    ['worked','friction','lesson','next'].forEach(k=>{ data[k] = String(f.get(k)||''); });
+    sdocPut('week', data, 'wk:'+SU.id+':'+ws);
+    SU.weekDirty = false;
+    const st = document.getElementById('srWeekState'); if(st) st.textContent = srT('Сохранено ','Saved ')+new Date().toLocaleString(srRu()?'ru-RU':'en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    showToast(srT('Итог недели сохранён','Week saved'));
+  }
+});
+document.addEventListener('input', e=>{
+  if(e.target.closest('#srCardHold form')) SU.dirty = true;
+  else if(e.target.closest('#stratModal form')) SU.dlgDirty = true;
+  else if(e.target.closest('[data-sf=week]')){ SU.weekDirty = true; const st = document.getElementById('srWeekState'); if(st) st.textContent = srT('Есть несохранённые изменения','Unsaved changes'); }
+});
+document.addEventListener('change', e=>{
+  if(e.target.id==='stratPick'){
+    if(!stratCanLeave()){ e.target.value = SU.id; return; }
+    srOpen(e.target.value); SU.tab = 'rules';
+    const stage = document.getElementById('stratRoot');
+    stratRender();
+    if(srMoves()) stage.querySelector('.sr-head')?.animate([{opacity:0, transform:'translateY(10px)'},{opacity:1, transform:'none'}], {duration:240, easing:SR_EASE_OUT});
+    return;
+  }
+  if(e.target.matches('[data-sa=prev-keep]')){
+    const box = e.target.closest('.sr-prev');
+    box.querySelectorAll('input:not([type=checkbox]), textarea').forEach(el=>el.disabled = !e.target.checked);
+    box.classList.toggle('off', !e.target.checked);
+  }
+});
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-sa]');
+  if(!b || !b.closest('#page-strategies, #stratModal') || b.disabled) return;
+  const a = b.dataset.sa, id = b.dataset.id;
+  if(a==='prev-keep') return;
+  if(a==='new') return srStartDialog();
+  if(a==='start-template') return srCreateDialog('template', 1);
+  if(a==='start-blank') return srCreateDialog('blank', 1);
+  if(a==='start-text') return srImportDialog('', '', 1);
+  if(a==='back-start') return srStartDialog(-1);
+  if(a==='back-text'){ const p = SU.pending; return srImportDialog(p ? p.parsed.rawText : '', p ? (document.getElementById('srPrevName')?.value||p.name) : '', -1); }
+  if(a==='close') return stratCloseDialog();
+  if(a==='tab') return srGoTab(b.dataset.tab);
+  if(a==='step') return srGoStep(+b.dataset.step);
+  if(a==='prev') return srGoStep(SU.step-1);
+  if(a==='next') return srGoStep(SU.step+1);
+  if(a==='fold') return srToggleFold();
+  if(a==='edit'){ if(SU.editing) return; SU.editing = true; SU.collapsed = false; srSwap(document.getElementById('srCardHold'), srCardHTML(srData()), 0); srAfterPanel(false); return; }
+  if(a==='edit-cancel'){ if(SU.dirty && !confirm(srT('Отменить изменения раздела?','Discard the section changes?'))) return; SU.editing = false; SU.dirty = false; srSwap(document.getElementById('srCardHold'), srCardHTML(srData()), 0); if(SU.input==='keyboard') document.querySelector('[data-sa=edit]')?.focus(); return; }
+  if(a==='row-add'){ const form = b.closest('form'), rows = form.querySelector('.sr-rows'); rows.insertAdjacentHTML('beforeend', srRuleRowHTML('', rows.children.length)); const row = rows.lastElementChild; if(srMoves()) row.animate([{opacity:0, transform:'translateY(-8px)'},{opacity:1, transform:'none'}], {duration:200, easing:SR_EASE_OUT}); row.querySelector('textarea').focus(); srMarkDirty(form); return; }
+  if(['row-up','row-down','row-del'].includes(a)){
+    const row = b.closest('.sr-row'), form = row.closest('form'), list = row.parentElement;
+    const first = [...list.children].map(el=>el.getBoundingClientRect().top);
+    if(a==='row-del'){ if(list.children.length===1){ row.querySelector('textarea').value = ''; } else row.remove(); }
+    else if(a==='row-up' && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling);
+    else if(a==='row-down' && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row);
+    srRenumber(form); srMarkDirty(form);
+    // rows glide to their new places (FLIP): you see what moved
+    if(srMoves() && a!=='row-del') srFlip(list, first, row, a);
+    (a==='row-del' ? form.querySelector('textarea[name=rule]') : b)?.focus();
+    return;
+  }
+  const s = srData(); if(!s) return;
+  if(a==='add-section') return srAddSectionDialog();
+  if(a==='sec-up' || a==='sec-down'){
+    if(!stratCanLeave()) return;
+    const to = SU.step + (a==='sec-up'?-1:1); if(to<0 || to>=s.sections.length) return;
+    [s.sections[SU.step], s.sections[to]] = [s.sections[to], s.sections[SU.step]];
+    srSaveStrategy(s); SU.step = to; SU.editing = false; stratRender();
+    showToast(srT('Порядок разделов сохранён','Section order saved'));
+    document.querySelector(`[data-sa=${a}]`)?.focus();
+    return;
+  }
+  if(a==='sec-remove'){
+    if(s.sections.length<=1) return;
+    const sec = s.sections[SU.step];
+    if(!confirm(srT(`Убрать раздел «${sec.name}» и его ${srPoints((sec.rules||[]).length)}? Сделки и зафиксированные редакции его сохранят.`,`Remove the section «${sec.name}» with its ${srPoints((sec.rules||[]).length)}? Trades and fixed revisions keep it.`))) return;
+    s.sections.splice(SU.step, 1); SU.step = Math.min(SU.step, s.sections.length-1); SU.editing = false; SU.dirty = false;
+    srSaveStrategy(s); stratRender(); showToast(srT('Раздел убран','Section removed'));
+    return;
+  }
+  if(a==='source') return stratOpenDialog(srT('Только чтение','Read-only'), srT('Исходный текст','Source text'), `<p class="sr-muted">${srT('Текст, из которого создана стратегия, целиком.','The whole text the strategy was created from.')}</p><textarea class="ftextarea sr-bigtext" readonly aria-label="${srEsc(srT('Исходный текст','Source text'))}">${srEsc(s.source.text)}</textarea>`);
+  if(a==='passport') return srPassportDialog();
+  if(a==='checklist') return srChecklistDialog();
+  if(a==='fix') return srFixDialog();
+  if(a==='archive'){
+    if(!s.archived && !confirm(srT('Убрать стратегию в архив? Она пропадёт из выбора при записи сделки; сделки, наблюдения и редакции сохранятся.','Archive the strategy? It leaves the choice in the trade form; trades, notes and revisions stay.'))) return;
+    s.archived = !s.archived; srSaveStrategy(s); stratRender();
+    showToast(s.archived ? srT('Стратегия в архиве','Strategy archived') : srT('Стратегия возвращена','Strategy restored'));
+    return;
+  }
+  if(a==='period'){ SU.period = b.dataset.v==='all' ? 'all' : Number(b.dataset.v); srSwap(document.getElementById('srStage'), srTabHTML('trades'), 0); return; }
+  if(a==='note-new') return srNoteDialog();
+  if(a==='note-edit') return srNoteDialog(id);
+  if(a==='note-del'){ if(!confirm(srT('Удалить наблюдение?','Delete the note?'))) return; sdocRemove(id); stratCloseDialog(true); stratRender(); showToast(srT('Наблюдение удалено','Note deleted')); return; }
+  if(a==='hyp-new') return srHypDialog();
+  if(a==='hyp-edit') return srHypDialog(id);
+  if(a==='hyp-del'){ if(!confirm(srT('Удалить гипотезу?','Delete the hypothesis?'))) return; sdocRemove(id); stratCloseDialog(true); stratRender(); showToast(srT('Гипотеза удалена','Hypothesis deleted')); return; }
+  if(a==='rev-view') return stratShowRevision(id);
+  if(a==='rev-results') return srResultsDialog(id);
+  if(a==='week-prev' || a==='week-next'){
+    if(SU.weekDirty && !confirm(srT('Перейти к другой неделе без сохранения?','Go to another week without saving?'))) return;
+    SU.weekDirty = false; SU.week = srShiftWeek(SU.week || srWeekStart(), a==='week-prev'?-1:1);
+    srSwap(document.getElementById('srStage'), srTabHTML('week'), a==='week-prev'?-1:1);
+    return;
+  }
+});
+function srMarkDirty(form){ if(form.closest('#srCardHold')) SU.dirty = true; else if(form.closest('#stratModal')) SU.dlgDirty = true; }
+// Rows of the editor glide from their old place to the new one
+function srFlip(list, firstTops, moved, a){
+  const rows = [...list.children];
+  const old = new Map();   // index before the move → row
+  rows.forEach(el=>{
+    const i = rows.indexOf(el);
+    let before = i;
+    if(el===moved) before = a==='row-up' ? i+1 : i-1;
+    else if(a==='row-up' && i===rows.indexOf(moved)+1) before = i-1;
+    else if(a==='row-down' && i===rows.indexOf(moved)-1) before = i+1;
+    const dy = firstTops[before] - el.getBoundingClientRect().top;
+    if(dy) el.animate([{transform:`translateY(${dy}px)`},{transform:'none'}], {duration:220, easing:SR_EASE_OUT});
+  });
+}
+// Arrow keys move between tabs and between steps, like any tab list
+document.addEventListener('keydown', e=>{
+  const t = e.target;
+  if(!(t instanceof Element)) return;
+  if(t.matches('.sr-tab') && (e.key==='ArrowRight' || e.key==='ArrowLeft' || e.key==='Home' || e.key==='End')){
+    e.preventDefault();
+    const i = SR_TABS.indexOf(SU.tab), n = SR_TABS.length;
+    const to = e.key==='Home' ? 0 : e.key==='End' ? n-1 : (i + (e.key==='ArrowRight'?1:-1) + n) % n;
+    srGoTab(SR_TABS[to], true);
+  }
+});
+
+// ── trade form and trade window ──
+// «Моя стратегия» is a separate, optional choice next to Trend / Range / Off-plan and «По плану»
+function stratFillSelect(selId, groupId, current){
+  const sel = document.getElementById(selId), group = document.getElementById(groupId);
+  if(!sel || !group) return;
+  const list = srActiveList();
+  const cur = current && sdocs[current] && !sdocs[current].del ? sdocs[current] : null;
+  const opts = [`<option value="">${srEsc(srT('Без стратегии','No strategy'))}</option>`]
+    .concat(list.map(d=>`<option value="${srEsc(d.id)}">${srEsc(d.data.name||srT('Без названия','Untitled'))}</option>`));
+  if(cur && cur.data.archived) opts.push(`<option value="${srEsc(cur.id)}">${srEsc(cur.data.name)}${srEsc(srT(' · в архиве',' · archived'))}</option>`);
+  if(current && !cur) opts.push(`<option value="${srEsc(current)}">${srEsc(srT('Стратегия этой сделки','This trade\'s strategy'))}</option>`);
+  const html = opts.join('');
+  if(sel.innerHTML!==html) sel.innerHTML = html;
+  sel.value = current || '';
+  group.hidden = !list.length && !current;
+}
+function stratTradeBlockHTML(t){
+  if(!t.strategyId) return '';
+  const s = sdocs[t.strategyId], rev = t.strategyRevId ? sdocs[t.strategyRevId] : null;
+  const name = (s && !s.del ? s.data.name : null) || t.strategyName || srT('Стратегия','Strategy');
+  const revText = rev ? (rev.data.label ? rev.data.label+' · ' : '')+srT('правила от ','rules of ')+srDate(rev.data.createdAt) : srT('редакция ещё не загружена','revision not loaded yet');
+  return `<div class="dblock"><div class="dblock-title">${srT('Моя стратегия','My strategy')}</div>
+    <div class="sr-tradestrat"><span>${srEsc(name)}</span><span class="sr-muted">${srEsc(revText)}</span></div>
+    ${t.strategyRevId?`<button type="button" class="sr-link" onclick="stratShowRevision('${srEsc(t.strategyRevId).replace(/'/g,'&#39;')}')">${srT('Правила этой редакции','Rules of this revision')}</button>`:''}
+  </div>`;
+}
+function stratApplyLang(){
+  const set = (id, ru, en)=>{ const el = document.getElementById(id); if(el) el.textContent = srT(ru, en); };
+  set('stratPTitle','Стратегии','Strategies'); set('nbStratLbl','Стратегии','Strategies');
+  set('stratEntryTitle','Мои стратегии','My strategies');
+  set('lbl_strategy_el','Моя стратегия','My strategy'); set('qlbl_strategy','Моя стратегия','My strategy');
+  set('tStrategyHint','Необязательно. Отдельно от «Тренд / Боковик / Вне плана».','Optional. Separate from Trend / Range / Off-plan.');
+  const close = document.querySelector('#stratModal .mclose'); if(close) close.setAttribute('aria-label', srT('Закрыть окно','Close the window'));
+  stratRefresh();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -8007,7 +9182,7 @@ function renderIdeas(){
 
 function openAddTrade(){
   editingId=null;
-  tForm={dir:'buy',date:new Date().toISOString().split('T')[0], pnlMode:defaultPnlMode(), commission:'', swap:''};   // no result until the trader picks one
+  tForm={dir:'buy',date:new Date().toISOString().split('T')[0], pnlMode:defaultPnlMode(), commission:'', swap:'', strategyId:''};   // no result until the trader picks one
   resultError('tResultErr', false);
   currentTags=[]; currentImg=null; currentMistakes=[]; checklistState={};
   currentStep=0; rrManualMode=false;
@@ -8036,6 +9211,7 @@ function openEditTrade(id){
     mistakes:t.mistakes?[...t.mistakes]:[],
     rrCalc: t.rr||null,
     commission: t.commission ?? '', swap: t.swap ?? '',
+    strategyId: t.strategyId || '',
     pnlMode: t.pnlMode, pnlModeTouched: false,   // an older trade keeps «not set» until the trader decides
   };
   currentTags=[...(t.tags||[])];
@@ -8116,6 +9292,7 @@ function saveTrade(){
   if(costs.error){ stepNext(0,true); costError('t', costs.error); return; }
   // An older trade without a mode gets one only if the trader typed a cost or used the switch
   const mode = tForm.pnlMode || ((costs.commission!==''||costs.swap!=='') ? (document.getElementById('tPnlNet').checked?'net':'gross') : undefined);
+  const link = stratTradeLink(tForm.strategyId||'', editingId ? trades.find(x=>x.id===editingId) : null);
   const tradeData={
     pair, asset:pair,
     market:tForm.market||'forex',
@@ -8129,6 +9306,7 @@ function saveTrade(){
     pnl:tForm.pnl||'',
     commission:costs.commission, swap:costs.swap,
     ...(mode ? {pnlMode:mode} : {}),
+    ...(link.strategyId ? link : {}),
     date:tForm.date||new Date().toISOString().split('T')[0],
     setup:tForm.setup||null,
     notes:tForm.notes||'',
@@ -8407,7 +9585,10 @@ window.addEventListener('offline',updateOnlineStatus);
 //  MODAL / PAGE / MISC
 // ═══════════════════════════════════════════════════════
 function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){
+  if(id==='stratModal' && typeof stratCloseDialog==='function') return stratCloseDialog();
+  document.getElementById(id).classList.remove('open');
+}
 // ── Mistake chips — delegated click ───────────────────
 document.getElementById('app').addEventListener('click',e=>{
   const chip=e.target.closest('.mchip');
@@ -8425,6 +9606,8 @@ document.getElementById('app').addEventListener('click',e=>{
 
 
 function goPage(id, btn){
+  // an unsaved strategy edit is never dropped silently
+  if(id!=='strategies' && document.getElementById('page-strategies').classList.contains('active') && !stratCanLeave()) return;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
@@ -8434,6 +9617,7 @@ function goPage(id, btn){
   if(id==='trades') renderTrades();
   if(id==='analytics') renderAnalytics();
   if(id==='progress') renderProgress();
+  if(id==='strategies') stratRender();
 }
 
 // Market tabs
@@ -9007,6 +10191,7 @@ function applyLang(){
   if(frd) frd.textContent=T('filter_res_all');
   // Session choices in the trade forms read in the interface language; the values stay English
   document.querySelectorAll('#tSession option, #qSession option').forEach(o=>{ o.textContent = sessName(o.value); });
+  stratApplyLang();
   initStyledSelects(); // option text changed — refresh the visible lists
 
   // Re-run renderTrades so the select rebuilds with correct language

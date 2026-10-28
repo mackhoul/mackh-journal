@@ -12,7 +12,7 @@ const vm = require('vm');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const cut = (from, to) => { const a = html.indexOf(from), b = html.indexOf(to, a); if (a < 0 || b < 0) throw new Error('block not found: ' + from); return html.slice(a, b); };
 const COSTS = cut('function costNum(', '// The account\'s last choice');
-const STRAT = cut('const SDOC_KEY', '//  TRADE IDEAS');
+const STRAT = cut('const SDOC_KEY', '//  STRATEGIES — screens');
 const SAMPLE = fs.readFileSync(path.join(__dirname, 'fixtures', 'strategy-sample.md'), 'utf8');
 
 function sandbox() {
