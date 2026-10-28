@@ -1796,7 +1796,7 @@ body.light .cal-day.today,body.light .cal-day.selected{color:var(--accent-ink)} 
 @media (pointer:coarse){
   .sr-ibtn::after,.sr-link::after{content:'';position:absolute;top:50%;left:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
   .sr-link{position:relative;min-height:44px}
-  .sr-btn{min-height:44px}
+  .sr-btn,.sr-seg button,.sr-radio span{min-height:44px}
   .sr-pick select,.sr-select,#stratModal .finput,#stratModal .ftextarea,#srCardHold .finput,#srCardHold .ftextarea,.sr-week .ftextarea{font-size:16px}
 }
 @media(prefers-reduced-motion:reduce){
@@ -2910,10 +2910,10 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <label class="flabel" id="qlbl_date">Дата</label>
           <input class="finput" id="qDate" type="date">
         </div>
-        <div class="fgroup" id="qStrategyGroup" hidden>
-          <label class="flabel" for="qStrategy" id="qlbl_strategy">Моя стратегия</label>
-          <select class="fselect" id="qStrategy"><option value="">Без стратегии</option></select>
-        </div>
+      </div>
+      <div class="fgroup" id="qStrategyGroup" hidden>
+        <label class="flabel" for="qStrategy" id="qlbl_strategy">Моя стратегия</label>
+        <select class="fselect" id="qStrategy"><option value="">Без стратегии</option></select>
       </div>
       <div class="frow2">
         <div class="fgroup">
