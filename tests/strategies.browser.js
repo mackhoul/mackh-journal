@@ -103,17 +103,20 @@
   await click($('#stratModal [data-sa=start-text]'));
   $('#srImpName').value = 'H4 → M5';
   $('#srImpText').value = sample;
+  // a textarea turns CRLF / CR into LF (a checkout with CRLF gives such a fixture): compare with what was really typed
+  const typed = $('#srImpText').value;
+  check('import: the typed text is the fixture, line endings aside', typed === sample.replace(/\r\n?/g, '\n') && typed.length > 1000, { typed: typed.length, sample: sample.length });
   await click($('[data-sf=parse] button[type=submit]'));
   const previewText = $$('#stratModal .sr-prev textarea').map(t => t.value).join('\n');
   check('import preview: task marks gone', !/^\s*(\[[ xX]?\]|[☐☑□])/m.test(previewText), previewText.slice(0, 200));
   check('import preview: range kept', previewText.includes('[0,62–0,79]'));
-  check('import preview: source shown whole', $('#stratModal .sr-src textarea').value === sample);
+  check('import preview: source shown whole', $('#stratModal .sr-src textarea').value === typed);
   $('#srPrevT0').value = 'Мои условия';
   await click($('[data-sf=import] button[type=submit]'));
   s = sdocs[SU.id].data;
   check('import: separate strategy, earlier ones stay', strategies().length === 3 && s.name === 'H4 → M5', strategies().map(x => x.data.name));
   check('import: corrected title used', s.sections[0].name === 'Мои условия');
-  check('import: source kept', s.source && s.source.text === sample);
+  check('import: source kept', s.source && s.source.text === typed);
   check('import: nothing of the text ran as code', !$('#stratRoot script') && !window.__xss);
 
   // ── edit a section: add, move, save ──
