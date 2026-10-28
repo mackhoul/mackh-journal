@@ -46,7 +46,7 @@ function sandbox() {
       if (!cur) { server.docs.set(key(owner, body.id), { id: body.id, kind: body.kind, data: body.data, v: body.v, deleted: false }); return { ok: true, outcome: 'saved' }; }
       if (cur.kind !== body.kind) return { ok: true, outcome: 'conflict' };
       if (cur.deleted) return { ok: true, outcome: 'deleted' };
-      if (body.v === cur.v) return { ok: true, outcome: 'same' };
+      if (body.v === cur.v) return { ok: true, outcome: JSON.stringify(cur.data) === JSON.stringify(body.data) ? 'same' : 'collision' };
       if (body.v < cur.v) return { ok: true, outcome: 'stale' };
       if (body.kind === 'revision' && JSON.stringify(cur.data.content) !== JSON.stringify(body.data.content)) return { ok: true, outcome: 'immutable' };
       cur.data = body.data; cur.v = body.v; return { ok: true, outcome: 'saved' };
@@ -129,6 +129,41 @@ const strategyData = (name, extra) => ({ name, version: '', sections: [{ id: 'se
     release(); t.server.hold = null;
     await p;
     check('edit during a request: the newer version is sent too', [...t.server.docs.values()][0].data.name === 'v2' && t.ctx.sdocUnsent().length === 0);
+  }
+
+  // ── two devices of one account take the same version number for different text ──
+  const fixed = ms => class extends Date { static now() { return ms; } };
+  {
+    const a = sandbox(), b = sandbox();
+    b.server.docs = a.server.docs;                                                        // one account, two devices
+    a.ctx.Date = fixed(1000);
+    const id = a.ctx.sdocPut('strategy', strategyData('base')).id;
+    await a.ctx.sdocSync();
+    await b.ctx.loadStrategies();
+    a.ctx.Date = fixed(1001); b.ctx.Date = fixed(1001);
+    const av = a.ctx.sdocPut('strategy', strategyData('edit A'), id).v, bv = b.ctx.sdocPut('strategy', strategyData('edit B'), id).v;
+    await a.ctx.sdocSync(); await b.ctx.sdocSync();
+    const srv = a.server.docs.get('web:A|' + id);
+    check('equal version, other text: not confirmed as «same»', av === bv && srv.data.name === b.docs()[id].data.name && b.ctx.sdocUnsent().length === 0 && b.status() === 'synced', { av, bv, server: srv.data.name, deviceB: b.docs()[id].data.name, status: b.status() });
+    check('equal version, other text: sent again with a higher number', srv.v === bv + 1 && srv.data.name === 'edit B', srv);
+    await a.ctx.sdocLoadServer();
+    check('equal version, other text: the other device ends with the account copy', a.docs()[id].data.name === 'edit B' && a.ctx.sdocUnsent().length === 0, a.docs()[id].data.name);
+  }
+  // ── two tabs on one device: the same number is noticed in the device storage ──
+  {
+    const a = sandbox(), b = sandbox();
+    b.ctx.lsGet = (k, o = b.ctx.dataOwner) => a.store.get(b.ctx.scopedKey(k, o)) ?? null;   // one device storage
+    b.ctx.lsSet = (k, v, o = b.ctx.dataOwner) => { a.store.set(b.ctx.scopedKey(k, o), v); return true; };
+    b.server.docs = a.server.docs;
+    a.ctx.Date = fixed(2000); b.ctx.Date = fixed(2000);
+    const id = a.ctx.sdocPut('strategy', strategyData('base')).id;
+    await a.ctx.sdocSync();
+    vm.runInContext('sdocs = sdocRead()', b.ctx);
+    a.ctx.Date = fixed(2001); b.ctx.Date = fixed(2001);
+    const av = a.ctx.sdocPut('strategy', strategyData('edit A'), id).v, bv = b.ctx.sdocPut('strategy', strategyData('edit B'), id).v;
+    check('equal version on the device: tab B keeps its edit under its own number', b.docs()[id].data.name === 'edit B' && bv > av, { av, bv, tabB: b.docs()[id].data.name });
+    await a.ctx.sdocSync(); await b.ctx.sdocSync();
+    check('equal version on the device: tab B’s edit reaches the account', a.server.docs.get('web:A|' + id).data.name === 'edit B' && b.ctx.sdocUnsent().length === 0, a.server.docs.get('web:A|' + id).data.name);
   }
 
   // ── a stale answer is about the version sent, not about an edit made meanwhile ──

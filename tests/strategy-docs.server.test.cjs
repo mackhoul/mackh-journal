@@ -66,7 +66,7 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
   t = setup(async () => 'saved');
   r = await t.call('post /strategy-docs', { body: { id: 'a', kind: 'strategy', data: { text: 'x'.repeat(400 * 1024) }, v: 1 } });
   check('POST refuses a document over the size limit', r.status === 413 && t.calls.length === 0, r.status);
-  for (const outcome of ['same', 'stale', 'deleted', 'immutable', 'conflict']) {
+  for (const outcome of ['same', 'collision', 'stale', 'deleted', 'immutable', 'conflict']) {
     t = setup(async () => outcome);
     r = await t.call('post /strategy-docs', { body: { id: 'a', kind: 'note', data: {}, v: 1 } });
     check(`POST passes the outcome «${outcome}» to the app`, r.status === 200 && r.body.outcome === outcome, r);

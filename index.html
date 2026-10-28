@@ -7563,6 +7563,11 @@ function sdocAbsorbStored(){
   let changed = false;
   Object.values(sdocRead()).forEach(o=>{
     const d = sdocs[o.id];
+    if(d && o.v===d.v && d.v>d.sv && JSON.stringify(o.data)!==JSON.stringify(d.data) && !o.del && !d.del){
+      // the other tab took the same number for other text: our unsent edit stays and gets its own number
+      d.v = o.v+1;
+      return;
+    }
     if(!d || o.v>d.v || (o.v===d.v && o.sv>d.sv)){ sdocs[o.id] = o; changed = true; }
   });
   return changed;
@@ -7674,6 +7679,9 @@ async function sdocPass(run){
       // deleted on another device: it does not come back here either
       if(d) sdocs[next.id] = {...d, data:{}, del:true, sv:d.v};
       reload = true;
+    } else if(out==='collision'){
+      // another tab or device took the same version number for other text: this edit stays and goes again with a higher number
+      if(d && d.v===sentV) d.v = sentV+1;
     } else if(out==='stale'){
       // another device saved a newer version: the reload below shows it (and keeps an edit made here since)
       stale.set(next.id, sentV);

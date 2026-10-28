@@ -14,7 +14,9 @@
 --        week       — the end-of-week note of one strategy and one week
 --      v is the client's version of the document (grows with every edit).
 --   2. mj_save_doc()   — insert or update one document. An older or equal
---      version never overwrites a newer one ('stale' / 'same'), a deleted
+--      version never overwrites a newer one ('stale' / 'same'; the same
+--      version with other data is 'collision', the app sends it again with a
+--      higher version), a deleted
 --      document is never re-created ('deleted'), a revision's content can not
 --      be changed ('immutable'), the kind of a row can not change ('conflict').
 --   3. mj_delete_doc() — deletes a note or a hypothesis: its content is wiped,
@@ -77,7 +79,11 @@ begin
   select * into cur from public.strategy_docs where id = p_id and user_id = p_user_id for update;
   if cur.kind <> p_kind        then return 'conflict'; end if;
   if cur.deleted_at is not null then return 'deleted';  end if;
-  if p_v = cur.v               then return 'same';     end if;
+  -- the same number is a retry only if it carries the same document; another text with it is a collision
+  if p_v = cur.v then
+    if cur.data = p_data then return 'same'; end if;
+    return 'collision';
+  end if;
   if p_v < cur.v               then return 'stale';    end if;
   if p_kind = 'revision' and (cur.data -> 'content') is distinct from (p_data -> 'content') then
     return 'immutable';

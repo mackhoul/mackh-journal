@@ -43,6 +43,10 @@ const check = (name, ok, detail) => results.push({ check: name, result: ok ? 'PA
   // strategy: insert, retry of the same version, an older version, a newer version
   check('new strategy → saved', await save('str_1', 7, 'strategy', { name: 'A' }, 100) === 'saved');
   check('same version again → same (idempotent retry)', await save('str_1', 7, 'strategy', { name: 'A' }, 100) === 'same');
+  check('same version, other data → collision, not same', await save('str_1', 7, 'strategy', { name: 'B from another tab' }, 100) === 'collision');
+  check('a collision does not overwrite', (await row('str_1', 7)).data.name === 'A');
+  check('retry with the keys in another order → same', await save('str_k', 77, 'strategy', { name: 'X', b: 1 }, 5) === 'saved'
+    && await save('str_k', 77, 'strategy', { b: 1, name: 'X' }, 5) === 'same');
   check('newer version → saved', await save('str_1', 7, 'strategy', { name: 'B' }, 200) === 'saved');
   check('older version arriving late → stale', await save('str_1', 7, 'strategy', { name: 'OLD' }, 150) === 'stale');
   let r = await row('str_1', 7);

@@ -36,7 +36,7 @@
         if (!cur) U.docs[body.id] = { id: body.id, kind: body.kind, data: body.data, v: body.v, deleted: false };
         else if (cur.kind !== body.kind) outcome = 'conflict';
         else if (cur.deleted) outcome = 'deleted';
-        else if (body.v === cur.v) outcome = 'same';
+        else if (body.v === cur.v) outcome = JSON.stringify(cur.data) === JSON.stringify(body.data) ? 'same' : 'collision';
         else if (body.v < cur.v) outcome = 'stale';
         else if (body.kind === 'revision' && JSON.stringify(cur.data.content) !== JSON.stringify(body.data.content)) outcome = 'immutable';
         else { cur.data = body.data; cur.v = body.v; }
