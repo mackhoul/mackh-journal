@@ -205,6 +205,43 @@
   check('week: unsaved changes are shown', $('#srWeekState').textContent.includes('несохранённые') || $('#srWeekState').textContent.includes('Unsaved'));
   await click($('[data-sf=week] button[type=submit]'));
   check('week: saved for this strategy and week', sdocs['wk:' + H4 + ':' + srWeekStart()]?.data.worked === 'Ждал BOS');
+
+  // ── device storage full and no network: nothing claims «saved» ──
+  {
+    const realSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) { if (String(k).includes('strategy_docs_v1')) { const e = new Error('full'); e.name = 'QuotaExceededError'; throw e; } return realSetItem.call(this, k, v); };
+    M.down = true;
+    $('#toast').textContent = '';
+    // the week (still on its tab)
+    $('#srWk-next').value = 'Неделя не сохранилась'; $('#srWk-next').dispatchEvent(new Event('input', { bubbles: true }));
+    await click($('[data-sf=week] button[type=submit]'));
+    check('storage full: the week stays unsaved and says why', SU.weekDirty === true && !$('[data-sf=week] .ferr').hidden && sdocs['wk:' + H4 + ':' + srWeekStart()]?.data.next !== 'Неделя не сохранилась', { dirty: SU.weekDirty, state: $('#srWeekState').textContent });
+    check('storage full: no «Итог недели сохранён»', !$('#toast').textContent.includes('сохранён'), $('#toast').textContent);
+    Storage.prototype.setItem = realSetItem; M.down = false;
+    await click($('[data-sf=week] button[type=submit]'));
+    await sdocSync();
+    check('space freed: the same week saves', SU.weekDirty === false && sdocs['wk:' + H4 + ':' + srWeekStart()]?.data.next === 'Неделя не сохранилась' && !sdocUnsent().length);
+    M.down = true;
+    // a note in its window
+    Storage.prototype.setItem = function (k, v) { if (String(k).includes('strategy_docs_v1')) { const e = new Error('full'); e.name = 'QuotaExceededError'; throw e; } return realSetItem.call(this, k, v); };
+    $('#toast').textContent = '';
+    await click($('#srTab-notes'));
+    await click($('#srPanel [data-sa=note-new]'));
+    $('#srN-text').value = 'Не потерять этот текст'; $('#srN-text').dispatchEvent(new Event('input', { bubbles: true }));
+    await click($('[data-sf=note] button[type=submit]'));
+    const err = $('[data-sf=note] .ferr');
+    check('storage full: the note window stays open with its text', $('#stratModal').classList.contains('open') && $('#srN-text')?.value === 'Не потерять этот текст' && SU.dlgDirty === true);
+    check('storage full: the form says why', !!err && !err.hidden && /памят|storage/i.test(err.textContent), err?.textContent);
+    check('storage full: no «Наблюдение сохранено», not kept as a note', !$('#toast').textContent.includes('сохранено') && sdocAll('note').length === 1, { toast: $('#toast').textContent, notes: sdocAll('note').length });
+    check('storage full: nothing waits to be sent', sdocUnsent().length === 0 && !$('#stratStatus').textContent.includes('сохранено на устройстве'), $('#stratStatus').textContent);
+    Storage.prototype.setItem = realSetItem;
+    M.down = false;
+    await click($('[data-sf=note] button[type=submit]'));
+    check('space freed: the same note saves', !$('#stratModal').classList.contains('open') && sdocAll('note').length === 2);
+    const extra = sdocAll('note').find(d => d.data.text === 'Не потерять этот текст');
+    if (extra) sdocRemove(extra.id);
+    await settle();
+  }
   await click($('#srTab-notes'));
   await click($(`#srPanel [data-sa=note-edit][data-id="${noteId}"]`));
   await click($('#stratModal [data-sa=note-del]'));

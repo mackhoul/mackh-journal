@@ -59,8 +59,8 @@ function sandbox() {
     }
   };
   vm.createContext(ctx);
-  vm.runInContext(COSTS + '\n' + STRAT + '\n;globalThis.__s = () => ({ sdocs, sdocStatus });', ctx);
-  return { ctx, store, server, docs: () => ctx.__s().sdocs, status: () => ctx.__s().sdocStatus };
+  vm.runInContext(COSTS + '\n' + STRAT + '\n;globalThis.__s = () => ({ sdocs, sdocStatus, sdocError });', ctx);
+  return { ctx, store, server, docs: () => ctx.__s().sdocs, status: () => ctx.__s().sdocStatus, err: () => ctx.__s().sdocError };
 }
 
 const results = [];
@@ -152,6 +152,28 @@ const strategyData = (name, extra) => ({ name, version: '', sections: [{ id: 'se
     t.ctx.api = real;                                          // the network is back
     await t.ctx.sdocSync();
     check('stale: the newer edit is delivered when the network is back', [...t.server.docs.values()][0]?.data.name === 'new edit during request' && t.ctx.sdocUnsent().length === 0 && t.status() === 'synced', t.status());
+  }
+
+  // ── device storage full: nothing is shown as saved or sent ──
+  {
+    const t = sandbox();
+    const s = t.ctx.sdocPut('strategy', strategyData('kept'));
+    const n = t.ctx.sdocPut('note', { strategyId: s.id, text: 'old note' });
+    await t.ctx.sdocSync();
+    const posts = () => t.server.calls.filter(c => c.method !== 'GET').length, before = posts();
+    const realSet = t.ctx.lsSet;
+    t.ctx.lsSet = () => { const e = new Error('quota'); e.name = 'QuotaExceededError'; throw e; };
+    const fresh = t.ctx.sdocPut('note', { strategyId: s.id, text: 'new note' });
+    check('storage full: a new document is not kept', fresh === null && t.err() === 'storage' && t.ctx.sdocAll('note').length === 1, { fresh, err: t.err() });
+    const edit = t.ctx.sdocPut('strategy', strategyData('edited'), s.id);
+    check('storage full: an edit is taken back', edit === null && t.docs()[s.id].data.name === 'kept' && t.ctx.sdocUnsent().length === 0, t.docs()[s.id].data.name);
+    check('storage full: a deletion is taken back', t.ctx.sdocRemove(n.id) === false && t.err() === 'storage' && t.ctx.sdocAll('note').length === 1);
+    await t.ctx.sdocSync();
+    check('storage full: nothing is sent, status not «sending»', posts() === before && t.status() === 'synced', { sent: posts() - before, status: t.status() });
+    check('storage full: the form says it, not a generic toast', t.ctx.warnings.length === 0, t.ctx.warnings);
+    t.ctx.lsSet = realSet;
+    const ok = t.ctx.sdocPut('note', { strategyId: s.id, text: 'new note' });
+    check('space freed: the same save works', !!ok && t.err() === '' && t.ctx.sdocUnsent().length === 1);
   }
 
   // ── a refused save is not a confirmed one ──

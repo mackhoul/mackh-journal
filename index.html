@@ -7567,41 +7567,54 @@ function sdocAbsorbStored(){
   });
   return changed;
 }
-function sdocPersist(){
+// quiet: the caller tells the person itself (a form keeps its text and shows why)
+function sdocPersist(quiet){
   const owner = dataOwner; if(!owner) return false;
   sdocAbsorbStored();
-  try{ lsSet(SDOC_KEY, JSON.stringify(sdocs), owner); return true; }
+  try{ return lsSet(SDOC_KEY, JSON.stringify(sdocs), owner); }
   catch(e){
-    toastWarn(lang==='ru' ? 'Память устройства заполнена: изменение стратегии может не сохраниться после закрытия'
-                          : 'Device storage is full: the strategy change may not survive closing the app');
+    if(!quiet) toastWarn(lang==='ru' ? 'Память устройства заполнена: изменение стратегии может не сохраниться после закрытия'
+                                     : 'Device storage is full: the strategy change may not survive closing the app');
     return false;
   }
 }
+// Why the last sdocPut / sdocRemove gave nothing back: 'storage' (not written on this device) or 'refused'
+let sdocError = '';
 const sdocClone = x=>JSON.parse(JSON.stringify(x));
 function sdocAll(kind, pred){ return Object.values(sdocs).filter(d=>d.kind===kind && !d.del && (!pred || pred(d))); }
 // A version the server refused (bad === v) is not resent: it waits here until the next edit
 function sdocUnsent(){ return Object.values(sdocs).filter(d=>d.v>d.sv && d.bad!==d.v); }
 function sdocRefused(){ return Object.values(sdocs).filter(d=>d.v>d.sv && d.bad===d.v); }
 const sdocSettled = ()=> sdocUnsent().length ? 'pending' : sdocRefused().length ? 'refused' : 'synced';
-// Saves a document on this device and queues it for the server; returns it, or null if refused
+// Saves a document on this device and queues it for the server; returns it, or null (see sdocError).
+// A change this device could not write is taken back: it is neither shown as saved nor sent.
 function sdocPut(kind, data, id){
+  sdocError = 'refused';
   if(!dataOwner || !SDOC_KINDS.includes(kind)) return null;
   const cur = id ? sdocs[id] : null;
   if(cur && (cur.kind!==kind || cur.del)) return null;
   // a revision is frozen: only its notes (label, what, why, results) may change
   if(cur && kind==='revision' && JSON.stringify(cur.data.content)!==JSON.stringify(data.content)) return null;
   const doc = {id:id || sdocUid(kind.slice(0,3)), kind, data:sdocClone(data), v:Math.max((cur?cur.v:0)+1, Date.now()), sv:cur?cur.sv:0, del:false};
+  return sdocKeep(doc, cur) ? doc : null;
+}
+function sdocKeep(doc, cur){
   sdocs[doc.id] = doc;
-  sdocPersist(); sdocSchedule();
-  return doc;
+  if(!sdocPersist(true)){
+    if(cur) sdocs[doc.id] = cur; else delete sdocs[doc.id];
+    sdocError = 'storage';
+    return false;
+  }
+  sdocError = '';
+  sdocSchedule();
+  return true;
 }
 // Notes and hypotheses can be deleted; strategies are archived, revisions and weeks stay
 function sdocRemove(id){
+  sdocError = 'refused';
   const cur = sdocs[id];
   if(!cur || cur.del || !['note','hypothesis'].includes(cur.kind)) return false;
-  sdocs[id] = {...cur, data:{}, del:true, v:Math.max(cur.v+1, Date.now())};
-  sdocPersist(); sdocSchedule();
-  return true;
+  return sdocKeep({...cur, data:{}, del:true, v:Math.max(cur.v+1, Date.now())}, cur);
 }
 function stratSetStatus(state){
   sdocStatus = state;
@@ -8180,6 +8193,7 @@ function srWeekHTML(){
     <p class="sr-muted">${st.count ? srT(`За неделю: ${srTradesWord(st.count)} с этой стратегией`,`This week: ${srTradesWord(st.count)} with this strategy`)+(st.withMoney?`, ${srT('итог','total')} ${moneySigned(st.total)}${st.prelim?srT(' (предварительно)',' (preliminary)'):''}`:'')+'.' : srT('За эту неделю сделок с этой стратегией нет.','No trades with this strategy this week.')}</p>
     <form class="sr-form" data-sf="week" data-ws="${ws}">
       ${fields.map(([k,l,ph])=>`<div class="fgroup"><label class="flabel" for="srWk-${k}">${l}</label><textarea class="ftextarea" id="srWk-${k}" name="${k}" rows="3" placeholder="${srEsc(ph)}">${srEsc(w[k]||'')}</textarea></div>`).join('')}
+      <p class="ferr" role="alert" hidden></p>
       <div class="sr-actions"><span class="sr-saved" id="srWeekState">${w.savedAt?srT('Сохранено ','Saved ')+new Date(w.savedAt).toLocaleString(srRu()?'ru-RU':'en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):srT('Ещё не сохранено','Not saved yet')}</span><button type="submit" class="sr-btn primary">${srIcon('check')}${srT('Сохранить итог недели','Save the week')}</button></div>
     </form>
   </div>`;
@@ -8518,17 +8532,26 @@ function srHypDialog(id){
 }
 
 // ── actions ──
-function srCreate(name, sections, checklist, sourceText){
+function srCreate(name, sections, checklist, sourceText, form){
   const now = new Date().toISOString();
   const doc = sdocPut('strategy', {name, version:'', sections, checklist:checklist||[], passport:stratEmptyPassport(), archived:false,
     source: sourceText ? {text:sourceText, importedAt:now} : null, createdAt:now, updatedAt:now});
-  if(!doc){ toastWarn(srT('Сначала войдите в аккаунт','Sign in first')); return; }
+  if(!doc){ if(!dataOwner) toastWarn(srT('Сначала войдите в аккаунт','Sign in first')); else srSaveFailed(form); return; }
   srOpen(doc.id); SU.tab = 'rules';
   stratCloseDialog(true);
   stratRender();
   showToast(srT('Стратегия создана. Прежние остались в списке.','Strategy created. Earlier ones stay in the list.'));
 }
 function srFormError(form, text){ const el = form.querySelector('.ferr'); if(el){ el.textContent = text; el.hidden = !text; } }
+// A save this device could not write: the form stays open with its text and says why; nothing claims it was saved
+function srSaveFailed(form){
+  const inForm = !!(form && form.isConnected && form.querySelector('.ferr'));
+  const msg = sdocError!=='storage' ? srT('Не удалось сохранить. Обновите страницу и попробуйте ещё раз.','Could not save. Reload the page and try again.')
+    : inForm ? srT('Не сохранено: память устройства заполнена. Текст остался в форме — освободите место и нажмите «Сохранить» ещё раз.',
+                   'Not saved: device storage is full. Your text is still here — free some space and press Save again.')
+    : srT('Не сохранено: память устройства заполнена. Освободите место и повторите.','Not saved: device storage is full. Free some space and try again.');
+  if(inForm) srFormError(form, msg); else toastWarn(msg);
+}
 document.addEventListener('submit', e=>{
   const form = e.target.closest('[data-sf]');
   if(!form || !form.closest('#page-strategies, #stratModal')) return;
@@ -8541,7 +8564,7 @@ document.addEventListener('submit', e=>{
     const sections = form.dataset.kind==='template'
       ? STRAT_TEMPLATE.map(x=>stratNewSection(ru?x.ru:x.en, {tpl:x.tpl}))
       : [stratNewSection(String(f.get('section')||'').trim() || srT('Мои правила','My rules'))];
-    return srCreate(name, sections);
+    return srCreate(name, sections, null, null, form);
   }
   if(type==='parse'){
     const name = String(f.get('name')||'').trim(); if(!need(name, srT('Укажите название стратегии.','Enter the strategy name.'))) return;
@@ -8555,16 +8578,17 @@ document.addEventListener('submit', e=>{
       {ordered:sec.ordered, rules:String(f.get('rules-'+i)||'').split('\n').map(stripTaskMarker).filter(Boolean)})] : []);
     if(!sections.length){ srFormError(form, srT('Оставьте хотя бы один раздел.','Keep at least one section.')); return; }
     const checklist = f.has('checklist') ? String(f.get('checklist')||'').split('\n').map(stripTaskMarker).filter(Boolean) : [];
-    const raw = p.rawText; SU.pending = null;
-    return srCreate(name, sections, checklist, raw);
+    return srCreate(name, sections, checklist, p.rawText, form);      // closing the window clears SU.pending; a failed save keeps it
   }
   const s = srData(); if(!s) return;
+  srFormError(form, '');
   if(type==='section' || type==='add-section'){
     const title = String(f.get('title')||'').trim(); if(!need(title, srT('Укажите название раздела.','Enter the section name.'))) return;
     const rules = srRulesOf(form);
-    if(type==='add-section'){ s.sections.push(stratNewSection(title, {ordered:f.has('ordered'), rules})); SU.step = s.sections.length-1; }
+    if(type==='add-section') s.sections.push(stratNewSection(title, {ordered:f.has('ordered'), rules}));
     else { const sec = s.sections.find(x=>x.id===form.dataset.id); if(!sec) return; Object.assign(sec, {name:title, ordered:f.has('ordered'), rules}); }
-    srSaveStrategy(s);
+    if(!srSaveStrategy(s)){ srSaveFailed(form); return; }
+    if(type==='add-section') SU.step = s.sections.length-1;
     SU.editing = false; SU.dirty = false; SU.collapsed = false;
     if(type==='add-section') stratCloseDialog(true);
     stratRender();
@@ -8572,41 +8596,45 @@ document.addEventListener('submit', e=>{
     if(SU.input==='keyboard') document.querySelector('[data-sa=edit]')?.focus();
     return;
   }
-  if(type==='checklist'){ s.checklist = srRulesOf(form); srSaveStrategy(s); stratCloseDialog(true); stratRender(); showToast(srT('Чеклист сохранён','Checklist saved')); return; }
+  if(type==='checklist'){ s.checklist = srRulesOf(form); if(!srSaveStrategy(s)) return srSaveFailed(form); stratCloseDialog(true); stratRender(); showToast(srT('Чеклист сохранён','Checklist saved')); return; }
   if(type==='passport'){
     const name = String(f.get('name')||'').trim(); if(!need(name, srT('Укажите название стратегии.','Enter the strategy name.'))) return;
     s.name = name; s.passport = stratEmptyPassport(); STRAT_PASSPORT_KEYS.forEach(k=>{ s.passport[k] = String(f.get(k)||'').trim(); });
-    srSaveStrategy(s); stratCloseDialog(true); stratRender(); showToast(srT('Условия сохранены','Conditions saved')); return;
+    if(!srSaveStrategy(s)) return srSaveFailed(form);
+    stratCloseDialog(true); stratRender(); showToast(srT('Условия сохранены','Conditions saved')); return;
   }
   if(type==='fix'){
     const label = String(f.get('label')||'').trim(), what = String(f.get('what')||'').trim(), why = String(f.get('why')||'').trim();
     if(!label || !what || !why){ srFormError(form, srT('Заполните обозначение, изменение и причину.','Fill in the label, the change and the reason.')); return; }
     if(stratRevisions(SU.id).some(r=>!r.data.auto && r.data.label===label)){ srFormError(form, srT('Такое обозначение уже есть. Укажите новое.','This label exists already. Use a new one.')); return; }
-    s.version = label; srSaveStrategy(s);
-    stratEnsureRevision(SU.id, {label, what, why, results:String(f.get('results')||'').trim()});
+    s.version = label;
+    if(!srSaveStrategy(s) || !stratEnsureRevision(SU.id, {label, what, why, results:String(f.get('results')||'').trim()})) return srSaveFailed(form);
     stratCloseDialog(true); SU.tab = 'history'; stratRender(); showToast(srT('Редакция зафиксирована','Revision fixed')); return;
   }
   if(type==='rev-results'){
     const r = sdocs[form.dataset.id]; if(!r) return;
-    sdocPut('revision', {...r.data, results:String(f.get('results')||'').trim()}, r.id);
+    if(!sdocPut('revision', {...r.data, results:String(f.get('results')||'').trim()}, r.id)) return srSaveFailed(form);
     stratCloseDialog(true); stratRender(); showToast(srT('Проверка записана','Check saved')); return;
   }
   if(type==='note'){
     const text = String(f.get('text')||'').trim(); if(!need(text, srT('Запишите наблюдение.','Write the note.'))) return;
     const id = form.dataset.id, old = id ? sdocs[id] : null;
-    sdocPut('note', {strategyId:SU.id, text, tradeId:String(f.get('tradeId')||'')||null, date:old?old.data.date:new Date().toISOString(), updatedAt:new Date().toISOString()}, id||undefined);
+    if(!sdocPut('note', {strategyId:SU.id, text, tradeId:String(f.get('tradeId')||'')||null, date:old?old.data.date:new Date().toISOString(), updatedAt:new Date().toISOString()}, id||undefined)) return srSaveFailed(form);
     stratCloseDialog(true); stratRender(); showToast(srT('Наблюдение сохранено','Note saved')); return;
   }
   if(type==='hyp'){
     const title = String(f.get('title')||'').trim(); if(!need(title, srT('Укажите, что проверяете.','Say what you test.'))) return;
     const id = form.dataset.id, old = id ? sdocs[id] : null;
-    sdocPut('hypothesis', {strategyId:SU.id, title, status:String(f.get('status')||'testing'), text:String(f.get('text')||''), createdAt:old?old.data.createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()}, id||undefined);
+    if(!sdocPut('hypothesis', {strategyId:SU.id, title, status:String(f.get('status')||'testing'), text:String(f.get('text')||''), createdAt:old?old.data.createdAt:new Date().toISOString(), updatedAt:new Date().toISOString()}, id||undefined)) return srSaveFailed(form);
     stratCloseDialog(true); stratRender(); showToast(srT('Гипотеза сохранена','Hypothesis saved')); return;
   }
   if(type==='week'){
     const ws = form.dataset.ws, data = {strategyId:SU.id, weekStart:ws, savedAt:new Date().toISOString()};
     ['worked','friction','lesson','next'].forEach(k=>{ data[k] = String(f.get(k)||''); });
-    sdocPut('week', data, 'wk:'+SU.id+':'+ws);
+    if(!sdocPut('week', data, 'wk:'+SU.id+':'+ws)){
+      const st = document.getElementById('srWeekState'); if(st) st.textContent = srT('Не сохранено','Not saved');
+      return srSaveFailed(form);
+    }
     SU.weekDirty = false;
     const st = document.getElementById('srWeekState'); if(st) st.textContent = srT('Сохранено ','Saved ')+new Date().toLocaleString(srRu()?'ru-RU':'en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
     showToast(srT('Итог недели сохранён','Week saved'));
@@ -8670,7 +8698,8 @@ document.addEventListener('click', e=>{
     if(!stratCanLeave()) return;
     const to = SU.step + (a==='sec-up'?-1:1); if(to<0 || to>=s.sections.length) return;
     [s.sections[SU.step], s.sections[to]] = [s.sections[to], s.sections[SU.step]];
-    srSaveStrategy(s); SU.step = to; SU.editing = false; stratRender();
+    if(!srSaveStrategy(s)) return srSaveFailed();
+    SU.step = to; SU.editing = false; stratRender();
     showToast(srT('Порядок разделов сохранён','Section order saved'));
     document.querySelector(`[data-sa=${a}]`)?.focus();
     return;
@@ -8679,8 +8708,10 @@ document.addEventListener('click', e=>{
     if(s.sections.length<=1) return;
     const sec = s.sections[SU.step];
     if(!confirm(srT(`Убрать раздел «${sec.name}» и его ${srPoints((sec.rules||[]).length)}? Сделки и зафиксированные редакции его сохранят.`,`Remove the section «${sec.name}» with its ${srPoints((sec.rules||[]).length)}? Trades and fixed revisions keep it.`))) return;
-    s.sections.splice(SU.step, 1); SU.step = Math.min(SU.step, s.sections.length-1); SU.editing = false; SU.dirty = false;
-    srSaveStrategy(s); stratRender(); showToast(srT('Раздел убран','Section removed'));
+    s.sections.splice(SU.step, 1);
+    if(!srSaveStrategy(s)) return srSaveFailed();
+    SU.step = Math.min(SU.step, s.sections.length-1); SU.editing = false; SU.dirty = false;
+    stratRender(); showToast(srT('Раздел убран','Section removed'));
     return;
   }
   if(a==='source') return stratOpenDialog(srT('Только чтение','Read-only'), srT('Исходный текст','Source text'), `<p class="sr-muted">${srT('Текст, из которого создана стратегия, целиком.','The whole text the strategy was created from.')}</p><textarea class="ftextarea sr-bigtext" readonly aria-label="${srEsc(srT('Исходный текст','Source text'))}">${srEsc(s.source.text)}</textarea>`);
@@ -8689,17 +8720,19 @@ document.addEventListener('click', e=>{
   if(a==='fix') return srFixDialog();
   if(a==='archive'){
     if(!s.archived && !confirm(srT('Убрать стратегию в архив? Она пропадёт из выбора при записи сделки; сделки, наблюдения и редакции сохранятся.','Archive the strategy? It leaves the choice in the trade form; trades, notes and revisions stay.'))) return;
-    s.archived = !s.archived; srSaveStrategy(s); stratRender();
+    s.archived = !s.archived;
+    if(!srSaveStrategy(s)) return srSaveFailed();
+    stratRender();
     showToast(s.archived ? srT('Стратегия в архиве','Strategy archived') : srT('Стратегия возвращена','Strategy restored'));
     return;
   }
   if(a==='period'){ SU.period = b.dataset.v==='all' ? 'all' : Number(b.dataset.v); srSwap(document.getElementById('srStage'), srTabHTML('trades'), 0); return; }
   if(a==='note-new') return srNoteDialog();
   if(a==='note-edit') return srNoteDialog(id);
-  if(a==='note-del'){ if(!confirm(srT('Удалить наблюдение?','Delete the note?'))) return; sdocRemove(id); stratCloseDialog(true); stratRender(); showToast(srT('Наблюдение удалено','Note deleted')); return; }
+  if(a==='note-del'){ if(!confirm(srT('Удалить наблюдение?','Delete the note?'))) return; if(!sdocRemove(id)) return srSaveFailed(b.closest('form')); stratCloseDialog(true); stratRender(); showToast(srT('Наблюдение удалено','Note deleted')); return; }
   if(a==='hyp-new') return srHypDialog();
   if(a==='hyp-edit') return srHypDialog(id);
-  if(a==='hyp-del'){ if(!confirm(srT('Удалить гипотезу?','Delete the hypothesis?'))) return; sdocRemove(id); stratCloseDialog(true); stratRender(); showToast(srT('Гипотеза удалена','Hypothesis deleted')); return; }
+  if(a==='hyp-del'){ if(!confirm(srT('Удалить гипотезу?','Delete the hypothesis?'))) return; if(!sdocRemove(id)) return srSaveFailed(b.closest('form')); stratCloseDialog(true); stratRender(); showToast(srT('Гипотеза удалена','Hypothesis deleted')); return; }
   if(a==='rev-view') return stratShowRevision(id);
   if(a==='rev-results') return srResultsDialog(id);
   if(a==='week-prev' || a==='week-next'){
