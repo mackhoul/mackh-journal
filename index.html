@@ -1574,6 +1574,21 @@ body.light .cal-day.today,body.light .cal-day.selected{color:var(--accent-ink)} 
 @media (pointer:coarse) and (min-width:640px) and (max-width:767px){ .cal-popup,.dp-popup{width:340px} }
 /* an invisible tail under the calendar: a window that scrolls can show its bottom edge with a gap */
 .dp-popup::after{content:'';position:absolute;left:0;top:100%;width:1px;height:12px;pointer-events:none}
+/* ── Trade costs: commission and swap ── */
+.cost-net{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px;color:var(--text-secondary);cursor:pointer}
+.cost-net input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0}
+.cost-total{font-size:13px;color:var(--text-secondary);margin:2px 0 12px;font-variant-numeric:tabular-nums;min-height:1em}
+.cost-total:empty{display:none}
+.cost-fold{margin:0 0 6px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.cost-fold summary{min-height:44px;display:flex;align-items:center;font-size:13px;color:var(--text-secondary);cursor:pointer;list-style:none}
+.cost-fold summary::-webkit-details-marker{display:none}
+.cost-fold summary::after{content:'';width:7px;height:7px;margin-left:auto;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform 160ms var(--ease)}
+.cost-fold[open] summary::after{transform:rotate(-135deg) translateY(-2px)}
+.tc-prelim{font-size:12px;font-weight:500;color:var(--text-muted);margin-left:6px;letter-spacing:0}
+.cost-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;color:var(--text-secondary)}
+.cost-row .mono{color:var(--text);font-variant-numeric:tabular-nums}
+.cost-note{font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.5}
+@media (pointer:coarse){ #tCommission,#tSwap,#qCommission,#qSwap{font-size:16px} }
 /* toasts and the quick entry's save button clear the home bar in Telegram too */
 @media (max-width:1023px){
   .toast{bottom:calc(88px + max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)))}
@@ -2195,13 +2210,26 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
       <div class="frow2">
         <div class="fgroup">
           <label class="flabel">P&amp;L ($)</label>
-          <input class="finput mono" id="tPnl" type="number" step="any" placeholder="+120">
+          <input class="finput mono" id="tPnl" type="number" step="any" placeholder="+120" oninput="updateCostTotal('t')">
         </div>
         <div class="fgroup">
           <label class="flabel" id="lbl_date_el">Дата</label>
           <input class="finput" id="tDate" type="date">
         </div>
       </div>
+      <div class="frow2 cost-fields">
+        <div class="fgroup">
+          <label class="flabel" for="tCommission" id="lbl_comm_el">Комиссия</label>
+          <input class="finput mono" id="tCommission" type="text" inputmode="decimal" autocomplete="off" placeholder="Не указана" oninput="updateCostTotal('t')">
+        </div>
+        <div class="fgroup">
+          <label class="flabel" for="tSwap" id="lbl_swap_el">Своп</label>
+          <input class="finput mono" id="tSwap" type="text" inputmode="decimal" autocomplete="off" placeholder="Не указан" oninput="updateCostTotal('t')">
+        </div>
+      </div>
+      <label class="cost-net"><input type="checkbox" id="tPnlNet" onchange="tForm.pnlModeTouched=true;updateCostTotal('t')"><span id="lbl_pnlnet_el">P&amp;L уже включает комиссию и своп</span></label>
+      <p class="cost-total" id="tCostTotal" aria-live="polite"></p>
+      <p class="ferr" id="tCostErr" role="alert" hidden></p>
       <button class="btn-primary" id="btnNextSetup" onclick="stepNext(1)">Далее: сетап <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
     </div>
 
@@ -2594,13 +2622,29 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
       <div class="frow2">
         <div class="fgroup">
           <label class="flabel" id="qlbl_pnl">P&amp;L ($)</label>
-          <input class="finput mono" id="qPnl" type="number" step="any" placeholder="+50">
+          <input class="finput mono" id="qPnl" type="number" step="any" placeholder="+50" oninput="updateCostTotal('q')">
         </div>
         <div class="fgroup">
           <label class="flabel" id="qlbl_rr">R:R</label>
           <input class="finput mono" id="qRR" placeholder="1:2.5" autocomplete="off">
         </div>
       </div>
+      <details class="cost-fold" id="qCostFold">
+        <summary id="qlbl_costs">Комиссия и своп</summary>
+        <div class="frow2 cost-fields">
+          <div class="fgroup">
+            <label class="flabel" for="qCommission" id="qlbl_comm">Комиссия</label>
+            <input class="finput mono" id="qCommission" type="text" inputmode="decimal" autocomplete="off" placeholder="Не указана" oninput="updateCostTotal('q')">
+          </div>
+          <div class="fgroup">
+            <label class="flabel" for="qSwap" id="qlbl_swap">Своп</label>
+            <input class="finput mono" id="qSwap" type="text" inputmode="decimal" autocomplete="off" placeholder="Не указан" oninput="updateCostTotal('q')">
+          </div>
+        </div>
+        <label class="cost-net"><input type="checkbox" id="qPnlNet" onchange="updateCostTotal('q')"><span id="qlbl_pnlnet">P&amp;L уже включает комиссию и своп</span></label>
+      </details>
+      <p class="cost-total" id="qCostTotal" aria-live="polite"></p>
+      <p class="ferr" id="qCostErr" role="alert" hidden></p>
       <div class="frow2">
         <div class="fgroup">
           <label class="flabel" id="qlbl_pair">Инструмент</label>
@@ -4109,7 +4153,7 @@ function renderPhrase(info){
   const todays = trades.filter(t=>t.date===todayStr);
   let txt;
   if(todays.length){
-    const pnl = todays.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+    const pnl = todays.reduce((s,t)=>s+(tradeNet(t)||0),0);
     const n = todays.length;
     const word = ru ? plural(n,'сделка','сделки','сделок') : plural(n,'trade','','trades');
     const money = (pnl>0?'+':pnl<0?'−':'')+'$'+Math.abs(pnl).toFixed(2);
@@ -4153,7 +4197,7 @@ function renderTodayStats(){
   const todayStr = new Date().toISOString().split('T')[0];
   const todays = trades.filter(t=>t.date===todayStr);
   if(!todays.length){ wrap.className='kz-today'; wrap.innerHTML=''; return; }
-  const pnl = todays.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const pnl = todays.reduce((s,t)=>s+(tradeNet(t)||0),0);
   const clList = todays.filter(t=>t.checklistScore!==null && t.checklistScore!==undefined && !t.quickTrade);
   const clPct = clList.length ? Math.round(clList.reduce((s,t)=>s+t.checklistScore,0)/clList.length*100) : null;
   wrap.className = 'kz-today show';
@@ -4222,9 +4266,9 @@ function renderDayMap(){
 
   // Result of the day
   let total=0, won=0, lost=0, flat=0;
-  const kindOf = t=>{ const p=parseFloat(t.pnl)||0, has=t.pnl!==''&&t.pnl!==null&&t.pnl!==undefined;
+  const kindOf = t=>{ const p=tradeNet(t)||0, has=t.pnl!==''&&t.pnl!==null&&t.pnl!==undefined;
     return has ? (p>0?'pos':p<0?'neg':'be') : (t.result==='win'?'pos':t.result==='loss'?'neg':'be'); };
-  todays.forEach(t=>{ total+=parseFloat(t.pnl)||0; const k=kindOf(t); if(k==='pos') won++; else if(k==='neg') lost++; else flat++; });
+  todays.forEach(t=>{ total+=tradeNet(t)||0; const k=kindOf(t); if(k==='pos') won++; else if(k==='neg') lost++; else flat++; });
   set('dmResLbl', ru?'Итог дня':'Day result');
   const badge = document.getElementById('dmBadge');
   badge.hidden = !n;
@@ -4275,7 +4319,7 @@ function renderDayMap(){
     g.sort((a,b)=> timed ? String(a.time).localeCompare(String(b.time)) : rec(a)-rec(b));
   });
   const tradeLi = t=>{
-    const p = parseFloat(t.pnl)||0, has = t.pnl!==''&&t.pnl!==null&&t.pnl!==undefined, k = kindOf(t);
+    const p = tradeNet(t)||0, has = t.pnl!==''&&t.pnl!==null&&t.pnl!==undefined, k = kindOf(t);
     const res = t.result==='win'?'WIN':t.result==='loss'?'LOSS':'B/E';
     const meta = [t.time||'', t.setup?setupDisplayName(t.setup):'',
       t.rr ? 'R:R '+String(t.rr).replace(/1:([\d.]+)/,(_,x)=>'1:'+fmtRR(x)) : '',
@@ -4405,7 +4449,7 @@ function fmt(n, prefix='$'){
 function fmtPct(n){ return n===null?'—':n.toFixed(1)+'%'; }
 
 function computeCapital(){
-  const pnl = trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const pnl = trades.reduce((s,t)=>s+(tradeNet(t)||0),0);
   return baseCapital + pnl;
 }
 
@@ -4438,7 +4482,7 @@ function calcStats(list){
   const wins = list.filter(t=>t.result==='win').length;
   const losses = list.filter(t=>t.result==='loss').length;
   const wr = total ? (wins/total*100) : null;
-  const pnl = list.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const pnl = list.reduce((s,t)=>s+(tradeNet(t)||0),0);
   const rrVals = list.map(t=>parseRR(t.rr)).filter(Boolean);
   const avgRR = rrVals.length ? rrVals.reduce((a,b)=>a+b,0)/rrVals.length : null;
   return {total, wins, losses, wr, pnl, avgRR};
@@ -5097,7 +5141,7 @@ function generateInsights(){
   const sortedT = [...t].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   let peak=baseCapital,cur=baseCapital,maxDD=0;
   for(const x of sortedT){
-    cur+=parseFloat(x.pnl)||0;
+    cur+=tradeNet(x)||0;
     if(cur>peak) peak=cur;
     const dd=peak>0?(peak-cur)/peak*100:0;
     if(dd>maxDD) maxDD=dd;
@@ -5127,7 +5171,7 @@ function generateInsights(){
 function renderHome(){
   const f = getFiltered(homeMarket, calState.home.date||null, null);
   const {wins, losses, pnl, avgRR, wr} = calcStats(f);
-  const allPnl = trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const allPnl = trades.reduce((s,t)=>s+(tradeNet(t)||0),0);
   const cap = computeCapital();
 
   // Balance
@@ -5496,7 +5540,7 @@ function renderHomeChart(){
   let cum=0;
   const pnlData=[0];
   f.forEach(t=>{
-    const p = parseFloat(t.pnl)||0;
+    const p = tradeNet(t)||0;
     eq+=p; cum+=p;
     eqLabels.push(t.date?new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short'}):'');
     eqData.push(+eq.toFixed(2));
@@ -5953,7 +5997,7 @@ function renderAnalytics(){
   // PnL chart
   const sorted = [...t].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   let cum=0; const labels=[], data=[];
-  sorted.forEach(x=>{cum+=parseFloat(x.pnl)||0; labels.push(x.date?new Date(x.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short'}):''); data.push(+cum.toFixed(2));});
+  sorted.forEach(x=>{cum+=tradeNet(x)||0; labels.push(x.date?new Date(x.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short'}):''); data.push(+cum.toFixed(2));});
   if(pnlCI) pnlCI.destroy();
   const ctx=document.getElementById('pnlChart').getContext('2d');
   const pos=!data.length||data[data.length-1]>=0;
@@ -6016,7 +6060,7 @@ function renderAnalytics(){
     wdData[dow].total++;
     if(x.result==='win') wdData[dow].wins++;
     else if(x.result==='loss') wdData[dow].losses++;
-    wdData[dow].pnl += parseFloat(x.pnl)||0;
+    wdData[dow].pnl += tradeNet(x)||0;
   });
   const wdMax = Math.max(...wdData.map(h=>h.total),1);
   document.getElementById('heatmapCard').innerHTML = `
@@ -6114,7 +6158,7 @@ function renderAnalytics(){
     });
     // P&L impact: attribute the trade's P&L to all its mistakes
     if((x.mistakes||[]).length>0){
-      const tradePnl = parseFloat(x.pnl)||0;
+      const tradePnl = tradeNet(x)||0;
       x.mistakes.forEach(m=>{
         if(!allMistakeStats[m]) allMistakeStats[m]={count:0, trades:0, pnl:0};
         allMistakeStats[m].trades++;
@@ -6231,8 +6275,8 @@ function renderProgress(){
   // Equity stats
   const sortedTrades = [...trades].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   let peak=baseCapital, cur=baseCapital, maxDD=0;
-  sortedTrades.forEach(x=>{cur+=parseFloat(x.pnl)||0; if(cur>peak) peak=cur; const dd=peak>0?(peak-cur)/peak*100:0; if(dd>maxDD) maxDD=dd;});
-  const allPnl=trades.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  sortedTrades.forEach(x=>{cur+=tradeNet(x)||0; if(cur>peak) peak=cur; const dd=peak>0?(peak-cur)/peak*100:0; if(dd>maxDD) maxDD=dd;});
+  const allPnl=trades.reduce((s,t)=>s+(tradeNet(t)||0),0);
   const growthPct=baseCapital>0?(allPnl/baseCapital*100):null;
   document.getElementById('equityStats').innerHTML = `
     <div class="kpi-grid eq-grid">
@@ -6249,11 +6293,76 @@ function renderProgress(){
 }
 
 // ═══════════════════════════════════════════════════════
+//  TRADE COSTS — commission and swap
+//  The P&L a trader types is before costs (pnlMode 'gross'): the trade's money
+//  result is P&L − commission + swap. 'net' means the P&L already includes them;
+//  the costs are then kept for reference only. Trades saved before these fields
+//  have no pnlMode: nobody knows how their P&L was counted, so it is taken as it is.
+//  Empty means «not given», an explicit 0 means «there was none». All amounts are
+//  in the trade's own currency; nothing is converted.
+// ═══════════════════════════════════════════════════════
+function costNum(v){
+  if(v===null || v===undefined || String(v).trim()==='') return null;
+  const n = Number(String(v).trim().replace(',','.'));
+  return Number.isFinite(n) ? n : NaN;
+}
+function tradeNet(t){
+  const p = parseFloat(t.pnl);
+  if(isNaN(p) || t.pnlMode!=='gross') return p;
+  const c = costNum(t.commission), w = costNum(t.swap);
+  return Math.round((p - (Number.isFinite(c)?c:0) + (Number.isFinite(w)?w:0))*100)/100;
+}
+// Before-costs P&L with a cost still not given: the total is preliminary
+function tradeCostsPending(t){
+  if(t.pnlMode!=='gross' || isNaN(parseFloat(t.pnl))) return false;
+  return !Number.isFinite(costNum(t.commission)) || !Number.isFinite(costNum(t.swap));
+}
+// Reads the cost fields of a form: {commission, swap} as normalised strings, or {error}
+function readCosts(commRaw, swapRaw){
+  const c = costNum(commRaw), w = costNum(swapRaw);
+  if(Number.isNaN(c)) return {error: lang==='ru'?'Комиссия: укажите число, например 4,50':'Commission: enter a number, e.g. 4.50'};
+  if(c!==null && c<0) return {error: lang==='ru'?'Комиссия — сумма списания: 0 или больше':'Commission is a charge: 0 or more'};
+  if(Number.isNaN(w)) return {error: lang==='ru'?'Своп: укажите число, например −1,25':'Swap: enter a number, e.g. −1.25'};
+  return {commission: c===null?'':String(c), swap: w===null?'':String(w)};
+}
+function moneySigned(v){ return (v>0?'+':v<0?'−':'')+'$'+Math.abs(v).toFixed(2); }
+// The line under the cost fields: what the trade's money result will be
+function costTotalText(pnlRaw, commRaw, swapRaw, mode){
+  const ru = lang==='ru', p = parseFloat(pnlRaw);
+  if(isNaN(p)) return '';
+  const t = {pnl:pnlRaw, commission:commRaw, swap:swapRaw, pnlMode:mode};
+  if(Number.isNaN(costNum(commRaw)) || Number.isNaN(costNum(swapRaw))) return '';
+  const total = tradeNet(t);
+  if(mode==='net') return (ru?'Итог: ':'Total: ')+moneySigned(total)+(ru?' — P&L уже чистый':' — P&L is already net');
+  if(mode!=='gross') return (ru?'Итог: ':'Total: ')+moneySigned(total)+(ru?' — как в P&L: способ учёта расходов не указан':' — as in P&L: how costs were counted is not set');
+  return (ru?'Итог: ':'Total: ')+moneySigned(total)+(tradeCostsPending(t)?(ru?' — предварительно, не все расходы указаны':' — preliminary, not all costs given'):'');
+}
+// The account's last choice is the next trade's starting point
+function defaultPnlMode(){ return lsGet('pnl_mode_v1')==='net' ? 'net' : 'gross'; }
+
+// ═══════════════════════════════════════════════════════
 //  TRADE CARD HTML
 // ═══════════════════════════════════════════════════════
+// Trade window: P&L, commission, swap and the total, when the trade has any of them
+function costBlockHTML(t){
+  const ru = lang==='ru';
+  const c = costNum(t.commission), w = costNum(t.swap);
+  if(t.pnlMode!=='gross' && t.pnlMode!=='net' && c===null && w===null) return '';
+  const val = v=> v===null ? `<span style="color:var(--text-muted)">${ru?'не указано':'not given'}</span>` : moneySigned(v);
+  const rows = [
+    [ru?'P&L':'P&L', t.pnl!==''&&t.pnl!==undefined&&t.pnl!==null ? moneySigned(parseFloat(t.pnl)||0) : '—'],
+    [ru?'Комиссия':'Commission', c===null ? val(null) : moneySigned(-Math.abs(c))],
+    [ru?'Своп':'Swap', val(w)],
+  ];
+  const note = t.pnlMode==='net' ? (ru?'P&L уже включает комиссию и своп — они указаны для справки.':'The P&L already includes commission and swap — they are shown for reference.')
+    : t.pnlMode==='gross' ? (tradeCostsPending(t) ? (ru?'Итог предварительный: не все расходы указаны.':'The total is preliminary: not all costs are given.') : (ru?'Итог = P&L − комиссия + своп.':'Total = P&L − commission + swap.'))
+    : (ru?'Не указано, учтены ли расходы в P&L: итог равен P&L.':'Not set whether the P&L includes costs: the total equals the P&L.');
+  return `<div class="dblock cost-block"><div class="dblock-title">${ru?'Расходы':'Costs'}</div>${rows.map(([k,v])=>`<div class="cost-row"><span>${k}</span><span class="mono">${v}</span></div>`).join('')}<p class="cost-note">${note}</p></div>`;
+}
+
 function tcHTML(t){
   const m = MKT[t.market]||MKT.forex;
-  const pnlNum = parseFloat(t.pnl)||0;
+  const pnlNum = tradeNet(t)||0;
   const hasPnl = t.pnl !== '' && t.pnl !== null && t.pnl !== undefined;
 
   // ── Colour by result ──────────────────────────────
@@ -6265,7 +6374,7 @@ function tcHTML(t){
 
   // Row 1: Pair → P&L
   const pnlDisplay = hasPnl
-    ? `<span class="tc-pnl-val" style="color:${pnlCol}">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</span>`
+    ? `<span class="tc-pnl-val" style="color:${pnlCol}">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}${tradeCostsPending(t)?`<span class="tc-prelim">${lang==='ru'?'предв.':'prelim.'}</span>`:''}</span>`
     : `<span class="tc-pnl-val" style="color:${resCol}">${resText}</span>`;
 
   // ── Thumbnail ─────────────────────────────────────
@@ -6334,7 +6443,7 @@ function tcHTML(t){
 // ── Desktop dense table view — same data/click behaviour as tcHTML cards ──
 function tradeRowHTML(t){
   const m = MKT[t.market]||MKT.forex;
-  const pnlNum = parseFloat(t.pnl)||0;
+  const pnlNum = tradeNet(t)||0;
   const hasPnl = t.pnl !== '' && t.pnl !== null && t.pnl !== undefined;
   const resText = t.result==='win'?'WIN':t.result==='loss'?'LOSS':'B/E';
   const resBadgeCls = t.result==='win'?'rb-win':t.result==='loss'?'rb-loss':'rb-be';
@@ -6343,7 +6452,7 @@ function tradeRowHTML(t){
   const ds = t.date ? new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'short',year:'numeric'}).replace(' г.','') : '—';
   const rrText = t.rr ? escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n))) : '—';
   const dirHTML = t.dir ? `<span style="color:${t.dir==='buy'?'var(--positive)':'var(--negative)'};font-weight:600">${t.dir==='buy'?'Buy':'Sell'}</span>` : '—';
-  const pnlHTML = hasPnl ? `<span class="mono" style="color:${pnlCol};font-weight:600">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</span>` : '—';
+  const pnlHTML = hasPnl ? `<span class="mono" style="color:${pnlCol};font-weight:600">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</span>${tradeCostsPending(t)?`<span class="tc-prelim">${lang==='ru'?'предв.':'prelim.'}</span>`:''}` : '—';
   return `<tr class="tt-row ${resCls}" data-id="${t.id}" onclick="bulkMode?toggleBulkItem('${t.id}',event):openDetail('${t.id}')">
     <td class="mono">${ds}</td>
     <td class="tt-pair">${escapeHtml(t.pair||t.asset||'—')}${syncLabelHTML(t.id)}</td>
@@ -6474,7 +6583,7 @@ function openDetail(id){
   const t=trades.find(x=>x.id===id); if(!t) return;
   const m=MKT[t.market]||MKT.forex;
   document.getElementById('detailTitle').textContent=t.pair||t.asset||T('add_trade');
-  const pnlNum=parseFloat(t.pnl)||0;
+  const pnlNum=tradeNet(t)||0;
   const ds=t.date?new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
   const rrDisplay=t.rr?escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n))):'—';
   const detailImgSrc = t.img || t.img_url || null;
@@ -6500,8 +6609,9 @@ function openDetail(id){
     <div class="dstat-row">
       <div class="dstat"><div class="dstat-val" style="color:${t.result==='win'?'var(--positive)':t.result==='loss'?'var(--negative)':'var(--warning)'}">${t.result==='win'?'WIN':t.result==='loss'?'LOSS':'B/E'}</div><div class="dstat-lbl">${T('detail_result')}</div></div>
       ${t.rr?`<div class="dstat"><div class="dstat-val" style="color:${rrColor(parseFloat(t.rr.replace('1:','')))}">${rrDisplay}</div><div class="dstat-lbl">${T('detail_rr')}</div></div>`:''}
-      ${t.pnl?`<div class="dstat"><div class="dstat-val" style="color:${pnlNum>=0?'var(--positive)':'var(--negative)'}">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</div><div class="dstat-lbl">${T('detail_pnl')}</div></div>`:''}
+      ${t.pnl?`<div class="dstat"><div class="dstat-val" style="color:${pnlNum>=0?'var(--positive)':'var(--negative)'}">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</div><div class="dstat-lbl">${t.pnlMode==='gross'||t.pnlMode==='net'?(lang==='ru'?'Итог':'Total'):T('detail_pnl')}</div></div>`:''}
     </div>
+    ${costBlockHTML(t)}
     ${t.entry||t.sl||t.tp?`<div class="dstat-row">
       ${t.entry?`<div class="dstat"><div class="dstat-val mono" style="font-size:12px">${escapeHtml(t.entry)}</div><div class="dstat-lbl">${T('detail_entry')}</div></div>`:''}
       ${t.sl?`<div class="dstat"><div class="dstat-val mono red" style="font-size:12px">${escapeHtml(t.sl)}</div><div class="dstat-lbl">${T('detail_sl')}</div></div>`:''}
@@ -6905,6 +7015,9 @@ function syncFormToState(){
   tForm.sl    =document.getElementById('tSL').value;
   tForm.tp    =document.getElementById('tTP').value;
   tForm.pnl   =document.getElementById('tPnl').value;
+  tForm.commission=document.getElementById('tCommission').value;
+  tForm.swap      =document.getElementById('tSwap').value;
+  if(tForm.pnlModeTouched || tForm.pnlMode) tForm.pnlMode = document.getElementById('tPnlNet').checked ? 'net' : 'gross';
   tForm.date  =document.getElementById('tDate').value;
   tForm.notes =document.getElementById('tNotes').value;
   tForm.tags  =[...currentTags];
@@ -6946,6 +7059,10 @@ function syncStateToForm(){
   document.getElementById('tSL').value     = tForm.sl     ||'';
   document.getElementById('tTP').value     = tForm.tp     ||'';
   document.getElementById('tPnl').value    = tForm.pnl    ||'';
+  document.getElementById('tCommission').value = tForm.commission ?? '';
+  document.getElementById('tSwap').value       = tForm.swap ?? '';
+  document.getElementById('tPnlNet').checked   = tForm.pnlMode==='net';
+  updateCostTotal('t');
   document.getElementById('tDate').value   = tForm.date   ||new Date().toISOString().split('T')[0];
   document.getElementById('tNotes').value  = tForm.notes  ||'';
   // Toggle buttons
@@ -7068,6 +7185,12 @@ function openQuickAdd(){
   document.getElementById('qBtnEmoNo').className='tbtn';
   document.getElementById('qBtnEmoYes').className='tbtn';
   document.getElementById('qPnl').value='';
+  document.getElementById('qCommission').value='';
+  document.getElementById('qSwap').value='';
+  document.getElementById('qPnlNet').checked = defaultPnlMode()==='net';
+  document.getElementById('qCostFold').open = false;
+  costError('q', '');
+  updateCostTotal('q');
   document.getElementById('qRR').value='';
   document.getElementById('qPair').value='';
   document.getElementById('qNotes').value='';
@@ -7080,6 +7203,22 @@ function openQuickAdd(){
   setTimeout(()=>initQImgDragDrop(), 100);
 }
 
+// Live total under the cost fields of the full ('t') or quick ('q') form
+function updateCostTotal(f){
+  const g = id=>document.getElementById(f+id);
+  if(!g('Pnl') || !g('CostTotal')) return;
+  let mode;
+  if(f==='q') mode = g('PnlNet').checked ? 'net' : 'gross';
+  else mode = (tForm.pnlMode || tForm.pnlModeTouched || g('Commission').value.trim() || g('Swap').value.trim()) ? (g('PnlNet').checked ? 'net' : 'gross') : undefined;
+  g('CostTotal').textContent = costTotalText(g('Pnl').value, g('Commission').value, g('Swap').value, mode);
+  costError(f, '');
+}
+function costError(f, text){
+  const el = document.getElementById(f+'CostErr'); if(!el) return;
+  el.textContent = text; el.hidden = !text;
+  if(text) document.getElementById(f+'Commission')?.focus();
+}
+
 // The result is never assumed: an unchosen one is named next to the buttons
 function resultError(id, show){
   const el = document.getElementById(id); if(!el) return;
@@ -7088,6 +7227,9 @@ function resultError(id, show){
 }
 function saveQuickTrade(){
   if(!qForm.result){ resultError('qResultErr', true); document.getElementById('qBtnWin').focus(); return; }
+  const costs = readCosts(document.getElementById('qCommission').value, document.getElementById('qSwap').value);
+  if(costs.error){ document.getElementById('qCostFold').open = true; costError('q', costs.error); return; }
+  const qMode = document.getElementById('qPnlNet').checked ? 'net' : 'gross';
   const rrRaw = document.getElementById('qRR').value.trim();
   let rrVal = null;
   if(rrRaw){
@@ -7102,6 +7244,7 @@ function saveQuickTrade(){
     session:document.getElementById('qSession').value||'London',
     result:qForm.result,
     pnl:document.getElementById('qPnl').value||'',
+    commission:costs.commission, swap:costs.swap, pnlMode:qMode,
     rr:rrVal,
     date:document.getElementById('qDate').value||new Date().toISOString().split('T')[0],
     quickTrade:true,
@@ -7113,6 +7256,7 @@ function saveQuickTrade(){
   };
   trades.push(trade);
   syncTrade(trade);
+  try{ lsSet('pnl_mode_v1', qMode); }catch(e){}
   closeModal('quickModal');
   renderHome(); renderTrades();
   showToast(T('toast_saved'));
@@ -7540,7 +7684,7 @@ function renderIdeas(){
 
 function openAddTrade(){
   editingId=null;
-  tForm={dir:'buy',date:new Date().toISOString().split('T')[0]};   // no result until the trader picks one
+  tForm={dir:'buy',date:new Date().toISOString().split('T')[0], pnlMode:defaultPnlMode(), commission:'', swap:''};   // no result until the trader picks one
   resultError('tResultErr', false);
   currentTags=[]; currentImg=null; currentMistakes=[]; checklistState={};
   currentStep=0; rrManualMode=false;
@@ -7568,6 +7712,8 @@ function openEditTrade(id){
     checklistDetail:t.checklistDetail||{},
     mistakes:t.mistakes?[...t.mistakes]:[],
     rrCalc: t.rr||null,
+    commission: t.commission ?? '', swap: t.swap ?? '',
+    pnlMode: t.pnlMode, pnlModeTouched: false,   // an older trade keeps «not set» until the trader decides
   };
   currentTags=[...(t.tags||[])];
   currentImg=t.img||t.img_url||null;
@@ -7643,6 +7789,10 @@ function saveTrade(){
   const pair=tForm.pair||'';
   if(!pair){showToast(T('err_pair'));return;}
   if(!tForm.result){ stepNext(0,true); resultError('tResultErr', true); document.getElementById('btnWin').focus(); return; }
+  const costs = readCosts(tForm.commission, tForm.swap);
+  if(costs.error){ stepNext(0,true); costError('t', costs.error); return; }
+  // An older trade without a mode gets one only if the trader typed a cost or used the switch
+  const mode = tForm.pnlMode || ((costs.commission!==''||costs.swap!=='') ? (document.getElementById('tPnlNet').checked?'net':'gross') : undefined);
   const tradeData={
     pair, asset:pair,
     market:tForm.market||'forex',
@@ -7654,6 +7804,8 @@ function saveTrade(){
     rr:tForm.rrCalc||null,
     result:tForm.result,
     pnl:tForm.pnl||'',
+    commission:costs.commission, swap:costs.swap,
+    ...(mode ? {pnlMode:mode} : {}),
     date:tForm.date||new Date().toISOString().split('T')[0],
     setup:tForm.setup||null,
     notes:tForm.notes||'',
@@ -7684,6 +7836,7 @@ function saveTrade(){
     syncTrade(tradeData);
     showToast(T('toast_saved'));
   }
+  if(mode && !editingId) try{ lsSet('pnl_mode_v1', mode); }catch(e){}
   closeModal('addModal');
   editingId=null;
   renderHome(); renderTrades();
@@ -7824,9 +7977,9 @@ function exportJSON(){
 }
 
 function exportCSV(){
-  const headers=['date','pair','market','session','dir','setup','result','pnl','rr','entry','sl','tp','byPlan','emotional','notes','tags'];
+  const headers=['date','pair','market','session','dir','setup','result','pnl','commission','swap','pnlMode','total','rr','entry','sl','tp','byPlan','emotional','notes','tags'];
   const rows=trades.map(t=>headers.map(h=>{
-    let v=t[h]; if(v===null||v===undefined) v='';
+    let v=h==='total' ? (isNaN(tradeNet(t))?'':tradeNet(t)) : t[h]; if(v===null||v===undefined) v='';
     if(Array.isArray(v)) v=v.join(';');
     if(typeof v==='string'&&(v.includes(',')||v.includes('"')||v.includes('\n'))) v='"'+v.replace(/"/g,'""')+'"';
     return v;
@@ -8516,6 +8669,11 @@ function applyLang(){
   if(document.getElementById('page-progress').classList.contains('active')) renderProgress();
   _setT('goalsAddBtn','goals_add');
   _setT('goalsSTitle','goals_title');
+  [['lbl_comm_el','Комиссия','Commission'],['lbl_swap_el','Своп','Swap'],['lbl_pnlnet_el','P&L уже включает комиссию и своп','P&L already includes commission and swap'],
+   ['qlbl_costs','Комиссия и своп','Commission and swap'],['qlbl_comm','Комиссия','Commission'],['qlbl_swap','Своп','Swap'],['qlbl_pnlnet','P&L уже включает комиссию и своп','P&L already includes commission and swap']
+  ].forEach(([id,ru,en])=>{ const el=document.getElementById(id); if(el) el.textContent = lang==='ru'?ru:en; });
+  ['tCommission','qCommission'].forEach(id=>{ const el=document.getElementById(id); if(el) el.placeholder = lang==='ru'?'Не указана':'Not given'; });
+  ['tSwap','qSwap'].forEach(id=>{ const el=document.getElementById(id); if(el) el.placeholder = lang==='ru'?'Не указан':'Not given'; });
   document.querySelectorAll('[data-img-act]').forEach(el=>{ el.textContent = el.dataset.imgAct==='open' ? (lang==='ru'?'Открыть':'Open') : (lang==='ru'?'Удалить':'Remove'); });
   setSyncStatus(syncStatus);   // the sync dot's name is re-read in the new language
 
@@ -9254,8 +9412,8 @@ function tradeR(t){
   return null;
 }
 function calcExpStats(list){
-  const withPnl=list.filter(t=>t.pnl!==''&&t.pnl!==null&&t.pnl!==undefined&&!isNaN(parseFloat(t.pnl)));
-  const pnls=withPnl.map(t=>parseFloat(t.pnl));
+  const withPnl=list.filter(t=>t.pnl!==''&&t.pnl!==null&&t.pnl!==undefined&&!isNaN(tradeNet(t)));
+  const pnls=withPnl.map(t=>tradeNet(t));
   const wins=pnls.filter(v=>v>0), losses=pnls.filter(v=>v<0);
   const gp=wins.reduce((a,b)=>a+b,0), gl=Math.abs(losses.reduce((a,b)=>a+b,0));
   const rs=list.map(tradeR).filter(r=>r!==null);
@@ -9356,7 +9514,7 @@ function renderSessionSetups(list){
     if(!t.time||!t.date) return;
     const h=parseInt(t.time.split(':')[0],10); if(isNaN(h)) return;
     let d=new Date(t.date+'T12:00:00').getDay(); d=d===0?6:d-1;
-    grid[d][h]=(grid[d][h]||0)+(parseFloat(t.pnl)||0);
+    grid[d][h]=(grid[d][h]||0)+(tradeNet(t)||0);
   });
   const maxAbs=Math.max(1,...grid.flat().filter(v=>v!==null).map(Math.abs));
   const dows=lang==='ru'?['Пн','Вт','Ср','Чт','Пт','Сб','Вс']:['Mo','Tu','We','Th','Fr','Sa','Su'];
@@ -9396,7 +9554,7 @@ function renderPnlCalendar(){
   const el=document.getElementById('pnlCal'); if(!el) return;
   const ru=lang==='ru';
   const byDay={};
-  trades.forEach(t=>{ if(!t.date) return; const d=byDay[t.date]||(byDay[t.date]={pnl:0,n:0}); d.pnl+=parseFloat(t.pnl)||0; d.n++; });
+  trades.forEach(t=>{ if(!t.date) return; const d=byDay[t.date]||(byDay[t.date]={pnl:0,n:0}); d.pnl+=tradeNet(t)||0; d.n++; });
   const first=new Date(pnlCal.y,pnlCal.m,1), lead=(first.getDay()+6)%7, days=new Date(pnlCal.y,pnlCal.m+1,0).getDate();
   const today=new Date().toISOString().split('T')[0], sel=calState.trades.date;
   const title=first.toLocaleDateString(ru?'ru-RU':'en-GB',{month:'long',year:'numeric'}).replace(' г.','');
@@ -9466,12 +9624,12 @@ let weekOffset=0;
 function weekStats(){
   const w=weekRange(weekOffset);
   const list=trades.filter(t=>t.date&&t.date>=w.from&&t.date<=w.to);
-  const pnl=list.reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const pnl=list.reduce((s,t)=>s+(tradeNet(t)||0),0);
   const wins=list.filter(t=>t.result==='win').length;
   const ex=calcExpStats(list);
-  const best=list.slice().sort((a,b)=>(parseFloat(b.pnl)||0)-(parseFloat(a.pnl)||0))[0];
+  const best=list.slice().sort((a,b)=>(tradeNet(b)||0)-(tradeNet(a)||0))[0];
   const days=new Set(list.map(t=>t.date)).size;
-  const bySet={}; list.forEach(t=>{ if(t.setup){ bySet[t.setup]=(bySet[t.setup]||0)+(parseFloat(t.pnl)||0); } });
+  const bySet={}; list.forEach(t=>{ if(t.setup){ bySet[t.setup]=(bySet[t.setup]||0)+(tradeNet(t)||0); } });
   const topSetup=Object.entries(bySet).sort((a,b)=>b[1]-a[1])[0];
   return {w,list,pnl,wins,wr:list.length?wins/list.length*100:null,expR:ex.expR,best,days,topSetup};
 }
@@ -9548,7 +9706,7 @@ function renderDailyLimit(){
   if(!tile||!el) return;
   const lim=getDailyLimit();
   const todayStr=new Date().toISOString().split('T')[0];
-  const pnl=trades.filter(t=>t.date===todayStr).reduce((s,t)=>s+(parseFloat(t.pnl)||0),0);
+  const pnl=trades.filter(t=>t.date===todayStr).reduce((s,t)=>s+(tradeNet(t)||0),0);
   tile.classList.remove('limit-hit','limit-near');
   if(!lim){ el.textContent=''; el.hidden=true; return; }
   const loss=Math.max(0,-pnl), share=loss/lim;
