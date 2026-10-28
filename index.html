@@ -4520,9 +4520,9 @@ function renderDayMap(){
   if(st && st._v!==stHTML){ st.innerHTML=stHTML; st._v=stHTML; }
 
   // Result of the day
-  let total=0, won=0, lost=0, flat=0;
-  const kindOf = t=>{ const o=tradeOutcome(t); return o==='win'?'pos':o==='loss'?'neg':'be'; };   // no P&L: neither way
-  todays.forEach(t=>{ total+=tradeNet(t)||0; const k=kindOf(t); if(k==='pos') won++; else if(k==='neg') lost++; else flat++; });
+  const kindOf = t=>{ const o=tradeOutcome(t); return o==='win'?'pos':o==='loss'?'neg':'be'; };   // row colour: no P&L looks neutral
+  let total=0, won=0, lost=0, flat=0, noPnl=0;
+  todays.forEach(t=>{ total+=tradeNet(t)||0; const o=tradeOutcome(t); if(o==='win') won++; else if(o==='loss') lost++; else if(o==='be') flat++; else noPnl++; });   // no P&L: neither way, not break-even
   set('dmResLbl', ru?'Итог дня':'Day result');
   const badge = document.getElementById('dmBadge');
   badge.hidden = !n;
@@ -4538,7 +4538,8 @@ function renderDayMap(){
   const split = document.getElementById('dmSplit');
   split.hidden = !n;
   if(n) split.innerHTML = `<span><b class="pos">${won}</b> ${ru?'в плюс':'won'}</span><span><b class="neg">${lost}</b> ${ru?'в минус':'lost'}</span>`
-    + (flat ? `<span><b>${flat}</b> ${ru?'в ноль':'break-even'}</span>` : '');
+    + (flat ? `<span><b>${flat}</b> ${ru?'в ноль':'break-even'}</span>` : '')
+    + (noPnl ? `<span><b>${noPnl}</b> ${ru?'без P&L':'no P&L'}</span>` : '');
   const phrase = document.getElementById('homePhrase');
   if(phrase) phrase.hidden = !!n;   // the phrase speaks for an empty day only
 
@@ -5148,11 +5149,11 @@ function generateInsights(){
     name:s,
     trades: t.filter(x=>x.session===s),
     losses: t.filter(x=>x.session===s && tradeOutcome(x)==='loss'),
-  })).map(s=>({...s, ...calcStats(s.trades)})).filter(s=>s.total>=3);
+  })).map(s=>({...s, ...calcStats(s.trades)})).filter(s=>s.known>=3);   // win rates compare known results only
 
   if(sessStats.length){
-    const best  = sessStats.reduce((a,b)=>(a.wr||0)>(b.wr||0)?a:b);
-    const worst = sessStats.reduce((a,b)=>(a.wr||0)<(b.wr||0)?a:b);
+    const best  = sessStats.reduce((a,b)=>a.wr>b.wr?a:b);
+    const worst = sessStats.reduce((a,b)=>a.wr<b.wr?a:b);
     if(best!==worst){
       ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline stroke-linecap="round" stroke-linejoin="round" points="17 6 23 6 23 12"/></svg>',
         `Лучшая сессия: ${best.name} (WR ${best.wr?.toFixed(0)}%)`,
@@ -5196,11 +5197,11 @@ function generateInsights(){
   });
   const setupStats = Object.entries(setupGroups)
     .map(([name,list])=>({name,...calcStats(list), losses:list.filter(x=>tradeOutcome(x)==='loss').length}))
-    .filter(s=>s.total>=3);
+    .filter(s=>s.known>=3);   // a group without known results is not «best» or «worst»
 
   if(setupStats.length){
-    const bestSetup  = setupStats.reduce((a,b)=>(a.wr||0)>(b.wr||0)?a:b);
-    const worstSetup = setupStats.reduce((a,b)=>(a.wr||0)<(b.wr||0)?a:b);
+    const bestSetup  = setupStats.reduce((a,b)=>a.wr>b.wr?a:b);
+    const worstSetup = setupStats.reduce((a,b)=>a.wr<b.wr?a:b);
     if(bestSetup.wr>=60){
       ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path stroke-linecap="round" stroke-linejoin="round" d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>',
         `Лучший сетап: "${bestSetup.name}" (WR ${bestSetup.wr.toFixed(0)}%)`,
@@ -5223,8 +5224,8 @@ function generateInsights(){
     // Offplan specifically
     const offplan = setupGroups['Off-plan'];
     if(offplan && offplan.length>=2){
-      const {wr:opWR} = calcStats(offplan);
-      if(opWR!==null && opWR<45){
+      const {wr:opWR, known:opKnown} = calcStats(offplan);
+      if(opKnown>=2 && opWR<45){
         ins('alert','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line stroke-linecap="round" x1="12" y1="9" x2="12" y2="13"/><line stroke-linecap="round" x1="12" y1="17" x2="12.01" y2="17"/></svg>',
           `Сделки "Off-plan" убыточны (WR ${opWR.toFixed(0)}%)`,
           `"Off-plan" trades are unprofitable (WR ${opWR.toFixed(0)}%)`,
@@ -5239,8 +5240,8 @@ function generateInsights(){
     // Range / Боковик specifically
     const range = setupGroups['Range'];
     if(range && range.length>=2){
-      const {wr:rWR, avgRR:rRR} = calcStats(range);
-      if(rWR!==null && rWR<45){
+      const {wr:rWR, avgRR:rRR, known:rKnown} = calcStats(range);
+      if(rKnown>=2 && rWR<45){
         ins('warn','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>',
           `Боковик убыточен (WR ${rWR.toFixed(0)}%)`,
           `Range setup losing (WR ${rWR.toFixed(0)}%)`,
@@ -5249,7 +5250,7 @@ function generateInsights(){
           `Range = trade only from clear range H/L levels. No clear boundary — no trade`,
           {id:'range_wr', count:range.length}
         );
-      } else if(rWR!==null && rWR>=55){
+      } else if(rKnown>=2 && rWR>=55){
         ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>',
           `Боковик работает (WR ${rWR.toFixed(0)}%)`,
           `Range setup working (WR ${rWR.toFixed(0)}%)`,
@@ -5338,38 +5339,53 @@ function generateInsights(){
   } else {
     const exp = calcExpectancy(t);
     if(exp !== null){
+      // E is the planned-R model on the marked results (TP / SL, R:R), not the money after costs:
+      // the meta keeps the two bases apart, and only the real total after costs speaks of money
       const expFmt = (exp>=0?'+':'')+exp.toFixed(2)+'R';
       const rrVals = t.map(x=>parseRR(x.rr)).filter(Boolean);
       const avgRR  = rrVals.length ? (rrVals.reduce((a,b)=>a+b,0)/rrVals.length).toFixed(2) : '—';
+      const markWR = (t.filter(x=>x.result==='win').length/t.length*100).toFixed(0)+'%';
       const wrFmt  = overallWR!==null ? overallWR.toFixed(0)+'%' : '—';
+      const money  = (overallPnl>0?'+':overallPnl<0?'−':'')+'$'+Math.abs(overallPnl).toFixed(2);
+      const pre    = costsPendingIn(t);
+      const metaRu = `По отметкам: Win ${markWR}, avg RR 1:${avgRR} · после расходов: WR ${wrFmt}, P&L ${money}${pre?' предв.':''} · ${overallTotal} сделок`;
+      const metaEn = `Marked results: Win ${markWR}, avg RR 1:${avgRR} · after costs: WR ${wrFmt}, P&L ${money}${pre?' prelim.':''} · ${overallTotal} trades`;
       if(exp < 0){
         ins('alert', stratIcon,
-          `Стратегия убыточна (E = ${expFmt})`,
-          `Strategy is losing (E = ${expFmt})`,
-          isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          `WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          isRu?'Отрицательный expectancy = система теряет деньги при любой дисциплине. Срочно пересмотрите входы':'Negative expectancy = system loses money regardless of discipline. Urgently review entries',
-          'Urgently review entries and risk management',
+          `Плановая модель по отметкам в минусе (E = ${expFmt})`,
+          `Planned model on marked results is negative (E = ${expFmt})`,
+          metaRu, metaEn,
+          isRu?'Отрицательный E по отметкам = при таких входах и R:R план теряет ещё до расходов. Срочно пересмотрите входы':'Negative E on marked results = with these entries and R:R the plan loses even before costs. Urgently review entries',
+          'Negative E on marked results = with these entries and R:R the plan loses even before costs. Urgently review entries',
           {id:'strategy_expectancy_bad', count:overallTotal}
         );
       } else if(exp < 0.2){
         ins('warn', stratIcon,
-          `Слабая эффективность стратегии (E = ${expFmt})`,
-          `Weak strategy efficiency (E = ${expFmt})`,
-          isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          `WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          isRu?'Expectancy близко к нулю — стратегия едва покрывает убытки. Проверьте качество входов и дисциплину':'Expectancy near zero — strategy barely covers losses. Check entry quality and discipline',
-          'Check entry quality and discipline',
+          `Слабая плановая модель по отметкам (E = ${expFmt})`,
+          `Weak planned model on marked results (E = ${expFmt})`,
+          metaRu, metaEn,
+          isRu?'E по отметкам близко к нулю — план едва покрывает убытки. Проверьте качество входов и дисциплину':'E on marked results near zero — the plan barely covers losses. Check entry quality and discipline',
+          'E on marked results near zero — the plan barely covers losses. Check entry quality and discipline',
           {id:'strategy_expectancy_ok', count:overallTotal}
+        );
+      } else if(overallWR===null || overallPnl <= 0){
+        const noMoney = overallWR===null;   // no trade has a P&L: nothing to say about money yet
+        const whyEn = noMoney ? 'No trade has a P&L yet, so there is no total after costs.' : `The total after costs is ${money}: commissions and swaps eat the plan's edge.`;
+        ins('warn', stratIcon,
+          noMoney ? `Плановая модель по отметкам в плюсе (E = ${expFmt}), итог после расходов неизвестен` : `Плановая модель по отметкам в плюсе (E = ${expFmt}), но не после расходов`,
+          noMoney ? `Planned model on marked results is positive (E = ${expFmt}), the total after costs is unknown` : `Planned model on marked results is positive (E = ${expFmt}), but not after costs`,
+          metaRu, metaEn,
+          (isRu ? (noMoney ? 'У сделок пока нет P&L, итога после расходов нет.' : `Итог после расходов ${money}: комиссии и свопы съедают преимущество плана.`)+' Не масштабируйте, пока итог после расходов не в плюсе' : whyEn+" Don't scale until the total after costs is positive"),
+          whyEn+" Don't scale until the total after costs is positive",
+          {id:'strategy_expectancy_costs', count:overallTotal}
         );
       } else {
         ins('good', stratIcon,
-          `Стратегия прибыльная (E = ${expFmt})`,
-          `Strategy is profitable (E = ${expFmt})`,
-          isRu?`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} сделок`:`WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          `WR ${wrFmt}, avg RR 1:${avgRR}, ${overallTotal} trades`,
-          isRu?'Положительный expectancy = система работает. Не меняйте то, что работает — масштабируйте постепенно':'Positive expectancy = system works. Don\'t change what\'s working — scale gradually',
-          'Don\'t change what\'s working — scale gradually',
+          `Плановая модель по отметкам в плюсе (E = ${expFmt})`,
+          `Planned model on marked results is positive (E = ${expFmt})`,
+          metaRu, metaEn,
+          isRu?'Положительный E по отметкам и итог после расходов в плюсе. Не меняйте то, что работает — масштабируйте постепенно':'Positive E on marked results and a positive total after costs. Don\'t change what\'s working — scale gradually',
+          'Positive E on marked results and a positive total after costs. Don\'t change what\'s working — scale gradually',
           {id:'strategy_expectancy_good', count:overallTotal}
         );
       }
@@ -5481,7 +5497,8 @@ function renderHome(){
   const winsCtx = document.getElementById('kpiWinsCtx');
   if(winsCtx){
     const noRes = unknown ? (lang==='ru'?`без P&L: ${unknown}`:`no P&L: ${unknown}`) : '';
-    if(wr!==null || unknown){ winsCtx.textContent = [wr!==null ? T('an_winrate')+' '+wr.toFixed(1)+'%' : '', noRes].filter(Boolean).join(' · '); winsCtx.className='kpi-context show'; }
+    const pre = wr!==null && costsPendingIn(f) ? (lang==='ru'?'предв.':'prelim.') : '';
+    if(wr!==null || unknown){ winsCtx.textContent = [wr!==null ? T('an_winrate')+' '+wr.toFixed(1)+'%' : '', pre, noRes].filter(Boolean).join(' · '); winsCtx.className='kpi-context show'; }
     else { winsCtx.textContent=''; winsCtx.className='kpi-context'; }
   }
   const delta = calcPeriodDelta();
@@ -5760,7 +5777,7 @@ function getGoalProgress(g){
   const target = parseFloat(g.target);
   const ru = lang==='ru', now = ru?'Сейчас':'Now', goal = ru?'цель':'goal';
   switch(g.type){
-    case 'winrate': cur=wr||0; pct=cur/target*100; label=`${now} ${cur.toFixed(1)}% / ${goal} ${target}%`; break;
+    case 'winrate': cur=wr||0; pct=cur/target*100; label=`${now} ${wr!==null?cur.toFixed(1)+'%':'—'} / ${goal} ${target}%`; break;   // no known result yet: «—», not 0%
     case 'trades': cur=total; pct=cur/target*100; label=ru?`${cur} из ${target} сделок`:`${cur} of ${target} trades`; break;
     case 'pnl': cur=pnl; pct=cur/target*100; label=ru?`$${cur.toFixed(0)} из $${target}`:`$${cur.toFixed(0)} of $${target}`; break;
     case 'discipline': cur=disc?disc.score:0; pct=cur/target*100; label=`${now} ${cur.toFixed(0)}% / ${goal} ${target}%`; break;
@@ -6242,7 +6259,7 @@ function renderAnalytics(){
   const disc = calcDiscipline();
   document.getElementById('anSummary').innerHTML = `
     <div class="an-card"><div class="an-card-title">${T('an_total')}</div><div class="an-big" style="color:var(--text)">${total}</div></div>
-    <div class="an-card"><div class="an-card-title">${T('an_winrate')}</div><div class="an-big" style="color:${wrColor(wr)}">${wr!==null?wr.toFixed(1)+'%':'—'}</div><div class="an-note">${lang==='ru'?'после расходов':'after costs'}${unknown?(lang==='ru'?` · без P&L: ${unknown}`:` · no P&L: ${unknown}`):''}</div></div>
+    <div class="an-card"><div class="an-card-title">${T('an_winrate')}</div><div class="an-big" style="color:${wrColor(wr)}">${wr!==null?wr.toFixed(1)+'%':'—'}</div><div class="an-note">${lang==='ru'?'после расходов':'after costs'}${wr!==null&&costsPendingIn(t)?(lang==='ru'?' · предв.':' · prelim.'):''}${unknown?(lang==='ru'?` · без P&L: ${unknown}`:` · no P&L: ${unknown}`):''}</div></div>
     <div class="an-card" onclick="toggleRRView()" style="cursor:pointer" title="${lang==='ru'?'Нажмите для переключения':'Click to toggle'}">
       <div class="an-card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span id="anRRLabel">${rrViewMode==='wins'?(lang==='ru'?'R:R (отмечены Win)':'R:R (marked Win)'):(lang==='ru'?'Средний R:R':'Avg R:R')}</span>
@@ -6270,15 +6287,15 @@ function renderAnalytics(){
   const sessData = SESSION_NAMES.map(s=>{
     const st = t.filter(x=>x.session===s);
     const {wr,total,pnl} = calcStats(st);
-    return {name:s, wr:wr||0, total, pnl:pnl||0};
+    return {name:s, wr, total, pnl:pnl||0};   // wr null: no known result, not 0%
   }).filter(s=>s.total>0);
-  const maxWR = Math.max(...sessData.map(s=>s.wr), 1);
+  const maxWR = Math.max(...sessData.map(s=>s.wr||0), 1);
   document.getElementById('sessionsCard').innerHTML = sessData.length
     ? sessData.map(s=>`
         <div class="sess-row" style="margin-bottom:10px">
           <div class="sess-name" style="width:80px">${escapeHtml(sessName(s.name))}</div>
-          <div class="sess-bar-wrap"><div class="sess-bar" style="width:${s.wr/maxWR*100}%;background:${s.wr>=50?'var(--positive)':'var(--negative)'}"></div></div>
-          <div class="sess-pct">${s.wr.toFixed(0)}%</div>
+          <div class="sess-bar-wrap"><div class="sess-bar" style="width:${(s.wr||0)/maxWR*100}%;background:${s.wr>=50?'var(--positive)':'var(--negative)'}"></div></div>
+          <div class="sess-pct">${s.wr!==null?s.wr.toFixed(0)+'%':'—'}</div>
           <div class="sess-count" style="color:${s.pnl>=0?'var(--positive)':'var(--negative)'};font-family:var(--sans);font-size:12px;width:52px;text-align:right">${s.pnl>0?'+':s.pnl<0?'−':''}$${Math.abs(s.pnl).toFixed(0)}</div>
           <div style="font-size:12px;color:var(--text-muted);width:24px;text-align:right">${s.total}</div>
         </div>`).join('')
@@ -8222,7 +8239,7 @@ function srTradesHTML(){
     ${st.count ? `<div class="sr-kpis">
       <div class="sr-kpi"><span>${srT('Сделок','Trades')}</span><b class="num">${st.count}</b></div>
       <div class="sr-kpi"><span>${srT('Итог','Total')}${st.prelim?srT(' · предв.',' · prelim.'):''}</span><b class="num" style="color:${st.total>0?'var(--positive)':st.total<0?'var(--negative)':'var(--text)'}">${st.withMoney?moneySigned(st.total):'—'}</b></div>
-      <div class="sr-kpi"><span>${srT('Win / Loss / B/E · после расходов','Win / Loss / B/E · after costs')}</span><b class="num">${st.byResult.win} / ${st.byResult.loss} / ${st.byResult.be}</b></div>
+      <div class="sr-kpi"><span>${srT('Win / Loss / B/E · после расходов','Win / Loss / B/E · after costs')}${st.prelim?srT(' · предв.',' · prelim.'):''}</span><b class="num">${st.byResult.win} / ${st.byResult.loss} / ${st.byResult.be}</b></div>
       <div class="sr-kpi"><span>${srT('По плану','By plan')}</span><b class="num">${st.planKnown?st.byPlan+' / '+st.planKnown:'—'}</b></div>
     </div>
     ${facts.length?`<ul class="sr-facts">${facts.map(f=>`<li>${srEsc(f)}</li>`).join('')}</ul>`:''}
@@ -11285,7 +11302,7 @@ function renderWeekCard(){
       <div class="wk-hero"><span>P&amp;L${costsPendingIn(s.list)?L(' · предварительно',' · preliminary'):''}</span><b>${money(s.pnl)}</b></div>
       <div class="wk-grid">
         <div><b>${s.list.length}</b><span>${L(plural(s.list.length,'сделка','сделки','сделок'),'trades')}</span></div>
-        <div><b>${s.wr!==null?Math.round(s.wr)+'%':'—'}</b><span>${L('винрейт','win rate')}</span></div>
+        <div><b>${s.wr!==null?Math.round(s.wr)+'%':'—'}</b><span>${L('винрейт','win rate')}${s.wr!==null&&costsPendingIn(s.list)?L(' · предв.',' · prelim.'):''}</span></div>
         <div><b>${s.expR!==null?(s.expR>0?'+':s.expR<0?'−':'')+Math.abs(s.expR).toFixed(2)+'R':'—'}</b><span>${L('на сделку','per trade')}</span></div>
         <div><b>${s.days}</b><span>${L(plural(s.days,'торговый день','торговых дня','торговых дней'),'trading days')}</span></div>
       </div>

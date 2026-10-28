@@ -124,6 +124,49 @@
   check('loaded again from the server: the same values', back && back.commission === '10' && back.swap === '1' && back.pnlMode === 'gross' && tradeNet(back) === 116, back);
   calState.home.date = null;
 
+  // ── a trade without a P&L stays unknown on the screens; a missing cost marks the win rate «предв.» ──
+  const fx = (id, o) => ({ id, pair: id, market: 'forex', session: 'London', dir: 'buy', result: 'win', pnlMode: 'gross', commission: '0', swap: '0', date: today, notes: '', ...o });
+  const show = async list => { trades = list; try { renderHome(); renderAnalytics(); } catch (e) { errs.push(e.message); } await settle(); };
+  const split = () => $('#dmSplit').textContent.replace(/\s+/g, ' ').trim();
+  const sessPct = name => [...document.querySelectorAll('#sessionsCard .sess-row')].find(r => r.querySelector('.sess-name').textContent.trim() === sessName(name))?.querySelector('.sess-pct').textContent;
+  const errs = []; const onErr = e => errs.push(e.message); window.addEventListener('error', onErr);
+  const rerender = () => { try { renderHome(); renderAnalytics(); } catch (e) { errs.push(e.message); } };
+  // three Trend with P&L, three Range without: the home page renders to the end
+  await show([0, 1, 2].map(i => fx('TR' + i, { setup: 'Trend', pnl: '10' })).concat([0, 1, 2].map(i => fx('RG' + i, { setup: 'Range', pnl: '' }))));
+  let threw = null; try { renderHome(); } catch (e) { threw = e.message; }
+  const cards = [...document.querySelectorAll('#homeTrades .tc')].map(c => c.textContent);
+  check('known and unknown setup groups: renderHome does not throw', threw === null && !errs.length, threw || errs);
+  check('… the trade list is the new one (the usual 4 shown), not the previous drawing', cards.length === 4 && cards.every(x => /TR\d|RG\d/.test(x)), cards.length);
+  check('… the chart is drawn and no insight calls Range weak', !!document.getElementById('homeChart') && !/Слабый сетап/.test($('#insightsWrap').textContent), $('#insightsWrap').textContent.slice(0, 120));
+  // one trade without P&L today
+  await show([fx('U1', { pnl: '' })]);
+  check('one trade without P&L: the day map says «1 без P&L», not «в ноль»', /1 без P&L/.test(split()) && !/в ноль/.test(split()), split());
+  check('… analytics: London shows «—», not 0%', sessPct('London') === '—', sessPct('London'));
+  check('… the record is still counted: «День в одной сделке»', /одной сделке/.test($('#dmTitle').textContent), $('#dmTitle').textContent);
+  // a real B/E next to a trade without P&L, and a real 0%
+  await show([fx('B1', { pnl: '0' }), fx('U2', { pnl: '' }), fx('N1', { session: 'New York', pnl: '-5' })]);
+  check('B/E next to no P&L: «1 в ноль» and «1 без P&L» apart', /1 в ноль/.test(split()) && /1 без P&L/.test(split()), split());
+  check('… a real 0% stays 0% (London B/E + no P&L, New York a loss)', sessPct('London') === '0%' && sessPct('New York') === '0%', [sessPct('London'), sessPct('New York')]);
+  // gross +1, commission 2, swap not given: the win rate waits on the swap
+  const D3 = '2026-01-17';
+  await show([fx('P1', { date: D3, pnl: '1', commission: '2', swap: '' })]);
+  calState.home.date = D3; rerender(); await settle();
+  check('swap not given: home «Win Rate 0.0% · предв.»', /0\.0% · предв\./.test($('#kpiWinsCtx').textContent), $('#kpiWinsCtx').textContent);
+  check('… analytics «после расходов · предв.»', /после расходов · предв\./.test($('#anSummary .an-note').textContent), $('#anSummary .an-note').textContent);
+  SRV.P1 = tradeOf('P1');
+  openEditTrade('P1'); await settle();
+  typeIn('tSwap', '2'); saveTrade(); await settle(); rerender(); await settle();
+  check('swap +2 typed in: a win, not preliminary any more', $('#kpiWins').textContent === '1' && !/предв/.test($('#kpiWinsCtx').textContent) && !/предв/.test($('#anSummary .an-note').textContent) && tradeOf('P1').result === 'win', { w: $('#kpiWins').textContent, ctx: $('#kpiWinsCtx').textContent });
+  await show([fx('P2', { date: D3, pnl: '1', commission: '2', swap: '0' })]);
+  calState.home.date = D3; rerender(); await settle();
+  check('the same with costs given as 0: a loss, not preliminary', $('#kpiLosses').textContent === '1' && /0\.0%/.test($('#kpiWinsCtx').textContent) && !/предв/.test($('#kpiWinsCtx').textContent), $('#kpiWinsCtx').textContent);
+  // English
+  lang = 'en';
+  await show([fx('P3', { date: D3, pnl: '1', commission: '2', swap: '' }), fx('U3', { pnl: '' })]);
+  calState.home.date = D3; rerender(); await settle();
+  check('English: «prelim.», «after costs · prelim.» and «1 no P&L»', /prelim\./.test($('#kpiWinsCtx').textContent) && /after costs · prelim\./.test($('#anSummary .an-note').textContent) && /1 no P&L/.test(split()) && sessPct('London') === '0%', { ctx: $('#kpiWinsCtx').textContent, note: $('#anSummary .an-note').textContent, split: split() });
+  lang = 'ru'; calState.home.date = null; window.removeEventListener('error', onErr);
+
   localStorage.clear();
   console.table(results);
   const failed = results.filter(r => r.result === 'FAIL').length;
