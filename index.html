@@ -7513,9 +7513,24 @@ function updateCostTotal(f){
   if(!g('Pnl') || !g('CostTotal')) return;
   let mode;
   if(f==='q') mode = g('PnlNet').checked ? 'net' : 'gross';
-  else mode = (tForm.pnlMode || tForm.pnlModeTouched || g('Commission').value.trim() || g('Swap').value.trim()) ? (g('PnlNet').checked ? 'net' : 'gross') : undefined;
+  else mode = tFormCostMode(g('Commission').value, g('Swap').value);
   g('CostTotal').textContent = costTotalText(g('Pnl').value, g('Commission').value, g('Swap').value, mode);
   costError(f, '');
+}
+// The edited trade's costs differ from what it had (empty ≠ 0; 4,5 = 4.50)
+function tFormCostsChanged(commRaw, swapRaw){
+  const was = tForm.costsWere; if(!was) return true;
+  const same = (a,b)=> a===b || (Number.isNaN(a) && Number.isNaN(b));
+  return !same(costNum(commRaw), costNum(was.commission)) || !same(costNum(swapRaw), costNum(was.swap));
+}
+// How the full form counts costs: the trade's own mode, the switch the trader used, or the shown one
+// once a cost was really changed. An older trade without a mode stays «not set» while other fields
+// change or the steps are walked: having values in the cost fields is not a choice.
+function tFormCostMode(commRaw, swapRaw){
+  const typed = String(commRaw??'').trim()!=='' || String(swapRaw??'').trim()!=='';
+  if(tForm.pnlMode || tForm.pnlModeTouched || (typed && tFormCostsChanged(commRaw, swapRaw)))
+    return document.getElementById('tPnlNet').checked ? 'net' : 'gross';
+  return undefined;
 }
 function costError(f, text){
   const el = document.getElementById(f+'CostErr'); if(!el) return;
@@ -9316,6 +9331,7 @@ function openEditTrade(id){
     commission: t.commission ?? '', swap: t.swap ?? '',
     strategyId: t.strategyId || '',
     pnlMode: t.pnlMode, pnlModeTouched: false,   // an older trade keeps «not set» until the trader decides
+    costsWere: {commission: t.commission ?? '', swap: t.swap ?? ''},
   };
   currentTags=[...(t.tags||[])];
   currentImg=t.img||t.img_url||null;
@@ -9391,10 +9407,12 @@ function saveTrade(){
   const pair=tForm.pair||'';
   if(!pair){showToast(T('err_pair'));return;}
   if(!tForm.result){ stepNext(0,true); resultError('tResultErr', true); document.getElementById('btnWin').focus(); return; }
-  const costs = readCosts(tForm.commission, tForm.swap);
+  // Costs the trader did not change are kept exactly as stored (an edit of notes never rewrites them)
+  const keepCosts = editingId && !tFormCostsChanged(tForm.commission, tForm.swap);
+  const costs = keepCosts ? {commission:tForm.costsWere.commission, swap:tForm.costsWere.swap} : readCosts(tForm.commission, tForm.swap);
   if(costs.error){ stepNext(0,true); costError('t', costs.error); return; }
-  // An older trade without a mode gets one only if the trader typed a cost or used the switch
-  const mode = tForm.pnlMode || ((costs.commission!==''||costs.swap!=='') ? (document.getElementById('tPnlNet').checked?'net':'gross') : undefined);
+  // An older trade without a mode gets one only if the trader changed a cost or used the switch
+  const mode = tFormCostMode(costs.commission, costs.swap);
   const link = stratTradeLink(tForm.strategyId||'', editingId ? trades.find(x=>x.id===editingId) : null);
   const tradeData={
     pair, asset:pair,
