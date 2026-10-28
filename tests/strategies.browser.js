@@ -209,6 +209,18 @@
   check('trades tab: only linked trades', kpis[0] === '2', kpis);
   check('trades tab: total with commission and swap', kpis[1].includes('79.25'), kpis);
 
+  // ── home totals: preliminary like the cards (the −40 trade has no costs yet) ──
+  goPage('home', document.querySelector('.nb')); renderHome(); await settle();
+  {
+    const pre = /предв\.|prelim\./, pending = trades.filter(tradeCostsPending).length;
+    check('home: day total, capital and P&L marked preliminary', pending > 0 && pre.test($('#dmTotal').textContent) && pre.test($('#dmBadge').textContent) && pre.test($('#balAmount').textContent) && pre.test($('#kpiPnl').textContent),
+      { pending, day: $('#dmTotal').textContent, badge: $('#dmBadge').textContent, cap: $('#balAmount').textContent, kpi: $('#kpiPnl').textContent });
+    const today = new Date().toISOString().split('T')[0];
+    const sum = trades.filter(t => t.date === today).reduce((s, t) => s + (tradeNet(t) || 0), 0);
+    check('home: the day total is still the same sum', $('#dmTotal').textContent.includes(Math.abs(sum).toFixed(2)), { sum, day: $('#dmTotal').textContent });
+  }
+  openStrategies(); await settle();
+
   // ── notes, hypotheses, week ──
   await click($('#srTab-notes'));
   await click($('#srPanel [data-sa=note-new]'));

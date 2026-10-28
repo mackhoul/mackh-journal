@@ -4407,8 +4407,8 @@ function renderPhrase(info){
     const pnl = todays.reduce((s,t)=>s+(tradeNet(t)||0),0);
     const n = todays.length;
     const word = ru ? plural(n,'сделка','сделки','сделок') : plural(n,'trade','','trades');
-    const money = (pnl>0?'+':pnl<0?'−':'')+'$'+Math.abs(pnl).toFixed(2);
-    txt = ru ? `Сегодня ${n} ${word}, итог ${money}.` : `${n} ${word} today, ${money} net.`;
+    const money = (pnl>0?'+':pnl<0?'−':'')+'$'+Math.abs(pnl).toFixed(2), pre = costsPendingIn(todays);
+    txt = ru ? `Сегодня ${n} ${word}, итог ${money}${pre?' (предварительно)':''}.` : `${n} ${word} today, ${money} ${pre?'preliminary':'net'}.`;
   } else if(trades.length){
     const last = trades.map(t=>t.date||'').filter(Boolean).sort().pop();
     const days = last ? Math.round((new Date(todayStr) - new Date(last))/86400000) : null;
@@ -4454,7 +4454,7 @@ function renderTodayStats(){
   wrap.className = 'kz-today show';
   wrap.innerHTML = `
     <div class="kz-today-item"><div class="kz-today-val">${todays.length}</div><div class="kz-today-lbl">${T('kz_today_trades')}</div></div>
-    <div class="kz-today-item"><div class="kz-today-val" style="color:${pnl>0?'var(--positive)':pnl<0?'var(--negative)':'var(--text)'}">${pnl>0?'+':pnl<0?'−':''}$${Math.abs(pnl).toFixed(2)}</div><div class="kz-today-lbl">P&amp;L</div></div>
+    <div class="kz-today-item"><div class="kz-today-val" style="color:${pnl>0?'var(--positive)':pnl<0?'var(--negative)':'var(--text)'}">${pnl>0?'+':pnl<0?'−':''}$${Math.abs(pnl).toFixed(2)}${prelimMark(todays)}</div><div class="kz-today-lbl">P&amp;L</div></div>
     ${clPct!==null ? `<div class="kz-today-item"><div class="kz-today-val">${clPct}%</div><div class="kz-today-lbl">${T('disc_checklist_lbl')}</div></div>` : ''}
   `;
 }
@@ -4523,12 +4523,14 @@ function renderDayMap(){
   set('dmResLbl', ru?'Итог дня':'Day result');
   const badge = document.getElementById('dmBadge');
   badge.hidden = !n;
+  const pre = costsPendingIn(todays);
   if(n){
     badge.className = 'dm-badge '+(total>0?'up':total<0?'down':'flat');
-    badge.textContent = total>0 ? (ru?'в плюсе':'in profit') : total<0 ? (ru?'в минусе':'in loss') : (ru?'в нуле':'flat');
+    badge.textContent = (total>0 ? (ru?'в плюсе':'in profit') : total<0 ? (ru?'в минусе':'in loss') : (ru?'в нуле':'flat'))
+      + (pre ? (ru?' · предв.':' · prelim.') : '');
   }
   const totEl = document.getElementById('dmTotal');
-  totEl.textContent = n ? usd(total) : '$0.00';
+  totEl.innerHTML = n ? usd(total)+prelimMark(todays) : '$0.00';
   totEl.classList.toggle('zero', !n);
   const split = document.getElementById('dmSplit');
   split.hidden = !n;
@@ -4580,7 +4582,7 @@ function renderDayMap(){
     return `<li><button type="button" class="dm-trade" data-dm-k="${k}" data-id="${escapeHtml(String(t.id))}">`
       + `<span class="dm-pair">${escapeHtml(t.pair||t.asset||'—')}${dir}</span>`
       + `<span class="dm-meta">${escapeHtml(meta.join(', '))}${syncLabelHTML(t.id)}</span>`
-      + `<span class="dm-pnl ${k}">${has?usd(p):res}${has?`<small>${res}</small>`:''}</span></button></li>`;
+      + `<span class="dm-pnl ${k}">${has?usd(p):res}${has?`<small>${res}${tradeCostsPending(t)?(ru?' · предв.':' · prelim.'):''}</small>`:''}</span></button></li>`;
   };
   const curIdx = info.closed ? -1 : SESSION_ORDER.findIndex(x=>x.name===info.name);
   const evening = !info.closed && info.name==='Asia' && now.getUTCHours()>=21;   // Asia of the next trading day
@@ -5426,7 +5428,7 @@ function renderHome(){
   const cap = computeCapital();
 
   // Balance
-  document.getElementById('balAmount').textContent = '$'+cap.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('balAmount').innerHTML = '$'+cap.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+prelimMark(trades);
   document.getElementById('balSub').textContent = baseCapital>0 ? T('deposit_label')+baseCapital.toLocaleString('en-US',{minimumFractionDigits:0}) : T('set_deposit');
 
   renderKillzones();
@@ -5463,7 +5465,7 @@ function renderHome(){
   document.getElementById('kpiWins').textContent = wins;
   document.getElementById('kpiLosses').textContent = losses;
   const pnlKpi = document.getElementById('kpiPnl');
-  pnlKpi.textContent = (pnl>0?'+':pnl<0?'−':'')+'$'+Math.abs(pnl).toFixed(2);
+  pnlKpi.innerHTML = (pnl>0?'+':pnl<0?'−':'')+'$'+Math.abs(pnl).toFixed(2)+prelimMark(f);
   // Profit is data → --positive, never the brand accent (accent is for UI controls)
   pnlKpi.className = 'kpi-val '+(pnl>0?'green':pnl<0?'red':'');
   const kpiRREl = document.getElementById('kpiRR');
@@ -6532,10 +6534,10 @@ function renderProgress(){
   document.getElementById('equityStats').innerHTML = `
     <div class="kpi-grid eq-grid">
       ${[
-        {label:T('eq_pnl'),val:(allPnl>0?'+':allPnl<0?'−':'')+`$${Math.abs(allPnl).toFixed(2)}`,col:allPnl>=0?'var(--positive)':'var(--negative)'},
+        {label:T('eq_pnl'),val:(allPnl>0?'+':allPnl<0?'−':'')+`$${Math.abs(allPnl).toFixed(2)}`+prelimMark(trades),col:allPnl>=0?'var(--positive)':'var(--negative)'},
         {label:T('eq_growth'),val:growthPct!==null?(growthPct>0?'+':growthPct<0?'−':'')+Math.abs(growthPct).toFixed(1)+'%':'—',col:growthPct>=0?'var(--positive)':'var(--negative)'},
         {label:T('eq_drawdown'),val:maxDD.toFixed(1)+'%',col:maxDD>10?'var(--negative)':'var(--warning)'},
-        {label:T('eq_capital'),val:'$'+computeCapital().toLocaleString('en-US',{minimumFractionDigits:2}),col:'var(--text)'},
+        {label:T('eq_capital'),val:'$'+computeCapital().toLocaleString('en-US',{minimumFractionDigits:2})+prelimMark(trades),col:'var(--text)'},
       ].map(s=>`<div class="kpi">
         <div class="kpi-lbl">${s.label}</div>
         <div class="kpi-val" style="color:${s.col}">${s.val}</div>
@@ -6568,6 +6570,9 @@ function tradeCostsPending(t){
   if(t.pnlMode!=='gross' || isNaN(parseFloat(t.pnl))) return false;
   return !Number.isFinite(costNum(t.commission)) || !Number.isFinite(costNum(t.swap));
 }
+// A sum that takes in such a trade is preliminary as well: the same mark as on the trade's card
+function costsPendingIn(list){ return list.some(tradeCostsPending); }
+function prelimMark(list){ return costsPendingIn(list) ? `<span class="tc-prelim">${lang==='ru'?'предв.':'prelim.'}</span>` : ''; }
 // Reads the cost fields of a form: {commission, swap} as normalised strings, or {error}
 function readCosts(commRaw, swapRaw){
   const c = costNum(commRaw), w = costNum(swapRaw);
@@ -11214,7 +11219,7 @@ function renderWeekCard(){
     </div>
     ${s.list.length?`
     <div class="wk-card">
-      <div class="wk-hero"><span>P&amp;L</span><b>${money(s.pnl)}</b></div>
+      <div class="wk-hero"><span>P&amp;L${costsPendingIn(s.list)?L(' · предварительно',' · preliminary'):''}</span><b>${money(s.pnl)}</b></div>
       <div class="wk-grid">
         <div><b>${s.list.length}</b><span>${L(plural(s.list.length,'сделка','сделки','сделок'),'trades')}</span></div>
         <div><b>${s.wr!==null?Math.round(s.wr)+'%':'—'}</b><span>${L('винрейт','win rate')}</span></div>
@@ -11240,7 +11245,7 @@ async function saveWeekImage(){
   // lime hero
   const r=40, hx=80, hy=240, hw=W-160, hh=380;
   x.fillStyle=lime; x.beginPath(); x.roundRect ? x.roundRect(hx,hy,hw,hh,r) : x.rect(hx,hy,hw,hh); x.fill();
-  x.fillStyle='#0E1006'; x.font='600 36px Onest, sans-serif'; x.fillText('P&L',hx+56,hy+90);
+  x.fillStyle='#0E1006'; x.font='600 36px Onest, sans-serif'; x.fillText('P&L'+(costsPendingIn(s.list)?L(' · предварительно',' · preliminary'):''),hx+56,hy+90);
   x.font='600 150px Literata, Georgia, serif'; x.fillText(money(s.pnl),hx+50,hy+270);
   // stats
   const st=[[String(s.list.length),L('сделок','trades')],[s.wr!==null?Math.round(s.wr)+'%':'—',L('винрейт','win rate')],[s.expR!==null?(s.expR>0?'+':s.expR<0?'−':'')+Math.abs(s.expR).toFixed(2)+'R':'—',L('на сделку','per trade')],[String(s.days),L('дней в рынке','days traded')]];

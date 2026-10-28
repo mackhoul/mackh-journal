@@ -41,6 +41,13 @@ check('complete: both given', ctx.tradeCostsPending({ pnl: '125', commission: '4
 check('complete: explicit zeros', ctx.tradeCostsPending({ pnl: '125', commission: '0', swap: '0', pnlMode: 'gross' }), false);
 check('never pending in net mode', ctx.tradeCostsPending({ pnl: '125', pnlMode: 'net' }), false);
 check('never pending for an older trade', ctx.tradeCostsPending({ pnl: '125' }), false);
+// a sum is preliminary when any of its trades is
+const done = { pnl: '125', commission: '4.5', swap: '-1.25', pnlMode: 'gross' }, open = { pnl: '125', pnlMode: 'gross' }, legacy = { pnl: '125' };
+check('sum: one preliminary trade makes it preliminary', ctx.costsPendingIn([done, open, legacy]), true);
+check('sum: complete and older trades only — final', ctx.costsPendingIn([done, legacy, { pnl: '50', pnlMode: 'net' }]), false);
+check('sum: empty list — final', ctx.costsPendingIn([]), false);
+check('sum mark: the card\'s «предв.»', ctx.prelimMark([open]), '<span class="tc-prelim">предв.</span>');
+check('sum mark: none when final', ctx.prelimMark([done, legacy]), '');
 
 const r = ctx.readCosts('4,50', '-1,25');
 check('readCosts normalises the comma', r.commission + '|' + r.swap, '4.5|-1.25');
