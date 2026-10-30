@@ -20,6 +20,7 @@ function sandbox() {
   const server = { docs: new Map(), calls: [], down: false, status: 200, hold: null };
   const ctx = {
     lang: 'ru', dataOwner: 'web:A', ownerEpoch: 1, trades: [], warnings: [],
+    journalToday: () => require('../insights-learning.js').day(Date.now(), 'UTC'),
     console: { log() {}, warn() {}, error() {} },
     Number, Math, String, JSON, Object, Array, Date, Set, Map, Promise, RegExp, Error, isNaN, parseFloat, encodeURIComponent, decodeURIComponent,
     crypto: { randomUUID: () => require('crypto').randomUUID() },
@@ -322,6 +323,17 @@ const strategyData = (name, extra) => ({ name, version: '', sections: [{ id: 'se
     check('stats: empty selection is empty, not the journal', t.ctx.stratStats(t.ctx.stratTrades('nope', 'all')).count === 0);
   }
 
+  {
+    const t=sandbox();
+    const prefs={purpose:'insights-learning',history:[{effectiveDay:'2026-10-28',timezone:'Europe/Copenhagen',maxTrades:3,dailyLoss:100}],risk:{strategy1:[{effectiveDay:'2026-10-28',maxPct:.5}]}};
+    const doc=t.ctx.sdocPut('note',prefs,'insight-preferences-v1');
+    check('learning preferences use the existing note storage without a new schema',!!doc,doc);
+    await t.ctx.sdocSync();
+    const sent=t.server.docs.get('web:A|insight-preferences-v1');
+    check('learning preferences and risk history reach the mock document API unchanged',sent&&sent.data.risk.strategy1[0].maxPct===.5&&sent.data.history[0].maxTrades===3,sent);
+    t.ctx.dataOwner='web:B';t.ctx.ownerEpoch++;t.ctx.stratReset();await t.ctx.loadStrategies();
+    check('another account cannot load the first account learning preferences',!t.docs()['insight-preferences-v1'],t.docs());
+  }
   console.table(results);
   const failed = results.filter(x => x.result === 'FAIL').length;
   console.log(failed ? `${failed} check(s) FAILED` : `All ${results.length} checks passed`);

@@ -1,0 +1,15 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync(require('path').join(__dirname,'../index.html'),'utf8');
+const cut=(a,b)=>html.slice(html.indexOf(a),html.indexOf(b,html.indexOf(a)));
+const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ctx={MKT:{forex:{label:'Forex'}},tradeNet:()=>1,resultView:()=>({r:'win'}),RES_TEXT:{win:'WIN'},lang:'en',tradeCostsPending:()=>false,escapeHtml:escape,setupDisplayName:x=>x,sessName:x=>x,tradeDiscipline:()=>null,rrColor:()=>'',fmtRR:x=>x,syncLabelHTML:()=>'',resultMarkHTML:()=>'',bulkMode:false,mLabel:x=>x};
+vm.createContext(ctx);
+vm.runInContext(cut('function tcHTML(t){','function openDetail(id){'),ctx);
+const bad="a'+(globalThis.injected=1)+'";
+const out=ctx.tcHTML({id:bad,pnl:'1',pair:'TEST',tags:[],mistakes:[]});
+const attr=out.match(/onclick="([^"]*)"/)[1].replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+ctx.openDetail=id=>{ctx.received=id;};vm.runInContext(attr,ctx);
+assert.equal(ctx.injected,undefined,'untrusted id must not execute code');assert.equal(ctx.received,bad);
+assert(!cut('function renderTags(){','function removeTag(').includes('#${tag}'),'raw tag must not be inserted into innerHTML');
+assert(html.includes('validateTradeImport(data)'),'import must be validated before mutation');
+console.log('All 4 import/render safety checks passed');

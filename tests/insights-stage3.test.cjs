@@ -1,0 +1,28 @@
+const assert=require('node:assert/strict');
+const M=require('../insights-learning.js');
+let n=0; const test=(name,fn)=>{fn(); n++; console.log('PASS '+name);};
+test('trading day uses configured timezone, including midnight',()=>{assert.equal(M.day('2026-10-28T23:30:00Z','Europe/Copenhagen'),'2026-10-29');assert.equal(M.day('2026-10-28T01:30:00Z','America/New_York'),'2026-10-27');});
+test('invalid timezone rejected',()=>assert.throws(()=>M.day(Date.now(),'Not/AZone')));
+test('settings effective date never applies current rule to past',()=>{const h=[{effectiveDay:'2026-10-28',maxTrades:3}];assert.equal(M.ruleAt(h,'2026-10-27'),null);assert.equal(M.ruleAt(h,'2026-10-28').maxTrades,3);});
+test('per-trade R model is consistent for varying RR',()=>{assert.equal(M.modelR({result:'loss',rr:'1:5'}),-1);assert.equal(M.modelR({result:'win',rr:'1:1'}),1);assert.equal(M.modelR({result:'be'}),0);assert.equal(M.modelR({result:'win'}),null);});
+test('RR accepts full ratios and decimal commas, rejecting partial or infinite input',()=>{assert.equal(M.parseRR('2:4'),2);assert.equal(M.parseRR('1,5'),1.5);assert.equal(M.parseRR('1:2junk'),null);assert.equal(M.parseRR('0:5'),null);assert.equal(M.parseRR('1:2:3'),null);});
+test('risk budget does not round above maximum',()=>{const r=M.position({capital:10000,riskPct:1,maxPct:1,entry:100,stop:90,dir:'buy',step:1,minimum:1,multiplier:1,feeEntry:0,feeExit:0});assert.equal(r.size,10);assert.equal(r.risk,100);assert.equal(M.position({capital:10000,riskPct:1.2,maxPct:1,entry:100,stop:90,dir:'buy'}).size,null);});
+test('fees and lot step are part of risk sizing',()=>{const r=M.position({capital:10000,riskPct:1,maxPct:1,entry:100,stop:90,dir:'buy',step:1,minimum:1,feeEntry:.001,feeExit:.001});assert.equal(r.size,9);assert(r.risk<=100);});
+test('no capital, bad side and unknown contract do not imply a size',()=>{assert.equal(M.position({capital:0,riskPct:1,entry:100,stop:90,dir:'buy'}).size,null);assert.equal(M.position({capital:10000,riskPct:1,entry:100,stop:110,dir:'buy'}).size,null);});
+const t=(id,extra={})=>({id:String(id),date:'2026-10-28',pnl:'10',result:'win',...extra});
+const prefs={history:[{effectiveDay:'2026-10-28',timezone:'Europe/Copenhagen',maxTrades:3,dailyLoss:100}],tracking:{key:'early_entry',id:'track1',sinceDay:'2026-10-01',strategyId:'s',strategyRevId:'r'},action:{id:'a1',text:'Check my entry condition',sinceDay:'2026-10-01',strategyId:'s',strategyRevId:'r'}};
+const opts={prefs,lang:'en',net:x=>x.pnl===''?NaN:Number(x.pnl)};
+test('single missing assessment is unknown, not no selected error',()=>{assert(!M.cards([t(1)],opts).some(x=>x.id==='mistake_dynamics'));});
+test('error frequency compares two nonoverlapping assessed windows',()=>{const list=Array.from({length:40},(_,i)=>t(i,{strategyId:'s',strategyRevId:'r',learning:{trackingId:'track1',errorKey:'early_entry',errorPresent:i<6}}));const c=M.cards(list,opts).find(x=>x.id==='mistake_dynamics');assert(c);assert.match(c.text,/0 of 20/);assert.match(c.text,/30 pp/);});
+test('trade limit exact threshold is not exceeded, fourth is',()=>{assert(!M.cards([t(1),t(2),t(3)],opts).some(x=>x.id.startsWith('trade_limit')));const c=M.cards([t(1),t(2),t(3),t(4)],opts).find(x=>x.id.startsWith('trade_limit'));assert(c);assert.match(c.text,/4/);assert.match(c.rec,/records/);});
+test('daily net limit includes fees through supplied net and qualifies missing P&L',()=>{const c=M.cards([t(1,{pnl:'-120'}),t(2,{pnl:''})],opts).find(x=>x.id.startsWith('daily_limit'));assert(c);assert.match(c.text,/120/);assert.match(c.meta,/1/);});
+test('risk above personal snapshot maximum is detected independent of P&L',()=>{const c=M.cards([t(1,{riskSnapshot:{confirmed:true,capital:10000,riskUsd:120,maxPct:1,entry:100,stop:90,dir:'buy',size:12,multiplier:1,feeEntry:0,feeExit:0,step:1,minimum:1}})],opts).find(x=>x.id==='risk_limit');assert(c);assert.match(c.text,/1.20%/);});
+test('a P&L loss alone is not evidence of excessive planned risk',()=>assert(!M.cards([t(1,{pnl:'-1000'})],opts).some(x=>x.id==='risk_limit')));
+test('action completion uses explicit answers; unknown not fulfilled',()=>{const c=M.cards([t(1,{strategyId:'s',strategyRevId:'r',learning:{actionId:'a1',actionDone:true}}),t(2,{strategyId:'s',strategyRevId:'r',learning:{actionId:'a1',actionDone:false}}),t(3,{strategyId:'s',strategyRevId:'r'})],opts).find(x=>x.id==='action_progress');assert(c);assert.match(c.text,/1 of 2/);assert.match(c.meta,/1/);});
+test('no current-day limits applied retroactively',()=>{assert(!M.cards([t(1,{date:'2026-09-01',pnl:'-1000'})],opts).some(x=>/^(daily_limit|trade_limit)/.test(x.id)));});
+test('a rule created during a day does not accuse older date-only records',()=>{
+ const p={history:[{effectiveDay:'2026-10-28',timezone:'UTC',maxTrades:1,savedAt:'2026-10-28T12:00:00Z'}]};
+ assert(!M.cards([t(1),t(2)],{...opts,prefs:p}).some(x=>x.id.startsWith('trade_limit')));
+ assert(M.cards([t(1),t(2),t(3,{dayPolicy:{ruleSavedAt:'2026-10-28T12:00:00Z'}})],{...opts,prefs:p}).some(x=>x.id.startsWith('trade_limit')));
+});
+console.log('All '+n+' checks passed');

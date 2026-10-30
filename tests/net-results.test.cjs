@@ -14,6 +14,7 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const cut = (from, to) => { const a = html.indexOf(from), b = html.indexOf(to, a); if (a < 0 || b < 0) throw new Error('block not found: ' + from); return html.slice(a, b); };
 const ctx = {
   lang: 'ru', Math, Number, String, Date, Object, Array, Set, JSON, parseFloat, isNaN,
+  journalToday: () => require('../insights-learning.js').day(Date.now(), 'UTC'),
   trades: [], baseCapital: 0, weekOffset: 0, appSettings: { quickInAnalytics: true },
   parseRR: v => { const n = Number(String(v || '').replace('1:', '')); return n > 0 ? n : null; },
 };

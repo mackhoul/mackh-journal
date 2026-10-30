@@ -1076,7 +1076,17 @@ body.light .mtab.active{background:var(--text);color:var(--surface)}
 
 /* insight tip, "more" buttons, empty idea note */
 .insight-rec{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;color:var(--text-secondary);line-height:1.5}
-.insight-rec span{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px}
+.insight-rec>span:first-child{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px}
+.insights-scope{margin:2px 16px 12px;max-width:62ch;font-size:12px;line-height:1.5;color:var(--text-muted)}
+.insight-num{white-space:nowrap}
+.insight-act{margin-top:8px;font-size:13px;color:var(--text-secondary);line-height:1.5}
+.insight-act>span:first-child{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:2px}
+.insight-trades-btn{margin-top:10px;font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text-secondary);background:none;border:1px solid var(--border-strong);border-radius:999px;padding:7px 14px;cursor:pointer;font-variant-numeric:lining-nums tabular-nums;transition:color .16s,background .16s}
+.insight-trades-btn:hover{color:var(--text);background:var(--surface-2)}
+.insight-trades-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.insight-trades-btn.wide{display:block;width:100%;margin:12px 0 0;padding:11px}
+@media(pointer:coarse){.insight-trades-btn{min-height:44px}}
+.insight-trades-note{font-size:13px;color:var(--text-secondary);line-height:1.5;margin:0 0 12px}
 .more-row{padding:4px 0 8px;text-align:left}
 .trade-grid .more-row{padding:10px 0 4px}
 .more-btn{font-family:var(--sans);font-size:13px;font-weight:500;color:var(--text-secondary);background:none;border:1px solid var(--border-strong);border-radius:999px;padding:9px 16px;cursor:pointer;transition:color .16s,background .16s}
@@ -1094,7 +1104,7 @@ body.light .mtab.active{background:var(--text);color:var(--surface)}
   .home-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;align-items:start}
   .home-col>.shdr:first-child,.home-col>.streak-banner:first-child{margin-top:0}
   .home-col .streak-banner{margin-top:24px}
-  .home-col .insight-card{margin-left:0;margin-right:0}
+  .home-col .insight-card,.home-col .insights-scope{margin-left:0;margin-right:0}
 }
 
 /* desktop trades ledger */
@@ -1856,6 +1866,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
   .home-hero>.kpi-grid{grid-column:8/13;grid-row:2}
   .home-hero>#traderScoreWrap{grid-column:8/13;grid-row:3}
 }
+.learning-panel{padding:16px 0;border-bottom:1px solid var(--border);min-width:0}.learning-panel label{display:block;font-size:13px;margin:12px 0;color:var(--text-secondary)}.learning-panel .note{font-size:12px;line-height:1.55;color:var(--text-muted);overflow-wrap:anywhere}.learning-fold{margin:16px 0;border:1px solid var(--border);border-radius:12px;padding:12px}.learning-fold summary{cursor:pointer;font-size:13px;line-height:1.5}.learning-fold .learning-panel{border:0;padding:8px 0 0}.learning-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}.learning-actions{display:flex;gap:8px;flex-wrap:wrap}.learning-panel input,.learning-panel select,.learning-panel textarea{max-width:100%;font-size:16px}.learning-panel [role=status]{font-size:13px;line-height:1.5}.learning-panel button{min-height:44px}@media(max-width:420px){.learning-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -2384,8 +2395,8 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
       <div class="fgroup">
           <label class="flabel" id="lbl_type_el">Тип</label>
           <div class="toggle-group cols2">
-            <button class="tbtn sel-buy" id="btnBuy" onclick="setTrade('dir','buy')">▲ Buy</button>
-            <button class="tbtn" id="btnSell" onclick="setTrade('dir','sell')">▼ Sell</button>
+            <button class="tbtn sel-buy" id="btnBuy" onclick="setTrade('dir','buy');calcRR()">▲ Buy</button>
+            <button class="tbtn" id="btnSell" onclick="setTrade('dir','sell');calcRR()">▼ Sell</button>
           </div>
       </div>
       <div class="fsection" id="fsecDetails0">Параметры сделки</div>
@@ -2787,6 +2798,20 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
   </div>
 </div>
 
+<div class="overlay" id="insightTradesModal">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhdr">
+      <div class="mtitle" id="insightTradesTitle" style="font-size:15px"></div>
+      <button class="mclose" onclick="closeModal('insightTradesModal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="mbody" style="padding-bottom:20px">
+      <div class="insight-trades-note" id="insightTradesNote"></div>
+      <div class="trade-list" id="insightTradesList"></div>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="exportModal">
   <div class="modal">
     <div class="mhandle"></div>
@@ -3067,6 +3092,8 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
 <div class="toast" id="toast"></div>
 </div>
 
+<script src="insights-learning.js"></script>
+<script src="insights-learning-ui.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
 //  TELEGRAM
@@ -3762,7 +3789,7 @@ function applyOtherTabDeletions(){
   for(const t of trades.filter(t=>deleted.has(t.id))){
     _hiddenByOtherTab.add(t.id); changed = true;
     // its open detail card would offer Edit/Delete for a trade that is gone here
-    if(document.querySelector(`#detailModal.open [onclick="deleteTrade('${t.id}')"]`)) closeModal('detailModal');
+    if(document.querySelector(`#detailModal.open [onclick="deleteTrade(${escapeHtml(JSON.stringify(t.id))})"]`)) closeModal('detailModal');
   }
   if(changed) trades = trades.filter(t=>!deleted.has(t.id));
   for(const id of [..._hiddenByOtherTab]){
@@ -4210,7 +4237,7 @@ const MISTAKES_LABELS = {
   overtrade:   {ru:'Овертрейдинг',       en:'Overtrading'},
   broke_plan:  {ru:'Нарушил план',       en:'Broke plan'},
 };
-function mLabel(k){ return MISTAKES_LABELS[k]?MISTAKES_LABELS[k][lang]:k; }
+function mLabel(k){ return Object.hasOwn(MISTAKES_LABELS,k)?MISTAKES_LABELS[k][lang]:k; }
 
 // ── XSS guard: escape user-supplied strings before innerHTML ──
 function escapeHtml(s){
@@ -4404,7 +4431,7 @@ function renderPhrase(info){
   const el = document.getElementById('homePhrase');
   if(!el) return;
   const ru = lang==='ru';
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = journalToday();
   const todays = trades.filter(t=>t.date===todayStr);
   let txt;
   if(todays.length){
@@ -4449,11 +4476,11 @@ function renderGreeting(){
 function renderTodayStats(){
   const wrap = document.getElementById('kzToday');
   if(!wrap) return;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = journalToday();
   const todays = trades.filter(t=>t.date===todayStr);
   if(!todays.length){ wrap.className='kz-today'; wrap.innerHTML=''; return; }
   const pnl = todays.reduce((s,t)=>s+(tradeNet(t)||0),0);
-  const clList = todays.filter(t=>t.checklistScore!==null && t.checklistScore!==undefined && !t.quickTrade);
+  const clList = todays.filter(t=>checklistScoreOf(t)!==null && !t.quickTrade);   // an untouched checklist is no answer
   const clPct = clList.length ? Math.round(clList.reduce((s,t)=>s+t.checklistScore,0)/clList.length*100) : null;
   wrap.className = 'kz-today show';
   wrap.innerHTML = `
@@ -4479,7 +4506,7 @@ function renderDayMap(){
   const ss = document.getElementById('dmSessions');
   if(!ss) return;
   const ru = lang==='ru', loc = ru?'ru-RU':'en-GB';
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = journalToday();
   const todays = trades.filter(t=>t.date===todayStr);
   const n = todays.length;
   const usd = v=>(v>0?'+':v<0?'−':'')+'$'+Math.abs(v).toFixed(2);
@@ -4691,11 +4718,10 @@ function dmThreadInit(){
 }
 
 function parseRR(rr){
-  if(!rr) return null;
-  const m = String(rr).match(/([\d.]+)\s*[:\/]\s*([\d.]+)/);
-  if(m) return parseFloat(m[2])/parseFloat(m[1]);
-  const n = parseFloat(rr);
-  return isNaN(n)?null:n;
+  const raw=String(rr??'').trim().replace(',','.');
+  const m=/^(\d+(?:\.\d+)?|\.\d+)\s*[:/]\s*(\d+(?:\.\d+)?|\.\d+)$/.exec(raw);
+  const n=m?Number(m[2])/Number(m[1]):/^(\d+(?:\.\d+)?|\.\d+)$/.test(raw)?Number(raw):NaN;
+  return Number.isFinite(n)&&n>0?n:null;
 }
 
 function fmt(n, prefix='$'){
@@ -4728,7 +4754,7 @@ function getFiltered(market, dateVal, setupVal){
 
 function getRangeFiltered(range){
   let f = [...trades];
-  if(range==='day'){const d=new Date().toISOString().split('T')[0]; f=f.filter(t=>t.date===d);}
+  if(range==='day'){const d=journalToday(); f=f.filter(t=>t.date===d);}
   else if(range==='week'){const d=new Date();d.setDate(d.getDate()-7);const ds=d.toISOString().split('T')[0];f=f.filter(t=>t.date&&t.date>=ds);}
   else if(range==='month'){const d=new Date();d.setDate(d.getDate()-30);const ds=d.toISOString().split('T')[0];f=f.filter(t=>t.date&&t.date>=ds);}
   return f;
@@ -4745,19 +4771,60 @@ function calcStats(list){
   return {total, wins, losses, wr, pnl, avgRR, known, unknown};
 }
 
-// Expectancy = (WR × avgRR) − (LR × 1)  [WR/LR as decimals 0-1]
-// A planned-R model: WR here is the marked (price) result, not the money result after costs.
-// Returns null if insufficient data (no RR values or no trades)
+// The checklist answers of a trade. An item left empty is unknown, never a «No».
+// With per-item answers: yes / no among the answered items. A record with only a score (older or
+// imported, no per-item answers) keeps that score; a record with per-item answers but none given
+// has no checklist answer at all (the full form used to save 0 % for an untouched checklist).
+function checklistAnswers(t){
+  const d = t.checklistDetail;
+  const score = (typeof t.checklistScore==='number' && Number.isFinite(t.checklistScore)) ? t.checklistScore : null;
+  if(d && typeof d==='object'){
+    const vals = Object.values(d).filter(v=>v===true||v===false);
+    if(!vals.length) return null;
+    const yes = vals.filter(Boolean).length;
+    return {answered:vals.length, yes, no:vals.length-yes, score};
+  }
+  return score===null ? null : {answered:null, yes:null, no:null, score};
+}
+// The checklist score that means something: null when no item was answered
+function checklistScoreOf(t){ const a = checklistAnswers(t); return a ? a.score : null; }
+
+// Rule-following of a trade, from the trader's own answers; the money is a separate verdict:
+// a winning trade with a broken rule stays 'dirty', a losing trade by the rules stays 'clean'.
+//   'dirty' — «Следовал плану? Нет», the mark «Нарушил план», setup Off-plan, or a checklist
+//             whose answered items are under 60 % «Yes»
+//   'clean' — by plan, no «No» in the checklist and 80 %+ of its items «Yes», not marked emotional,
+//             no broken rule
+//   null    — not enough answers to tell (a quick trade without a checklist, an emotional mark alone,
+//             one explicit «No» among «Yes» — it is not a full checklist, nor proof of a broken rule)
+// The emotional mark and the other mistake marks are not rule breaks by themselves.
+function tradeDisciplineReasons(t){
+  const a = checklistAnswers(t);
+  const answeredYes = !a ? null : a.answered!==null ? a.yes/a.answered : a.score;
+  return {
+    plan: t.byPlan===false || (t.mistakes||[]).includes('broke_plan') || t.setup==='Off-plan',
+    checklist: answeredYes!==null && answeredYes<0.6,
+    full: !!a && a.score!==null && a.score>=0.8 && !(a.no>0),
+    checklistNo: a ? (a.no||0) : 0,
+  };
+}
+function tradeDiscipline(t){
+  const r = tradeDisciplineReasons(t);
+  if(r.plan || r.checklist) return 'dirty';
+  if(t.byPlan===true && r.full && t.emotional!==true) return 'clean';
+  return null;
+}
+
+// Expectancy = mean conditional planned-R outcomes: each Win uses its own RR, Loss -1, B/E 0.
+// Unmarked outcomes and Wins without a valid RR are unknown. Same model as tradeR/analytics.
 function calcExpectancy(list){
-  if(!list || !list.length) return null;
-  const wins  = list.filter(t=>t.result==='win').length;
-  const total = list.length;
-  const wr  = wins / total;          // decimal 0-1
-  const lr  = 1 - wr;
-  const rrVals = list.map(t=>parseRR(t.rr)).filter(Boolean);
-  if(!rrVals.length) return null;
-  const avgRR = rrVals.reduce((a,b)=>a+b,0) / rrVals.length;
-  return (wr * avgRR) - (lr * 1);
+  if(!Array.isArray(list))return null;
+  const values=list.map(t=>{
+    if(t.result==='loss')return -1;if(t.result==='be')return 0;
+    if(t.result==='win'){const rr=parseRR(t.rr);return rr>0?rr:null;}return null;
+  }).filter(x=>x!==null);
+  if(!values.length)return null;
+  const e=values.reduce((sum,x)=>sum+x,0)/values.length;return Math.abs(e)<1e-9?0:e;
 }
 
 // Honest period-over-period deltas for KPI context lines.
@@ -4787,7 +4854,7 @@ function calcDiscipline(){
   const planTrades      = t.filter(x=>x.byPlan===true||x.byPlan===false);
   const emotionalTrades = t.filter(x=>x.emotional===true||x.emotional===false);
   // For checklist: only full-form trades where checklist was actually filled
-  const clTrades        = t.filter(x=>x.checklistScore!==null&&x.checklistScore!==undefined&&!x.quickTrade);
+  const clTrades        = t.filter(x=>checklistScoreOf(x)!==null&&!x.quickTrade);   // an untouched checklist is no answer
 
   const byPlanScore    = planTrades.length      ? planTrades.filter(x=>x.byPlan===true).length / planTrades.length           : null;
   const clScore        = clTrades.length         ? clTrades.filter(x=>x.checklistScore>=0.8).length / clTrades.length         : null;
@@ -4813,7 +4880,7 @@ function calcDiscipline(){
 function calcStreaks(){
   // ── Trading / Journal streak: consecutive days with ≥1 trade ──────────
   const daySet = new Set(trades.map(t=>t.date).filter(Boolean));
-  const today  = new Date().toISOString().split('T')[0];
+  const today  = journalToday();
 
   // Current journal streak (counting back from today or yesterday)
   let jCur = 0;
@@ -4921,161 +4988,186 @@ function isInsightDismissed(id, currentCount, threshold){
 function getInsightDetail(ins){
   const ru = lang==='ru';
   const id = ins.id||'';
+  const L = (r,e)=>ru?r:e;
+  const scope = appSettings.quickInAnalytics
+    ? L('Считается вся история вместе с быстрыми сделками: все стратегии, сетапы и рынки вместе','The whole history is counted, quick trades included: all strategies, setups and markets together')
+    : L('Считается вся история без быстрых сделок: все стратегии, сетапы и рынки вместе','The whole history is counted, quick trades left out: all strategies, setups and markets together');
+  const notMoney = L('Доля побед — не деньги: низкая доля побед не значит убыток, высокая не значит прибыль. Итог после расходов указан отдельно','A win rate is not money: a low one does not mean a loss, a high one does not mean a profit. The total after costs is shown apart');
+  const small = L('Это описание прошлых сделок, а не доказательство преимущества: на малом числе сделок картина может измениться','This describes past trades, it does not prove an edge: with few trades the picture can change');
+  const rules = L('Нарушением правил журнал считает: «Следовал плану? — Нет», отметку «Нарушил план», сетап Off-plan или чеклист ниже 60%','The journal counts as a rule break: «Followed plan? — No», the mark «Broke plan», the Off-plan setup or a checklist under 60%');
+  const eModel = [
+    L('E = среднее условных исходов: Win = свой плановый R:R, Loss = −1R, B/E = 0R; Win без R:R и неотмеченные исключены','E = mean modelled outcomes: Win = its own planned R:R, Loss = −1R, B/E = 0R; wins without R:R and unmarked trades are excluded'),
+    L('Это модель по вашим отметкам и плановому R:R, а не деньги после расходов и не фактический результат в R','It is a model from your marks and planned R:R, not the money after costs and not the realised result in R'),
+    L('Плановый R:R не равен фактически реализованному результату: раннее закрытие и расходы в эту условную модель не входят','Planned R:R is not the realised outcome: early exits and costs are not included in this model'),
+    scope,
+  ];
 
-  // Content map: key → {why, fix:[...]}
-  const map = {
-    offplan_wr:{
-      why: ru?['Вход без сетапа из плана = нет edge, только удача','FOMO и эмоции обнуляют статистическое преимущество','Каждая off-plan сделка учит мозг игнорировать систему','Даже прибыльная off-plan сделка — вред в долгосроке']
-             :['Entry without a planned setup = no edge, just luck','FOMO and emotions cancel out your statistical advantage','Every off-plan trade trains your brain to ignore the system','Even a profitable off-plan trade is harmful long-term'],
-      fix: ru?['Проверяйте план перед каждым входом: "Это мой сетап?"','Если ответ "не уверен" — не входите','Запишите план сессии до открытия платформы','После выполнения плана — закройте терминал']
-             :['Check your plan before every entry: "Is this my setup?"','If the answer is "not sure" — don\'t enter','Write your session plan before opening the platform','After completing the plan — close the terminal'],
+  const content = {
+    session:{
+      why:[L('Сессия берётся из поля сделки; сравниваются сессии, где у 3+ сделок известен P&L','The session comes from the trade\'s field; sessions with 3+ trades with a known P&L are compared'),
+        notMoney,
+        L('Журнал не знает причину: время, рынок, сетап и исполнение здесь не разделены','The journal does not know the cause: time, market, setup and execution are not separated here'),
+        small],
+      fix:[L('Откройте сделки этой сессии и сравните их с правилами своей стратегии','Open this session\'s trades and compare them with your strategy\'s rules'),
+        L('Посмотрите, какие сетапы и рынки были в этой сессии','Look at which setups and markets were traded in this session'),
+        L('Проверьте, есть ли среди них сделки с нарушением правил','Check whether any of them broke a rule')],
     },
-    strategy_no_data:{
-      why: ru?['30 сделок — минимальная выборка для значимой статистики','Меньше 30 = случайные результаты, не система','Каждый сетап нужно тестировать на достаточном числе сделок','Вывод из малой выборки может привести к неверным решениям']
-             :['30 trades is the minimum sample for meaningful statistics','Below 30 = random results, not a system','Every setup needs to be tested on a sufficient number of trades','Conclusions from small samples lead to wrong decisions'],
-      fix: ru?['Торгуйте один сетап — не меняйте его до набора 30 сделок','Каждая сделка — данные. Записывайте всё честно','Не делайте выводов о стратегии пока выборка мала','После 30 сделок — смотрите Expectancy, не WR']
-             :['Trade one setup — don\'t change it until 30 trades','Every trade is data. Record everything honestly','Don\'t draw strategy conclusions from a small sample','After 30 trades — look at Expectancy, not just WR'],
+    setup:{
+      why:[L('Сравниваются сетапы, где у 3+ сделок известен P&L','Setups with 3+ trades with a known P&L are compared'),
+        notMoney,
+        L('Сделки с нарушением правил остаются нарушениями, даже если сетап в плюсе','Trades with a broken rule stay rule breaks even when the setup is in profit'),
+        small],
+      fix:[L('Откройте сделки этого сетапа и сравните вход с правилами своей стратегии','Open this setup\'s trades and compare the entries with your strategy\'s rules'),
+        L('Посмотрите, какие сделки дали основную часть итога','Look at which trades made most of the total'),
+        L('Проверьте, есть ли среди них сделки с нарушением правил','Check whether any of them broke a rule')],
     },
-    strategy_expectancy_bad:{
-      why: ru?['Expectancy < 0 значит система теряет деньги при любой дисциплине','Проблема не в психологии — в самой логике входов','Низкий WR при плохом RR = двойной удар по капиталу','Можно торговать идеально по плану и всё равно терять']
-             :['Expectancy < 0 means the system loses money regardless of discipline','The problem isn\'t psychology — it\'s the entry logic itself','Low WR with poor RR = double hit on capital','You can trade perfectly by plan and still lose'],
-      fix: ru?['Остановите торговлю и разберите последние 30 убытков','Найдите: точки входа слишком ранние, или RR нереалистичный?','Протестируйте сетап на истории — убедитесь что edge существует','Снизьте размер до минимума пока Expectancy не станет положительной']
-             :['Stop trading and review the last 30 losses','Find: entries too early, or RR unrealistic?','Backtest the setup — confirm the edge actually exists','Reduce size to minimum until Expectancy turns positive'],
+    range:{
+      why:[L('Это сделки с сетапом «Range» (боковик); карточка смотрит на итог после расходов','These are trades with the Range setup; the card looks at the total after costs'),
+        notMoney,
+        L('Сделки с нарушением правил остаются нарушениями, даже если итог в плюсе','Trades with a broken rule stay rule breaks even when the total is positive'),
+        small],
+      fix:[L('Откройте эти сделки и сравните вход с правилами своей стратегии для боковика','Open these trades and compare the entries with your strategy\'s rules for a range'),
+        L('Посмотрите, какие сделки дали основную часть итога','Look at which trades made most of the total')],
     },
-    strategy_expectancy_ok:{
-      why: ru?['Expectancy 0–0.2R = система едва в безубытке','Комиссии и спред могут перевести её в минус','Маленький edge легко уничтожается ошибками исполнения','Нужно улучшить либо WR, либо RR — или оба']
-             :['Expectancy 0–0.2R = system is barely break-even','Commissions and spread can push it into loss','Small edge is easily destroyed by execution errors','Need to improve either WR, RR, or both'],
-      fix: ru?['Улучшите качество входов — ждите только A+ подтверждений','Не берите ранний TP — позвольте RR расти','Уберите худшие сделки из выборки — найдите общую причину','Цель: Expectancy выше 0.2R стабильно на 50+ сделках']
-             :['Improve entry quality — wait for A+ confirmation only','Don\'t take early TP — let RR grow','Remove worst trades from sample — find common cause','Goal: Expectancy above 0.2R consistently over 50+ trades'],
+    offplan:{
+      why:[L('Это сделки, которые вы сами отметили как Off-plan — вне плана','These are trades you marked Off-plan yourself — outside the plan'),
+        L('Они считаются нарушением плана при любом итоге: прибыль не делает их сделками по плану','They count as a plan break whatever the result: a profit does not make them trades by the plan'),
+        L('Их деньги входят в общий P&L как обычно','Their money is in the overall P&L as usual'),
+        L('Итог нескольких сделок не показывает, что причина результата — именно выход за план','The total of a few trades does not show that leaving the plan caused the result')],
+      fix:[L('Откройте эти сделки и запишите, какое правило плана не выполнялось','Open these trades and note which rule of the plan was not met'),
+        L('Сравните прибыльные и убыточные сделки вне плана: чем отличался вход','Compare the winning and losing off-plan trades: how the entries differed')],
     },
-    strategy_expectancy_good:{
-      why: ru?['Expectancy ≥ 0.2R = система математически прибыльна','WR и RR в правильном балансе для долгосрочного роста','Это ваш доказанный edge — редкое и ценное достижение','Главный риск теперь — нарушить систему которая работает']
-             :['Expectancy ≥ 0.2R = system is mathematically profitable','WR and RR are in the right balance for long-term growth','This is your proven edge — a rare and valuable achievement','Main risk now — breaking the system that works'],
-      fix: ru?['Не меняйте стратегию. Масштабируйте размер постепенно (не резко)','Продолжайте вести журнал — следите чтобы Expectancy не падала','Если Expectancy упала ниже 0.1R — снизьте размер и разберите причину','Цель: стабильность 0.2R+ на 100+ сделках = масштабирование']
-             :['Don\'t change the strategy. Scale size gradually (not sharply)','Keep journaling — monitor that Expectancy doesn\'t drop','If Expectancy drops below 0.1R — reduce size and investigate','Goal: consistent 0.2R+ over 100+ trades = ready to scale'],
+    dirty:{
+      why:[rules,
+        L('Итог сделки на это не влияет: прибыльная сделка с нарушением остаётся нарушением, убыточная по правилам — сделкой по правилам','The result does not change this: a winning trade with a broken rule stays a rule break, a losing trade by the rules stays by the rules'),
+        L('Деньги таких сделок входят в общий P&L, но не подтверждают исполнение по правилам','Their money is in the overall P&L, but it does not confirm trading by the rules'),
+        L('Эмоциональная отметка и другие отметки ошибок сами по себе нарушением не считаются; сделки без ответов не считаются ни чистыми, ни нарушениями','The emotional mark and the other mistake marks are not rule breaks by themselves; trades without answers are neither clean nor rule breaks')],
+      fix:[L('Откройте эти сделки и отметьте, какое правило было нарушено','Open these trades and note which rule was broken'),
+        L('Сравните прибыльные и убыточные нарушения: что было общего перед входом','Compare the winning and losing rule breaks: what they had in common before the entry')],
     },
-    range_wr:{
-      why: ru?['Боковик — сложная среда: много ложных пробоев и шума','Вход в середине ренджа = нет чёткого SL и TP','Без чётких уровней H/L зоны edge исчезает','Часто боковик торгуется как тренд — главная ошибка']
-             :['Range is a complex environment: many false breakouts and noise','Entering mid-range = no clear SL and TP','Without clear H/L zone boundaries edge disappears','Range is often traded like a trend — the main mistake'],
-      fix: ru?['Входите только от границ ренджа (High/Low), не из середины','Ждите реакцию на уровне — отбой или ложный пробой с закрытием внутрь','TP — противоположная граница ренджа, SL — за границей зоны','Если рендж узкий (< 50 pips) — пропускайте, нет места для R:R']
-             :['Enter only from range boundaries (High/Low), not mid-range','Wait for reaction at the level — rejection or false breakout closing inward','TP = opposite range boundary, SL = beyond zone boundary','If range is narrow (< 50 pips) — skip, no room for R:R'],
+    clean:{
+      why:[L('«По правилам» — по плану, чеклист от 80%, без эмоциональной отметки и без нарушения правил','«By the rules» — by plan, checklist at 80%+, no emotional mark and no broken rule'),
+        rules,
+        L('Сравнивается доля побед среди сделок с известным P&L; разница — в процентных пунктах','The win rate is compared over trades with a known P&L; the gap is in percentage points'),
+        notMoney],
+      fix:[L('Сравните итог после расходов в обеих группах','Compare the total after costs in both groups'),
+        L('Посмотрите, сколько сделок в каждой группе: при малом числе разница может быть случайной','Look at how many trades each group has: with few the gap can be chance')],
     },
-    range_wr_good:{
-      why: ru?['Вы правильно читаете границы ренджа и входите от уровней','Терпение — ждёте реакцию, не входите в середину','Чёткое управление: TP на противоположной границе','Это ценный навык — боковик бывает 70% времени на рынке']
-             :['You correctly read range boundaries and enter from levels','Patience — waiting for reaction, not entering mid-range','Clear management: TP at opposite boundary','This is a valuable skill — range is 70% of market time'],
-      fix: ru?['Продолжайте торговать только от чётких H/L зон','На сильных уровнях добавляйте объём — ваша статистика это позволяет','Изучите ложные пробои ренджа как точку входа (liquidity sweep)','Следите за объёмом на границах — он подтверждает реакцию']
-             :['Keep trading only from clear H/L zones','At strong levels add size — your stats support it','Study range false breakouts as entry points (liquidity sweep)','Watch volume at boundaries — it confirms the reaction'],
-    },
-    mistake_broke_plan:{
-      why: ru?['Изменение SL или ранний TP разрушают R:R всей системы','Каждое нарушение делает следующее нарушение легче','Добавка к убытку — самая дорогая ошибка в трейдинге','Статистика работает только если правила соблюдаются всегда']
-             :['Moving SL or early TP destroys the R:R of your system','Each violation makes the next one easier to commit','Adding to a loser is the most expensive mistake in trading','Statistics only work when rules are followed consistently'],
-      fix: ru?['Записывайте план сделки до входа (entry, SL, TP)','Не прикасайтесь к SL после установки','Если хочется нарушить план — выйдите из рынка','Ведите журнал: отмечайте каждое нарушение']
-             :['Write your trade plan before entry (entry, SL, TP)','Don\'t touch SL after placing it','If you want to break the plan — exit the market','Journal every rule violation'],
-    },
-    mistake_early_entry:{
-      why: ru?['Свеча не закрылась — сигнала ещё нет, только предположение','Ранний вход ухудшает R:R и увеличивает вероятность стопа','BOS/CHOCH подтверждается только на закрытой свече','Нетерпение — одна из главных причин убытков в price action']
-             :['Unclosed candle means no signal yet — just an assumption','Early entry worsens R:R and increases stop probability','BOS/CHOCH is only confirmed on a closed candle','Impatience is one of the top causes of loss in price action'],
-      fix: ru?['Ждите закрытия свечи — никогда не входите на незакрытой','Проверьте старший ТФ перед входом','Используйте лимитные ордера вместо рыночных','Если пропустили вход — пропустите сделку']
-             :['Wait for candle close — never enter on an open candle','Check higher TF before entry','Use limit orders instead of market orders','If you missed the entry — skip the trade'],
-    },
-    mistake_no_confirm:{
-      why: ru?['Неполный сигнал = сделка на предположении, не на факте','Без MTF согласованности вы торгуете против старшего тренда','Ликвидность и структура должны совпадать одновременно','Частичное подтверждение снижает WR и ломает систему']
-             :['Incomplete signal = trade on assumption, not fact','Without MTF alignment you trade against the higher trend','Liquidity and structure must align at the same time','Partial confirmation lowers WR and breaks the system'],
-      fix: ru?['Составьте чеклист подтверждений (3-5 пунктов)','Входите только при 100% соответствии чеклисту','"Хороший сетап" ≠ "подтверждённый сетап"','Записывайте причину входа перед нажатием кнопки']
-             :['Build a confirmation checklist (3-5 items)','Only enter at 100% checklist match','"Good setup" ≠ "confirmed setup"','Write your entry reason before clicking the button'],
-    },
-    mistake_overtrade:{
-      why: ru?['После 3+ сделок качество решений резко снижается','Лишние сделки открываются из скуки, не из edge','Комиссии и спред съедают прибыль при высокой частоте','Усталость от экрана = эмоциональные входы во второй половине дня']
-             :['After 3+ trades decision quality drops sharply','Extra trades come from boredom, not from edge','Commissions and spread eat profits at high frequency','Screen fatigue = emotional entries in the second half of the day'],
-      fix: ru?['Установите лимит: не более 2-3 сделок в день','После 2 убытков подряд — обязательный стоп на день','Введите "правило первой сделки": если убыток — стоп','Качество важнее количества']
-             :['Set a limit: no more than 2-3 trades per day','After 2 consecutive losses — mandatory daily stop','Implement "first trade rule": if loss — stop for the day','Quality over quantity'],
-    },
-    low_winrate:{
-      why: ru?['WR ниже 40% — сигнал системной проблемы, не полосы невезения','Точка входа или тайминг не совпадают с реальным движением','Возможно сетап работал раньше, но рынок изменился','Психологические фильтры могут искажать выбор сделок']
-             :['WR below 40% signals a systemic issue, not bad luck','Entry point or timing doesn\'t match the actual move','Setup may have worked before but the market has changed','Psychological filters may be distorting trade selection'],
-      fix: ru?['Разберите последние 10 убыточных сделок: найдите общую причину','Не торгуйте 2-3 дня — сделайте паузу','Вернитесь к базовому сетапу, который работал раньше','Снизьте размер позиции до минимума пока WR не улучшится']
-             :['Review last 10 losing trades: find the common cause','Don\'t trade for 2-3 days — take a break','Return to the basic setup that worked before','Reduce position size to minimum until WR improves'],
+    mistake:{
+      why:[L('Отметки ошибок вы ставите сами в форме сделки','You set the mistake marks yourself in the trade form'),
+        L('Карточка показывает, как часто встречается отметка и чем закончились эти сделки','The card shows how often the mark appears and how those trades ended'),
+        L('Совпадение отметки и убытка не доказывает, что убыток вызван этой ошибкой','A mark and a loss together do not show that the mistake caused the loss'),
+        rules],
+      fix:[L('Откройте сделки с этой отметкой и сравните вход с правилами своей стратегии','Open the trades with this mark and compare the entries with your strategy\'s rules'),
+        L('Посмотрите, повторяется ли отметка в одной сессии или сетапе','Look at whether the mark repeats in one session or setup'),
+        L('Сравните сделки с отметкой и без неё по итогу после расходов','Compare trades with and without the mark by the total after costs')],
     },
     emotional:{
-      why: ru?['Revenge trading после убытка — попытка "отыграть", которая убивает счёт','FOMO заставляет входить в конце движения, не в начале','В эмоциональном состоянии мозг игнорирует риск-менеджмент','Скука и азарт — такие же триггеры, как страх и жадность']
-             :['Revenge trading after a loss is an attempt to recover that kills the account','FOMO causes you to enter at the end of a move, not the start','In emotional state the brain ignores risk management','Boredom and excitement are just as dangerous as fear and greed'],
-      fix: ru?['Используйте чеклист перед КАЖДЫМ входом — он тормозит импульс','После убытка: 30 минут перерыв, выйдите из платформы','Закройте терминал если чувствуете раздражение или азарт','Ведите "эмоциональный дневник" — отмечайте состояние перед сделкой']
-             :['Use a checklist before EVERY entry — it slows impulse','After a loss: 30 minute break, leave the platform','Close the terminal if feeling frustration or excitement','Keep an "emotional journal" — note your state before each trade'],
+      why:[L('«Эмоциональная» — ваша собственная отметка в форме сделки','«Emotional» is your own mark in the trade form'),
+        L('Сравниваются только сделки с известным P&L, минимум по две в каждой группе; разница — в процентных пунктах','Only trades with a known P&L are compared, at least two in each group; the gap is in percentage points'),
+        L('Это совпадение, а не доказательство причины','This is a co-occurrence, not proof of a cause'),
+        L('Сама по себе отметка не считается нарушением правил','The mark by itself is not counted as a rule break')],
+      fix:[L('Посмотрите, что было перед эмоциональными сделками: серия, время, новости','Look at what came before the emotional trades: a streak, the time, news'),
+        L('Сравните итог после расходов в обеих группах, а не только долю побед','Compare the total after costs in both groups, not only the win rate')],
     },
     drawdown:{
-      why: ru?['Серия убытков создаёт цикл: стресс → ошибки → больше убытков','Попытка "отыграться" быстро приводит к катастрофическим потерям','Просадка требует непропорционально больший рост для восстановления','Риск-менеджмент важнее, чем поиск следующего входа']
-             :['A losing streak creates a cycle: stress → mistakes → more losses','Trying to "win it back" quickly leads to catastrophic losses','Drawdown requires disproportionately larger gains to recover','Risk management matters more than finding the next entry'],
-      fix: ru?['Снизьте риск на сделку до 0.5% пока не восстановитесь','Не пытайтесь "отыграться" — это увеличит просадку','Установите максимальную дневную потерю (например 2%)','Сделайте паузу и разберите причины каждого убытка']
-             :['Reduce per-trade risk to 0.5% until recovery','Don\'t try to "win it back" — this increases drawdown','Set a maximum daily loss (e.g. 2%)','Take a break and analyze the reason for each loss'],
+      why:[L('Процент считается от начального капитала из настроек плюс итог сделок по дате','The percent is taken from the starting capital in the settings plus the trades\' totals by date'),
+        L('Это наибольшее падение от пика за всю историю; насколько счёт ниже пика сейчас — указано отдельно','It is the largest fall from a peak in the whole history; how far below the peak the account is now is shown apart'),
+        L('Пополнения, выводы и порядок сделок внутри одного дня не учитываются; сделки без P&L в расчёт не входят','Deposits, withdrawals and the order of trades within one day are not taken into account; trades without a P&L are left out')],
+      fix:[L('Проверьте начальный капитал в настройках','Check the starting capital in the settings'),
+        L('Сверьте серию сделок, которая дала просадку, с правилами риска своей стратегии и требованиями проп-фирмы','Compare the run of trades behind the drawdown with your strategy\'s risk rules and your prop firm\'s limits')],
     },
-    dirty_trades:{
-      why: ru?['Грязные сделки — симптом: вы знаете правила, но не следуете им','Привычка нарушать формируется быстро, ломается долго','Каждая грязная сделка обесценивает статистику журнала','Дисциплина — это не мотивация, это система и среда']
-             :['Dirty trades are a symptom: you know the rules but don\'t follow them','The habit of breaking rules forms fast and breaks slowly','Each dirty trade invalidates your journal statistics','Discipline is not motivation — it\'s systems and environment'],
-      fix: ru?['Заполняйте чеклист перед каждым входом — это не опционально','Одно нарушение = выход из рынка на день','Качество > количество: лучше 2 чистых сделки, чем 10 грязных','Настройте напоминание: "Вы прошли чеклист?"']
-             :['Complete the checklist before every entry — not optional','One violation = exit market for the day','Quality > quantity: better 2 clean trades than 10 dirty ones','Set a reminder: "Did you complete the checklist?"'],
+    strategy_no_data:{
+      why:[L('Плановая модель E показывается с 30 записей','The planned E model is shown from 30 records'),
+        L('30 — порог показа в журнале, а не граница, после которой результат достоверен','30 is the journal\'s display threshold, not a point after which a result is reliable'),
+        scope],
+      fix:[L('Отмечайте результат и R:R у сделок — без них модель не считается','Mark the result and R:R of your trades — the model needs them'),
+        L('Заполняйте P&L и расходы: модель и деньги показываются отдельно','Fill in the P&L and costs: the model and the money are shown apart')],
     },
-    clean_trades:{
-      why: ru?['Чистые сделки доказывают: сетап и edge реально работают','Разница в результате — это дисциплина, не рынок','Последовательность в исполнении важнее частоты','Каждая чистая сделка укрепляет правильную привычку']
-             :['Clean trades prove that your setup and edge actually work','The difference in results is discipline, not the market','Consistency in execution matters more than frequency','Each clean trade reinforces the right habit'],
-      fix: ru?['Продолжайте в том же духе — система работает','Проанализируйте что делаете по-другому в чистых сделках','Постепенно увеличивайте размер только в чистых сделках','Ставьте цель: 80%+ чистых сделок в месяц']
-             :['Keep it up — the system works','Analyze what you do differently in clean trades','Gradually increase size only in clean trades','Set a goal: 80%+ clean trades per month'],
+    strategy_expectancy_bad:{why:eModel,
+      fix:[L('Сравните модель с итогом после расходов — они могут расходиться','Compare the model with the total after costs — they can differ'),
+        L('Проверьте, совпадает ли плановый R:R с тем, как сделки реально закрывались','Check whether the planned R:R matches how the trades really closed'),
+        L('Посмотрите отдельно сделки по правилам и с нарушениями','Look at the trades by the rules and with broken rules apart')]},
+    strategy_expectancy_ok:{why:eModel,
+      fix:[L('Сравните модель с итогом после расходов — они могут расходиться','Compare the model with the total after costs — they can differ'),
+        L('Проверьте, совпадает ли плановый R:R с тем, как сделки реально закрывались','Check whether the planned R:R matches how the trades really closed')]},
+    strategy_expectancy_costs:{why:eModel,
+      fix:[L('Сравните плановый R:R с фактическими суммами сделок','Compare the planned R:R with the trades\' real sums'),
+        L('Проверьте, заполнены ли P&L и расходы у всех сделок','Check that the P&L and costs are filled in for every trade'),
+        L('Сравните итог до и после расходов в карточках сделок','Compare the totals before and after costs on the trade cards')]},
+    strategy_expectancy_good:{why:eModel,
+      fix:[L('Модель и итог после расходов описывают прошлые сделки, это не прогноз','The model and the total after costs describe past trades, they are not a forecast'),
+        L('Проверьте, держится ли результат отдельно для сделок по правилам и с нарушениями','Check whether the result holds for trades by the rules and with broken rules apart'),
+        L('Следите, как меняется модель с новыми сделками','Watch how the model changes with new trades')]},
+    plan_losses:{
+      why:[L('Это убыточные сделки, где вы ответили «Следовал плану? — Да» и нет явного нарушения','These are losing trades where you answered «Followed plan? — Yes» and no rule is marked broken'),
+        L('С полным чеклистом соблюдение подтверждено подробнее; только ответ «по плану» — ваша общая оценка','With a full checklist the following is confirmed in more detail; the «by plan» answer alone is your overall rating'),
+        L('Убыток по плану — нормальная часть торговли по правилам; он не делает сделку ошибкой','A loss by the plan is a normal part of trading by the rules; it does not make the trade a mistake')],
+      fix:[L('Проверьте одну сделку по записанным условиям','Check one trade against its recorded conditions')],
+    },
+    plan_dynamics:{
+      why:[L('Сравниваются два последних периода по 20 явных ответов «Следовал плану?» в одной стратегии и редакции','The last two periods of 20 explicit «Followed plan?» answers in one strategy and revision are compared'),
+        L('20 — порог показа, а не статистическая значимость','20 is a display threshold, not statistical significance'),
+        L('Записи без ответа не считаются ни соблюдением, ни нарушением; порядок — по дате, внутри дня не утверждается','Records without an answer count neither way; the order is by date, the order within a day is not claimed'),
+        L('Это ваша самооценка исполнения, а не денежный результат','This is your own rating of the execution, not the money')],
+      fix:[L('Откройте последние нарушения и выберите одно условие для проверки перед входом','Open the latest rule breaks and pick one condition to check before the entry')],
+    },
+    data_gaps:{
+      why:[L('Смотрятся последние 20 записей: ответ о плане, P&L и расходы','The last 20 records are looked at: the plan answer, the P&L and the costs'),
+        L('Одна запись может попасть в несколько групп; группы не складываются','One record can be in several groups; the groups are not added up'),
+        L('Незаполненное не считается ни ошибкой, ни соблюдением — инсайты просто его не используют','An empty field counts neither as a mistake nor as following the rules — the insights just do not use it')],
+      fix:[L('Заполните только то, что можете подтвердить; неизвестное оставьте пустым','Fill in only what you can confirm; leave the unknown empty')],
     },
   };
 
-  // Fallback for session/setup insights
   let key = id;
-  if(id.startsWith('mistake_')) key = 'mistake_'+id.replace('mistake_','');
-  if(!map[key]){
-    if(id.startsWith('best_sess')) key='_best_sess';
-    else if(id.startsWith('worst_sess')) key='_worst_sess';
-    else if(id.startsWith('sess_loss')) key='_sess_loss';
-    else if(id==='best_setup') key='_best_setup';
-    else if(id.startsWith('worst_setup')) key='_worst_setup';
-  }
-  const fallbacks = {
-    _best_sess:{
-      why:ru?['Эта сессия совпадает с вашим торговым стилем и уровнем концентрации','Волатильность и ликвидность в это время подходят вашему сетапу','Психологически вы в лучшем состоянии именно в эти часы','Рынок даёт понятные структуры именно в эту сессию']
-            :['This session aligns with your trading style and concentration level','Volatility and liquidity at this time suit your setup','Psychologically you are at your best during these hours','The market provides clear structures in this session'],
-      fix:ru?['Сосредоточьте большую часть сделок на этой сессии','Анализируйте почему именно она работает','Не торгуйте в этой сессии если устали или расстроены','Настройте уведомления под это время']
-            :['Focus most trades on this session','Analyze why exactly it works','Don\'t trade in this session when tired or upset','Set notifications for this time'],
-    },
-    _worst_sess:{
-      why:ru?['Волатильность или ликвидность в этой сессии не совпадают с вашим сетапом','Возможна усталость или снижение концентрации в это время','Структуры рынка в эту сессию труднее читаются','Паттерн повторяется — это статистика, не случайность']
-            :['Volatility or liquidity in this session doesn\'t match your setup','Possible fatigue or reduced concentration at this time','Market structures are harder to read in this session','The pattern repeats — this is statistics, not coincidence'],
-      fix:ru?['Рассмотрите пропуск этой сессии полностью','Снизьте размер позиции вдвое в этой сессии','Ведите наблюдение ещё 2 недели — нужна выборка','Анализируйте причину убытков именно в это время']
-            :['Consider skipping this session entirely','Halve position size in this session','Observe for another 2 weeks — need a sample','Analyze the cause of losses at this time'],
-    },
-    _sess_loss:{
-      why:ru?['Убытки концентрируются в одной сессии — это паттерн, не случайность','Рынок в это время ведёт себя иначе, чем ожидает ваша система','Возможна систематическая ошибка в чтении структуры в эти часы','Статистика указывает на конкретную временную проблему']
-            :['Losses concentrate in one session — this is a pattern, not coincidence','The market behaves differently at this time than your system expects','Possible systematic error in reading structure at these hours','Statistics point to a specific time-based problem'],
-      fix:ru?['Сократите количество сделок в этой сессии','Повысьте требования к подтверждению входа','Установите максимум 1-2 сделки в проблемной сессии','Разберите каждый убыток из этой сессии']
-            :['Reduce trades in this session','Increase entry confirmation requirements','Set maximum 1-2 trades in the problem session','Review each loss from this session'],
-    },
-    _best_setup:{
-      why:ru?['Этот сетап даёт реальный edge в текущих рыночных условиях','Логика паттерна совпадает с вашим стилем исполнения','Статистика подтверждена достаточной выборкой сделок','Это ваше конкурентное преимущество — защищайте его']
-            :['This setup provides real edge in current market conditions','The pattern logic matches your execution style','Statistics are confirmed by a sufficient sample of trades','This is your competitive advantage — protect it'],
-      fix:ru?['Фокусируйтесь именно на этом сетапе','Не отвлекайтесь на менее надёжные паттерны','Постепенно увеличивайте размер в этом сетапе','Изучите его глубже — найдите ещё лучшие условия']
-            :['Focus on this setup specifically','Don\'t get distracted by less reliable patterns','Gradually increase size in this setup','Study it deeper — find even better conditions'],
-    },
-    _worst_setup:{
-      why:ru?['Этот сетап не даёт edge в текущих условиях рынка','Проблема может быть в исполнении, тайминге или самом паттерне','Рынок мог измениться — сетап работал раньше, но не сейчас','Продолжать торговать им = терять деньги без причины']
-            :['This setup provides no edge in current market conditions','The issue may be execution, timing, or the pattern itself','The market may have changed — setup worked before but not now','Continuing to trade it = losing money for no reason'],
-      fix:ru?['Приостановите этот сетап на 1 месяц','Разберите последние 5 убыточных сделок по нему','Протестируйте на истории — возможно он перестал работать','Снизьте размер или исключите из торгового плана']
-            :['Pause this setup for 1 month','Review last 5 losing trades from it','Test on history — it may have stopped working','Reduce size or remove from trading plan'],
-    },
-  };
+  if(id.startsWith('best_sess')||id.startsWith('worst_sess')||id.startsWith('sess_loss')) key='session';
+  else if(id.startsWith('best_setup')||id.startsWith('worst_setup')) key='setup';
+  else if(id.startsWith('range_wr')) key='range';
+  else if(id==='offplan_wr') key='offplan';
+  else if(id==='dirty_trades'||id==='dirty_profit') key='dirty';
+  else if(id==='clean_trades') key='clean';
+  else if(id.startsWith('mistake_')) key='mistake';
 
-  const content = map[key] || fallbacks[key] || {
-    why: ru?['Этот инсайт основан на вашей статистике','Паттерн повторяется достаточно часто, чтобы требовать внимания','Изучите связанные сделки для поиска причины','Примите меры до следующей торговой сессии']
-           :['This insight is based on your statistics','The pattern repeats often enough to require attention','Review related trades to find the cause','Take action before your next trading session'],
-    fix: ru?['Проанализируйте связанные сделки','Найдите общую причину','Составьте план улучшения','Проверьте результат через 10 сделок']
-           :['Analyze related trades','Find the common cause','Create an improvement plan','Check results after 10 trades'],
+  const learningCard=/^(mistake_dynamics_|trade_limit_|daily_limit_|risk_limit|action_progress_)/.test(id);
+  const picked = learningCard ? {
+    why:[ins.rec||L('Карточка построена по явным ответам и сохранённым параметрам','The card uses explicit answers and saved parameters'),
+      /^(trade_limit_|daily_limit_)/.test(id)?L('Дневные лимиты считаются по всему аккаунту, включая быстрые записи, независимо от фильтра аналитики','Day limits count all account records, including quick entries, regardless of the analytics filter'):scope],
+    fix:[ins.act||L('Откройте связанные записи','Open the related records')],
+  } : content[key] || {
+    why:[L('Карточка построена по вашим записям','The card is built from your records'), small, scope],
+    fix:[L('Откройте связанные сделки и сравните их с правилами своей стратегии','Open the related trades and compare them with your strategy\'s rules')],
   };
 
   const typeColor = ins.type==='good'?'var(--positive)':ins.type==='alert'?'var(--negative)':ins.type==='warn'?'var(--warning)':'var(--info-2)';
-  const typeLbl = ins.type==='good'?(ru?'Успех':'Success'):ins.type==='alert'?(ru?'Проблема':'Problem'):ins.type==='warn'?(ru?'Предупреждение':'Warning'):(ru?'Инфо':'Info');
+  const typeLbl = ins.type==='good'?(ru?'В плюсе':'Positive'):ins.type==='alert'?(ru?'Проблема':'Problem'):ins.type==='warn'?(ru?'Внимание':'Attention'):(ru?'Инфо':'Info');
 
-  return {content, typeColor, typeLbl};
+  return {content:picked, typeColor, typeLbl};
+}
+
+// The trades an insight is about, in the card's order (the largest loss first where it matters).
+// They are the same cards as the trade list; a tap closes the insight windows and opens that trade.
+function openInsightTrades(id){
+  const ins = (window._currentInsights||[]).find(i=>i.id===id);
+  if(!ins || !ins.tradeIds || !ins.tradeIds.length) return;
+  const byId = new Map(trades.map(t=>[String(t.id), t]));
+  const list = ins.tradeIds.map(x=>byId.get(String(x))).filter(Boolean);
+  document.getElementById('insightTradesTitle').textContent = ins.text;
+  document.getElementById('insightTradesNote').textContent = ins.act || '';
+  const box = document.getElementById('insightTradesList');
+  box.innerHTML = list.map(t=>tcHTML(t)).join('');
+  if(!box.dataset.bound){
+    box.dataset.bound = '1';
+    box.addEventListener('click', e=>{
+      const card = e.target.closest('.tc');
+      if(!card) return;
+      e.stopPropagation(); e.preventDefault();
+      const t = trades.find(x=>String(x.id)===card.dataset.id);
+      closeModal('insightTradesModal'); closeModal('insightDetailModal');
+      if(t) openDetail(t.id);
+    }, true);
+  }
+  openModal('insightTradesModal');
 }
 
 function openInsightDetail(id){
@@ -5094,7 +5186,7 @@ function openInsightDetail(id){
   document.getElementById('insightDetailBody').innerHTML = `
     ${ins.meta?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;padding:0 1px">${escapeHtml(ins.meta)}</div>`:''}
     <div class="insight-detail-why">
-      <div class="insight-detail-block-title">${ins.type==='good'?(ru?'Почему это работает':'Why it works'):(ru?'Почему это происходит':'Why this happens')}</div>
+      <div class="insight-detail-block-title">${ru?'Что это значит':'What this means'}</div>
       ${(Array.isArray(content.why)?content.why:[content.why]).map(w=>`
         <div class="insight-fix-item">
           <div class="insight-fix-check" style="color:var(--text-muted)">·</div>
@@ -5102,14 +5194,16 @@ function openInsightDetail(id){
         </div>`).join('')}
     </div>
     <div class="insight-detail-fix">
-      <div class="insight-detail-block-title">${ins.type==='good'?(ru?'Как усилить':'How to build on it'):(ru?'Как исправить':'How to fix')}</div>
-      ${content.fix.map(f=>`
+      <div class="insight-detail-block-title">${ru?'Что можно проверить':'What to check'}</div>
+      ${(ins.act?[ins.act]:content.fix).map(f=>`
         <div class="insight-fix-item">
           <div class="insight-fix-check"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg></div>
           <span>${escapeHtml(f)}</span>
         </div>`).join('')}
     </div>
-    ${ins.rec?`<div style="padding:9px 11px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:4px"><span style="color:var(--accent);font-weight:700">${ru?'Совет:':'Tip:'}</span> ${escapeHtml(ins.rec)}</div>`:''}
+    ${ins.rec?`<div style="padding:9px 11px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:4px"><span style="color:var(--accent);font-weight:700">${ru?'Пояснение:':'Note:'}</span> ${escapeHtml(ins.rec)}</div>`:''}
+    ${ins.tradeIds&&ins.tradeIds.length?`<button type="button" class="insight-trades-btn wide" onclick="openInsightTrades('${ins.id}')">${ru?'Открыть сделки':'Open the trades'}: ${ins.tradeIds.length}</button>`:''}
+    ${typeof openLearningFromInsight==='function'?`<button type="button" class="insight-trades-btn wide" onclick="openLearningFromInsight('${ins.id}')">${ru?'Выбрать действие для наблюдения':'Choose an action to track'}</button>`:''}
     ${ins.id?`<div style="display:flex;gap:8px;margin-top:14px">
       <button onclick="dismissInsight('${ins.id}',${ins.dismissCount});closeModal('insightDetailModal')" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer">${ru?'✓ Запомнил':'✓ Got it'}</button>
       <button onclick="closeModal('insightDetailModal')" style="flex:1;padding:11px;border-radius:10px;border:none;background:var(--accent);font-family:var(--sans);font-size:13px;font-weight:700;color:var(--on-accent);cursor:pointer">${ru?'Закрыть':'Close'}</button>
@@ -5124,319 +5218,590 @@ function openInsightDetail(id){
 function generateInsights(){
   const insights = [];
   const t = appSettings.quickInAnalytics ? trades : trades.filter(x=>!x.quickTrade);
-  if(t.length < 3) return insights;
+  if(!t.length){
+    if(typeof MJLearning!=='undefined'&&typeof learningPrefs==='function')return MJLearning.cards(trades,{prefs:learningPrefs(),lang,net:tradeNet}).filter(c=>/^(trade_limit_|daily_limit_)/.test(c.id)&&!isInsightDismissed(c.id,c.dismissCount,3)).map(c=>({...c,icon:''}));
+    return insights;
+  }
 
-  const {wr:overallWR, pnl:overallPnl, total:overallTotal} = calcStats(t);
+  const {wr:overallWR, total:overallTotal} = calcStats(t);
   const losses = t.filter(x=>tradeOutcome(x)==='loss');
   const isRu = lang==='ru';
+  const svg = body => `<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${body}</svg>`;
+  const ICON = {
+    up:    svg('<polyline stroke-linecap="round" stroke-linejoin="round" points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline stroke-linecap="round" stroke-linejoin="round" points="17 6 23 6 23 12"/>'),
+    warn:  svg('<path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line stroke-linecap="round" x1="12" y1="9" x2="12" y2="13"/><line stroke-linecap="round" x1="12" y1="17" x2="12.01" y2="17"/>'),
+    alert: svg('<circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="12" y1="8" x2="12" y2="12"/><line stroke-linecap="round" x1="12" y1="16" x2="12.01" y2="16"/>'),
+    star:  svg('<circle cx="12" cy="8" r="6"/><path stroke-linecap="round" stroke-linejoin="round" d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>'),
+    cross: svg('<circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="15" y1="9" x2="9" y2="15"/><line stroke-linecap="round" x1="9" y1="9" x2="15" y2="15"/>'),
+    range: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>'),
+    check: svg('<path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline stroke-linecap="round" stroke-linejoin="round" points="22 4 12 14.01 9 11.01"/>'),
+    bolt:  svg('<polygon stroke-linecap="round" stroke-linejoin="round" points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
+    search:svg('<circle cx="11" cy="11" r="8"/><line stroke-linecap="round" x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+    pulse: svg('<polyline stroke-linecap="round" stroke-linejoin="round" points="22 12 18 12 15 21 9 3 6 12 2 12"/>'),
+    down:  svg('<polyline stroke-linecap="round" stroke-linejoin="round" points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline stroke-linecap="round" stroke-linejoin="round" points="17 18 23 18 23 12"/>'),
+  };
 
-  // ── HELPER ─────────────────────────────────────────
-  // opts = {id, count, threshold} — enables dismiss button; reappears after `threshold` (default 3) new occurrences
+  // ── HELPERS ─────────────────────────────────────────
+  // A card: an observation (text), its numbers (meta), what it means and does not prove (rec),
+  // one doable step (opts.act = [ru, en]) and the trades it is about (opts.trades → «Сделки»).
+  // opts = {id, count, threshold, act, trades} — the id enables «Got it»; the card comes back after
+  // `threshold` (default 3) new occurrences.
   function ins(type, icon, textRu, textEn, metaRu, metaEn, recRu, recEn, opts){
-    const id = opts?.id, dCount = opts?.count ?? 0, dThresh = opts?.threshold ?? 3;
+    const rawId=opts?.id;
+    const id = rawId==='plan_dynamics'?rawId+'_'+idPart(opts?.scopeKey||''):rawId, dCount = opts?.count ?? 0, dThresh = opts?.threshold ?? 3;
     if(id && isInsightDismissed(id, dCount, dThresh)) return;
     insights.push({
       type, icon, id, dismissCount: dCount,
       text: isRu?textRu:textEn,
       meta: isRu?metaRu:metaEn,
       rec:  recRu?(isRu?recRu:recEn):null,
+      act:  opts?.act ? (isRu?opts.act[0]:opts.act[1]) : null,
+      tradeIds: (opts?.trades||[]).map(x=>x.id),
     });
   }
+  // A user's word inside an id: unique and safe in onclick='…' (letters, digits, _ as they are, the rest by code)
+  const idPart = s => Array.from(String(s)).map(c=>/[A-Za-z0-9_]/.test(c)?c:'-'+c.codePointAt(0).toString(36)+'-').join('');
+  const money = n => (n>0?'+':n<0?'−':'')+'$'+Math.abs(n).toFixed(2);
+  const pct = n => n.toFixed(0)+'%';
+  const ruTrades = n => { const a=n%10, b=n%100; return n+' '+(a===1&&b!==11?'сделка':a>=2&&a<=4&&(b<12||b>14)?'сделки':'сделок'); };
+  const enTrades = n => n+' '+(n===1?'trade':'trades');
+  // «в 1 сделке», «в 4 сделках»
+  const ruBy = n => `${n} ${n%10===1&&n%100!==11?'сделке':'сделкам'}`;   // «по 3 сделкам»
+  const ruIn = (n, adj) => { const one = n%10===1 && n%100!==11; return `${n} ${adj?(one?adj[0]:adj[1])+' ':''}${one?'сделке':'сделках'}`; };
+  // Trades in the order they were made: by date, then by id (ids grow with time); same-day order is not claimed
+  const byTime = (a,b)=>(a.date||'').localeCompare(b.date||'') || String(a.id).localeCompare(String(b.id), undefined, {numeric:true});
+  // Facts of a group: money after costs, a missing cost («предв.»), rule-following.
+  // «firm» = every P&L known and no cost missing — only then may money read as a confident verdict.
+  const facts = list => {
+    const s = calcStats(list), pre = costsPendingIn(list);
+    const dirty = list.filter(x=>tradeDiscipline(x)==='dirty').length, clean = list.filter(x=>tradeDiscipline(x)==='clean').length;
+    return {...s, pre, dirty, clean, firm: s.unknown===0 && !pre};
+  };
+  const preRu = f => f.pre?' предв.':'', preEn = f => f.pre?' prelim.':'';
+  // «по правилам 1, с нарушением 1, без оценки 1» — the unknown never added to the followed ones
+  const rulesRu = f => `по правилам ${f.clean}, с нарушением ${f.dirty}, без оценки ${f.total-f.clean-f.dirty}`;
+  const rulesEn = f => `by the rules ${f.clean}, with a broken rule ${f.dirty}, not rated ${f.total-f.clean-f.dirty}`;
+  const winsRu = f => `прибыльных ${f.wins} из ${f.known}`, winsEn = f => `${f.wins} of ${f.known} in profit`;
+  // The positive colour only for money that is firm, in profit and made by the rules — every trade
+  // confirmed clean. No broken rule is not enough: an unanswered trade is unknown, not good.
+  const positiveType = f => f.firm && f.pnl>0 && f.total>0 && f.clean===f.total ? 'good' : 'info';
+  // Wins and losses after costs, with their money
+  const split = list => {
+    const r = {w:0, wSum:0, l:0, lSum:0, be:0, none:0};
+    list.forEach(x=>{
+      const o = tradeOutcome(x);
+      if(o==='win'){ r.w++; r.wSum+=tradeNet(x); }
+      else if(o==='loss'){ r.l++; r.lSum+=tradeNet(x); }
+      else if(o==='be') r.be++;
+      else r.none++;
+    });
+    return r;
+  };
+  const splitRu = s => [`в плюсе ${s.w}${s.w?` (${money(s.wSum)})`:''}`, `в минусе ${s.l}${s.l?` (${money(s.lSum)})`:''}`, s.be?`B/E ${s.be}`:'', s.none?`без P&L ${s.none}`:''].filter(Boolean).join(', ');
+  const splitEn = s => [`in profit ${s.w}${s.w?` (${money(s.wSum)})`:''}`, `in loss ${s.l}${s.l?` (${money(s.lSum)})`:''}`, s.be?`B/E ${s.be}`:'', s.none?`no P&L ${s.none}`:''].filter(Boolean).join(', ');
+  const worstFirst = list => [...list].sort((a,b)=>(tradeNet(a)||0)-(tradeNet(b)||0));
 
-  // ── 1. SESSION ANALYSIS (using stored session field) ─
+  // ── 1–3. SESSIONS (the stored session field) ───────
+  // Win rates compare known results only; a win rate is told as such, the money next to it
   const SESSION_LIST = ['London','New York','Asia'];
-  const sessStats = SESSION_LIST.map(s=>({
-    name:s,
-    trades: t.filter(x=>x.session===s),
-    losses: t.filter(x=>x.session===s && tradeOutcome(x)==='loss'),
-  })).map(s=>({...s, ...calcStats(s.trades)})).filter(s=>s.known>=3);   // win rates compare known results only
+  const sessStats = SESSION_LIST.map(s=>{
+    const list = t.filter(x=>x.session===s);
+    return {name:s, list, ...facts(list)};
+  }).filter(s=>s.known>=3);
 
   if(sessStats.length){
     const best  = sessStats.reduce((a,b)=>a.wr>b.wr?a:b);
     const worst = sessStats.reduce((a,b)=>a.wr<b.wr?a:b);
-    if(best!==worst){
-      ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline stroke-linecap="round" stroke-linejoin="round" points="17 6 23 6 23 12"/></svg>',
-        `Лучшая сессия: ${best.name} (WR ${best.wr?.toFixed(0)}%)`,
-        `Best session: ${best.name} (WR ${best.wr?.toFixed(0)}%)`,
-        `${best.total} сделок, P&L ${best.pnl>=0?'+':''}$${best.pnl?.toFixed(0)}`,
-        `${best.total} trades, P&L ${best.pnl>=0?'+':''}$${best.pnl?.toFixed(0)}`,
-        null,null,
-        {id:'best_sess_'+best.name, count:best.total}
+    if(best.wr>worst.wr){
+      ins(positiveType(best), ICON.up,
+        `В ${best.name} доля прибыльных ${pct(best.wr)} (${best.wins} из ${best.known}), в ${worst.name} — ${pct(worst.wr)} (${worst.wins} из ${worst.known})`,
+        `In ${best.name} ${pct(best.wr)} closed in profit (${best.wins} of ${best.known}), in ${worst.name} ${pct(worst.wr)} (${worst.wins} of ${worst.known})`,
+        `Итог: ${best.name} ${money(best.pnl)}${preRu(best)}, ${worst.name} ${money(worst.pnl)}${preRu(worst)}; в ${best.name} ${rulesRu(best)}`,
+        `Total: ${best.name} ${money(best.pnl)}${preEn(best)}, ${worst.name} ${money(worst.pnl)}${preEn(worst)}; in ${best.name} ${rulesEn(best)}`,
+        'Это различие наблюдавшихся исходов, а не доказательство качества сессии; сделка с нарушением тоже может быть прибыльной',
+        'This is a difference in the results seen, not proof of a better session; a trade with a broken rule can be in profit too',
+        {id:'best_sess_'+best.name, count:best.total, trades:best.list,
+         act:[`Откройте сделки ${best.name} и отметьте, какие входы соответствовали вашему плану`, `Open the ${best.name} trades and mark which entries followed your plan`]}
       );
-      if(worst.wr!==null && overallWR && worst.wr < overallWR-15){
-        ins('warn','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line stroke-linecap="round" x1="12" y1="9" x2="12" y2="13"/><line stroke-linecap="round" x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-          `Худшая сессия: ${worst.name} (WR ${worst.wr?.toFixed(0)}%)`,
-          `Worst session: ${worst.name} (WR ${worst.wr?.toFixed(0)}%)`,
-          `${worst.total} сделок`,`${worst.total} trades`,
-          `${worst.name}: либо только A+ сетапы с уменьшенным размером, либо пропускайте сессию`,
-          `${worst.name}: A+ setups with reduced size only — or skip the session entirely`,
-          {id:'worst_sess_'+worst.name, count:worst.total}
+      if(overallWR!==null && worst.wr < overallWR-15){
+        ins(worst.pnl<0?'warn':'info', ICON.warn,
+          `В ${worst.name} прибыльных ${worst.wins} из ${worst.known}: ${pct(worst.wr)}; по всей истории ${pct(overallWR)}, разница ${(overallWR-worst.wr).toFixed(0)} п.п.`,
+          `In ${worst.name} ${worst.wins} of ${worst.known} in profit: ${pct(worst.wr)}; in the whole history ${pct(overallWR)}, a gap of ${(overallWR-worst.wr).toFixed(0)} pp`,
+          `Итог ${worst.name} ${money(worst.pnl)}${preRu(worst)}; ${rulesRu(worst)}`,
+          `${worst.name} total ${money(worst.pnl)}${preEn(worst)}; ${rulesEn(worst)}`,
+          'Меньше побед не означает денежный убыток',
+          'Fewer wins do not mean a money loss',
+          {id:'worst_sess_'+worst.name, count:worst.total, trades:worst.list,
+           act:['Сравните сделки этой сессии по сетапам и соблюдению плана: повторяется ли конкретное нарушение?', 'Compare this session’s trades by setup and by following the plan: does one rule break repeat?']}
         );
       }
     }
-    // Session with most losses
-    const worstByLoss = sessStats.sort((a,b)=>b.losses.length-a.losses.length)[0];
-    if(worstByLoss?.losses.length>=2){
-      ins('alert','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="12" y1="8" x2="12" y2="12"/><line stroke-linecap="round" x1="12" y1="16" x2="12.01" y2="16"/></svg>',
-        `Большинство убытков: ${worstByLoss.name} сессия (${worstByLoss.losses.length} убытков)`,
-        `Most losses: ${worstByLoss.name} session (${worstByLoss.losses.length} losses)`,
-        `${((worstByLoss.losses.length/losses.length||0)*100).toFixed(0)}% всех убытков`,
-        `${((worstByLoss.losses.length/losses.length||0)*100).toFixed(0)}% of all losses`,
-        `В ${worstByLoss.name} входите только с подтверждением HTF структуры + зоны — или не входите`,
-        `In ${worstByLoss.name}: require HTF structure + liquidity zone confirmation — otherwise skip`,
-        {id:'sess_loss_'+worstByLoss.name, count:worstByLoss.losses.length}
+    // Where the losses are, not why they happened
+    const worstByLoss = [...sessStats].sort((a,b)=>b.losses-a.losses)[0];
+    if(worstByLoss.losses>=2){
+      const sl = worstByLoss.list.filter(x=>tradeOutcome(x)==='loss');
+      const lossSum = sl.reduce((s,x)=>s+tradeNet(x),0);
+      ins('warn', ICON.alert,
+        `На ${worstByLoss.name} приходится ${worstByLoss.losses} из ${losses.length} убыточных сделок и ${worstByLoss.total} из ${t.length} всех записей`,
+        `${worstByLoss.name} holds ${worstByLoss.losses} of ${losses.length} losing trades and ${worstByLoss.total} of ${t.length} records`,
+        `Сумма этих убытков ${money(lossSum)}${preRu(worstByLoss)}`,
+        `These losses total ${money(lossSum)}${preEn(worstByLoss)}`,
+        'Концентрация сама по себе не доказывает проблему времени; число и сумма убытков — разные показатели',
+        'A concentration alone does not prove a problem with the time; the number and the sum of losses are different measures',
+        {id:'sess_loss_'+worstByLoss.name, count:worstByLoss.losses, trades:worstFirst(sl),
+         act:[`Откройте эти ${ruTrades(sl.length)} и отделите убытки по плану от нарушений`, `Open these ${enTrades(sl.length)} and separate the losses by the plan from the rule breaks`]}
       );
     }
   }
 
-  // ── 2. SETUP ANALYSIS ──────────────────────────────
-  const setupGroups = {};
+  // ── 4–5. SETUPS ────────────────────────────────────
+  const setupGroups = Object.create(null);
   t.forEach(x=>{
     const k = x.setup || null;
     if(k)(setupGroups[k]=setupGroups[k]||[]).push(x);
   });
   const setupStats = Object.entries(setupGroups)
-    .map(([name,list])=>({name,...calcStats(list), losses:list.filter(x=>tradeOutcome(x)==='loss').length}))
+    .map(([name,list])=>({name, list, ...facts(list)}))
     .filter(s=>s.known>=3);   // a group without known results is not «best» or «worst»
 
   if(setupStats.length){
     const bestSetup  = setupStats.reduce((a,b)=>a.wr>b.wr?a:b);
     const worstSetup = setupStats.reduce((a,b)=>a.wr<b.wr?a:b);
+    const many = setupStats.length>1;   // with one group there is no «highest among»
     if(bestSetup.wr>=60){
-      ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path stroke-linecap="round" stroke-linejoin="round" d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>',
-        `Лучший сетап: "${bestSetup.name}" (WR ${bestSetup.wr.toFixed(0)}%)`,
-        `Best setup: "${bestSetup.name}" (WR ${bestSetup.wr.toFixed(0)}%)`,
-        `${bestSetup.total} сделок`, `${bestSetup.total} trades`, null,null,
-        {id:'best_setup', count:bestSetup.total}
+      ins(positiveType(bestSetup), ICON.star,
+        `${many?'Сетап с самой высокой долей побед: ':''}«${bestSetup.name}» — ${winsRu(bestSetup)} (${pct(bestSetup.wr)})`,
+        `${many?'Setup with the highest win rate: ':''}"${bestSetup.name}" — ${winsEn(bestSetup)} (${pct(bestSetup.wr)})`,
+        `Итог ${money(bestSetup.pnl)}${preRu(bestSetup)}; P&L известен у ${bestSetup.known} из ${bestSetup.total}; ${rulesRu(bestSetup)}`,
+        `Total ${money(bestSetup.pnl)}${preEn(bestSetup)}; P&L known for ${bestSetup.known} of ${bestSetup.total}; ${rulesEn(bestSetup)}`,
+        'Высокая доля побед не означает положительный итог или хорошее исполнение',
+        'A high win rate does not mean a positive total or good execution',
+        {id:'best_setup_'+idPart(bestSetup.name), count:bestSetup.total, trades:bestSetup.pnl<0?worstFirst(bestSetup.list):bestSetup.list,   // one id per setup: hiding one never hides another
+         act: bestSetup.pnl<0 ? ['Откройте сделки, давшие основной убыток, и проверьте соблюдение их правил', 'Open the trades behind most of the loss and check the rules they followed']
+                              : ['Проверьте, какая часть итога получена по плану, а какая — с нарушениями', 'Check how much of the total came by the plan and how much with broken rules']}
       );
     }
     if(worstSetup!==bestSetup && worstSetup.wr<40){
-      ins('alert','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line stroke-linecap="round" x1="15" y1="9" x2="9" y2="15"/><line stroke-linecap="round" x1="9" y1="9" x2="15" y2="15"/></svg>',
-        `Слабый сетап: "${worstSetup.name}" (WR ${worstSetup.wr.toFixed(0)}%)`,
-        `Weak setup: "${worstSetup.name}" (WR ${worstSetup.wr.toFixed(0)}%)`,
-        `${worstSetup.losses} убытков из ${worstSetup.known}`,
-        `${worstSetup.losses} losses out of ${worstSetup.known}`,
-        `Без BOS/CHOCH + реакции от зоны ликвидности — нет входа в "${worstSetup.name}"`,
-        `No entry in "${worstSetup.name}" without BOS/CHOCH + liquidity zone reaction`,
-        {id:'worst_setup_'+worstSetup.name.replace(/[^a-zA-Z0-9]/g,'_'), count:worstSetup.losses}
-      );
-    }
-    // Offplan specifically
-    const offplan = setupGroups['Off-plan'];
-    if(offplan && offplan.length>=2){
-      const {wr:opWR, known:opKnown} = calcStats(offplan);
-      if(opKnown>=2 && opWR<45){
-        ins('alert','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line stroke-linecap="round" x1="12" y1="9" x2="12" y2="13"/><line stroke-linecap="round" x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-          `Сделки "Off-plan" убыточны (WR ${opWR.toFixed(0)}%)`,
-          `"Off-plan" trades are unprofitable (WR ${opWR.toFixed(0)}%)`,
-          `${offplan.length} сделок`, `${offplan.length} trades`,
-          `Off-plan = нет edge. Нет сетапа из плана — нет входа, даже если "очевидно"`,
-          `Off-plan = no edge. No setup from the plan — no trade, even if it "looks obvious"`,
-          {id:'offplan_wr', count:offplan.length}
-        );
-      }
-    }
-
-    // Range / Боковик specifically
-    const range = setupGroups['Range'];
-    if(range && range.length>=2){
-      const {wr:rWR, avgRR:rRR, known:rKnown} = calcStats(range);
-      if(rKnown>=2 && rWR<45){
-        ins('warn','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>',
-          `Боковик убыточен (WR ${rWR.toFixed(0)}%)`,
-          `Range setup losing (WR ${rWR.toFixed(0)}%)`,
-          `${range.length} сделок`, `${range.length} trades`,
-          `Боковик = торгуйте только от чётких уровней H/L ренджа. Нет чёткой границы — нет сделки`,
-          `Range = trade only from clear range H/L levels. No clear boundary — no trade`,
-          {id:'range_wr', count:range.length}
-        );
-      } else if(rKnown>=2 && rWR>=55){
-        ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>',
-          `Боковик работает (WR ${rWR.toFixed(0)}%)`,
-          `Range setup working (WR ${rWR.toFixed(0)}%)`,
-          `${range.length} сделок`, `${range.length} trades`,
-          `Хорошее чтение ренджа. Продолжайте торговать от границ, добавляйте объём в сильных зонах`,
-          `Strong range reading. Keep trading from boundaries, add size at strong zones`,
-          {id:'range_wr_good', count:range.length}
-        );
-      }
-    }
-  }
-
-  // ── 3. CLEAN vs DIRTY ──────────────────────────────
-  const clean = t.filter(x=>x.checklistScore>=0.8 && x.byPlan===true && x.emotional!==true);
-  const dirty = t.filter(x=>x.checklistScore!==null && (x.checklistScore<0.6 || x.emotional===true || x.byPlan===false));
-  if(clean.length>=2 && dirty.length>=2){
-    const {wr:wClean,pnl:pClean} = calcStats(clean);
-    const {wr:wDirty,pnl:pDirty} = calcStats(dirty);
-    if(wClean && wDirty && wClean>wDirty+12){
-      ins('good','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline stroke-linecap="round" stroke-linejoin="round" points="22 4 12 14.01 9 11.01"/></svg>',
-        `Чистые сделки на ${(wClean-wDirty).toFixed(0)}% лучше грязных`,
-        `Clean trades are ${(wClean-wDirty).toFixed(0)}% better than dirty ones`,
-        `${wClean.toFixed(0)}% WR vs ${wDirty.toFixed(0)}% WR`,
-        `${wClean.toFixed(0)}% WR vs ${wDirty.toFixed(0)}% WR`,
-        `Ваш edge работает — защитите его. Торгуйте только Clean, не разменивайте статистику`,
-        `Your edge works — protect it. Trade only Clean, don't dilute your stats`,
-        {id:'clean_trades', count:clean.length}
-      );
-    }
-    const dirtyPct = (dirty.length/t.length*100);
-    if(dirtyPct>50){
-      ins('alert','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon stroke-linecap="round" stroke-linejoin="round" points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
-        `${dirtyPct.toFixed(0)}% сделок — "грязные" (нарушения дисциплины)`,
-        `${dirtyPct.toFixed(0)}% of trades are "dirty" (discipline issues)`,
-        `Чеклист, план, контроль эмоций`,`Checklist, plan, impulsive trades`,
-        `Более половины входов — без edge. Правило: не уверены на 100% — не входите`,
-        `More than half your entries have no edge. Rule: not 100% sure — you don't enter`,
-        {id:'dirty_trades', count:dirty.length}
+      ins(worstSetup.pnl<0?'warn':'info', ICON.cross,
+        `Сетап с самой низкой долей побед: «${worstSetup.name}» — ${winsRu(worstSetup)} (${pct(worstSetup.wr)})`,
+        `Setup with the lowest win rate: "${worstSetup.name}" — ${winsEn(worstSetup)} (${pct(worstSetup.wr)})`,
+        `В минусе ${worstSetup.losses} из ${worstSetup.known} с известным P&L, итог ${money(worstSetup.pnl)}${preRu(worstSetup)}; ${rulesRu(worstSetup)}`,
+        `In loss ${worstSetup.losses} of ${worstSetup.known} with a known P&L, total ${money(worstSetup.pnl)}${preEn(worstSetup)}; ${rulesEn(worstSetup)}`,
+        'Сетап нельзя объявлять убыточным по доле побед',
+        'A setup cannot be called losing by its win rate',
+        {id:'worst_setup_'+idPart(worstSetup.name), count:worstSetup.losses, trades:worstSetup.list,
+         act:['Сравните прибыльные и убыточные сделки этого сетапа по соблюдению одного конкретного правила', 'Compare this setup’s winning and losing trades on one specific rule']}
       );
     }
   }
 
-  // ── 4. MISTAKE ANALYSIS ────────────────────────────
-  const mistakeCount = {};
-  t.forEach(x=>(x.mistakes||[]).forEach(m=>{mistakeCount[m]=(mistakeCount[m]||0)+1;}));
-  const mistakeEntries = Object.entries(mistakeCount).sort((a,b)=>b[1]-a[1]);
-  if(mistakeEntries.length){
-    const [topMistake, topCount] = mistakeEntries[0];
-    // Only show if mistake appears 3+ times (meaningful pattern, not one-off)
-    if(topCount >= 3){
-    const pct = (topCount/t.length*100).toFixed(0);
-    // Losses caused by this mistake
-    const mistakeLosses = losses.filter(x=>x.mistakes?.includes(topMistake)).length;
-    ins('warn','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line stroke-linecap="round" x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-      `Частая ошибка: "${mLabel(topMistake)}" (${pct}% сделок)`,
-      `Top mistake: "${mLabel(topMistake)}" (${pct}% of trades)`,
-      `${mistakeLosses} убытков связаны с этой ошибкой`,
-      `${mistakeLosses} losses linked to this mistake`,
-      topMistake==='early_entry'?isRu?'Свеча не закрылась — нет сигнала. Ждите BOS/CHOCH + реакцию от зоны, иначе входите на предположении':'Candle hasn\'t closed — no signal. Wait for BOS/CHOCH + zone reaction, otherwise you\'re guessing'
-       :topMistake==='no_confirm'?isRu?'Неполный сигнал = случайный результат. 100% чеклист или нет входа — без исключений':'Incomplete signal = random result. 100% checklist or no entry — no exceptions'
-       :topMistake==='overtrade'?isRu?'Лимит 2 сделки в день. Третья — только если первые две чистые. После 2 убытков — стоп на день':'Max 2 trades per day. Third only if first two were clean. After 2 losses — done for the day'
-       :topMistake==='broke_plan'?isRu?'Нарушили план — не знаете, где ошиблись. Записывайте entry/SL/TP до входа и не прикасайтесь к SL после':'Breaking plan = you can\'t tell where you went wrong. Write entry/SL/TP before entry, never touch SL after'
-       :isRu?'Системная ошибка. Разберите последние 5 случаев — найдите триггер':'Systematic error. Review last 5 occurrences — find the trigger',
-      topMistake==='early_entry'?'Candle hasn\'t closed — no signal. Wait for BOS/CHOCH + zone reaction, otherwise you\'re guessing'
-       :topMistake==='no_confirm'?'Incomplete signal = random result. 100% checklist or no entry — no exceptions'
-       :topMistake==='overtrade'?'Max 2 trades per day. Third only if first two were clean. After 2 losses — done for the day'
-       :topMistake==='broke_plan'?'Breaking plan = you can\'t tell where you went wrong. Write entry/SL/TP before entry, never touch SL after'
-       :'Systematic error. Review last 5 occurrences — find the trigger',
-      {id:'mistake_'+topMistake, count:topCount}
+  // ── 6. OFF-PLAN: a plan break whatever the money; one trade is enough to look at ──
+  const offplan = setupGroups['Off-plan'];
+  if(offplan){
+    const f = facts(offplan), sp = split(offplan);
+    ins(f.pnl<0?'alert':'warn', ICON.warn,
+      `Вне плана (Off-plan) ${ruTrades(f.total)}, итог ${f.known?money(f.pnl):'неизвестен'}${preRu(f)}`,
+      `Off-plan: ${enTrades(f.total)}, total ${f.known?money(f.pnl):'unknown'}${preEn(f)}`,
+      `${splitRu(sp)}${f.known?`; WR ${pct(f.wr)}`:''}`, `${splitEn(sp)}${f.known?`; WR ${pct(f.wr)}`:''}`,
+      'Деньги учтены в общем P&L; прибыль не делает сделку вне плана сделкой по плану, а итог не показывает его причину',
+      'The money is in the overall P&L; a profit does not make an off-plan trade a trade by the plan, and the total does not show its cause',
+      {id:'offplan_wr', count:f.total, threshold:1, trades:offplan,
+       act:['Выберите одну сделку и запишите: какое условие плана не выполнилось и как вы проверите его перед следующим входом', 'Pick one trade and write down which condition of the plan was not met and how you will check it before the next entry']}
     );
-    } // end topCount >= 3
   }
 
-  // ── 5. STRATEGY EXPECTANCY ─────────────────────────
-  const stratIcon = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
-  if(overallTotal < 30){
-    ins('info', stratIcon,
-      isRu?'Недостаточно сделок для оценки стратегии':'Not enough trades to evaluate strategy',
-      'Not enough trades to evaluate strategy',
-      isRu?`${overallTotal} из 30 минимальных`:`${overallTotal} of 30 minimum`,
-      `${overallTotal} of 30 minimum`,
-      isRu?'Наберите 30 сделок по одному сетапу — только тогда статистика значима':'Collect 30 trades on one setup — only then does the data mean something',
-      'Collect 30 trades on one setup — only then does the data mean something',
-      {id:'strategy_no_data', count:overallTotal}
+  // ── 7–8. RANGE: the verdict follows the money after costs ──
+  const range = setupGroups['Range'];
+  if(range){
+    const f = facts(range), sp = split(range);
+    if(f.known>=2){
+      const kind = f.pnl>0 ? 'good' : f.pnl<0 ? 'bad' : 'flat';
+      ins(kind==='good'?positiveType(f):kind==='bad'?'warn':'info', ICON.range,
+        `Боковик (Range): итог ${money(f.pnl)}${preRu(f)} по ${ruBy(f.total)}, ${winsRu(f)}`,
+        `Range setup: total ${money(f.pnl)}${preEn(f)} over ${enTrades(f.total)}, ${winsEn(f)}`,
+        `${splitRu(sp)}; ${rulesRu(f)}`,
+        `${splitEn(sp)}; ${rulesEn(f)}`,
+        kind==='bad' ? (f.wr>=50 ? 'Частые победы не перекрыли сумму убытков; причина не установлена' : 'Итог в минусе; причина не установлена')
+          : kind==='good' ? 'Это денежный итог записей, а не оценка исполнения и не повод менять риск'
+          : 'Итог равен нулю: ни похвалы, ни предупреждения о потере',
+        kind==='bad' ? (f.wr>=50 ? 'Frequent wins did not cover the sum of the losses; the cause is not known' : 'The total is negative; the cause is not known')
+          : kind==='good' ? 'This is the money of the records, not a rating of the execution and no reason to change the risk'
+          : 'The total is zero: no praise and no loss warning',
+        {id:kind==='good'?'range_wr_good':kind==='bad'?'range_wr':'range_wr_flat', count:f.total, trades:kind==='bad'?worstFirst(range):range,
+         act: kind==='bad' ? ['Откройте сделку с наибольшим убытком и сверьте её записанный риск и исполнение с личным планом', 'Open the trade with the largest loss and compare its recorded risk and execution with your own plan']
+                           : ['Проверьте, какая часть итога получена по плану, а какая — с нарушениями', 'Check how much of the total came by the plan and how much with broken rules']}
+      );
+    }
+  }
+
+  // ── 9–10, 19–20. RULE-FOLLOWING AND MONEY ──────────
+  // tradeDiscipline keeps the money apart: a winning rule break stays a rule break
+  const clean = t.filter(x=>tradeDiscipline(x)==='clean');
+  const dirty = t.filter(x=>tradeDiscipline(x)==='dirty');
+  const rated = clean.length + dirty.length, unrated = t.length - rated;
+  const fc = facts(clean), fd = facts(dirty), spd = split(dirty);
+  // 9. both groups shown, also when the rule breaks earned more
+  if(fc.known>=2 && fd.known>=2){
+    const gap = fc.wr - fd.wr;
+    ins('info', ICON.check,
+      `По правилам прибыльных ${pct(fc.wr)} (${fc.wins} из ${fc.known}), с нарушением ${pct(fd.wr)} (${fd.wins} из ${fd.known}): разница ${Math.abs(gap).toFixed(0)} п.п.`,
+      `By the rules ${pct(fc.wr)} in profit (${fc.wins} of ${fc.known}), with a broken rule ${pct(fd.wr)} (${fd.wins} of ${fd.known}): a gap of ${Math.abs(gap).toFixed(0)} pp`,
+      `Итог по правилам ${money(fc.pnl)}${preRu(fc)}, с нарушением ${money(fd.pnl)}${preRu(fd)}; без оценки ${unrated}`,
+      `Total by the rules ${money(fc.pnl)}${preEn(fc)}, with a broken rule ${money(fd.pnl)}${preEn(fd)}; not rated ${unrated}`,
+      fd.pnl>fc.pnl ? 'Более высокий заработок нарушений не делает их хорошим исполнением'
+                    : 'Это описание прошлых сделок; при разном числе сделок суммы не доказывают превосходства',
+      fd.pnl>fc.pnl ? 'Earning more with broken rules does not make them good execution'
+                    : 'This describes past trades; with different trade counts the sums prove no advantage',
+      {id:'clean_trades', count:clean.length, trades:spd.w ? dirty.filter(x=>tradeOutcome(x)==='win') : worstFirst(dirty),
+       act: spd.w ? ['Откройте прибыльные нарушения и определите, какое правило оказалось проигнорировано', 'Open the winning rule breaks and find which rule was ignored']
+                  : ['Откройте убыточные нарушения и определите, какое правило было пропущено', 'Open the losing rule breaks and find which rule was skipped']}
+    );
+  }
+  // 10. repeated rule breaks — two are a repetition, no share needed
+  if(dirty.length>=2){
+    const why = {plan:0, mark:0, off:0, cl:0};
+    dirty.forEach(x=>{ const r = tradeDisciplineReasons(x);
+      if(x.byPlan===false) why.plan++; if((x.mistakes||[]).includes('broke_plan')) why.mark++;
+      if(x.setup==='Off-plan') why.off++; if(r.checklist) why.cl++; });
+    const top = Object.entries(why).sort((a,b)=>b[1]-a[1])[0];
+    const topRu = {plan:'ответ «не по плану»', mark:'отметка «Нарушил план»', off:'сетап Off-plan', cl:'чеклист ниже 60%'}[top[0]];
+    const topEn = {plan:'the answer «not by plan»', mark:'the mark «Broke plan»', off:'the Off-plan setup', cl:'a checklist under 60%'}[top[0]];
+    ins(dirty.length/rated>0.5 ? 'alert' : 'warn', ICON.bolt,
+      `В ${dirty.length} из ${rated} оценённых сделок отмечено нарушение${unrated?`; ещё ${unrated} без оценки`:''}`,
+      `${dirty.length} of ${rated} rated trades have a broken rule${unrated?`; ${unrated} more not rated`:''}`,
+      `Прибыльных нарушений ${spd.w}, убыточных ${spd.l}${spd.be?`, B/E ${spd.be}`:''}${spd.none?`, без P&L ${spd.none}`:''}; чаще всего — ${topRu} (${top[1]})${preRu(fd)}`,
+      `Winning rule breaks ${spd.w}, losing ${spd.l}${spd.be?`, B/E ${spd.be}`:''}${spd.none?`, no P&L ${spd.none}`:''}; most often ${topEn} (${top[1]})${preEn(fd)}`,
+      'Нарушение здесь — ваш ответ «не по плану», отметка «Нарушил план», сетап Off-plan или чеклист, где «Да» меньше 60% отвеченных пунктов; деньги этот статус не меняют',
+      'A rule break here is your answer «not by plan», the mark «Broke plan», the Off-plan setup or a checklist with «Yes» on under 60% of the answered items; money does not change it',
+      {id:'dirty_trades', count:dirty.length, trades:dirty,
+       act:['Выберите самое частое нарушенное правило и одно проверяемое действие перед входом', 'Pick the rule broken most often and one check to do before the entry']}
+    );
+  }
+  // 19. every winning rule break gets its own look, even a single one: a profit does not make it «by the rules»
+  if(spd.w>=1){
+    const wins = dirty.filter(x=>tradeOutcome(x)==='win');
+    const listed = wins.length<=3 ? wins.map(x=>`${x.pair||x.asset||'—'} ${x.date||''}: ${money(tradeNet(x))}`).join('; ') : '';
+    ins('warn', ICON.bolt,
+      spd.w===1 ? 'Сделка с нарушением правил закрыта в плюсе' : `В плюсе закрыто ${spd.w} из ${dirty.length} сделок с нарушением правил`,
+      spd.w===1 ? 'A trade with a broken rule closed in profit' : `${spd.w} of ${dirty.length} trades with a broken rule closed in profit`,
+      `${listed?listed+'; ':''}итог ${spd.w===1?'этой сделки':`этих ${spd.w}`}: ${money(spd.wSum)}; все сделки с нарушением: итог ${money(fd.pnl)}${preRu(fd)}`,
+      `${listed?listed+'; ':''}${spd.w===1?'its total':`these ${spd.w} total`} ${money(spd.wSum)}; all trades with a broken rule: total ${money(fd.pnl)}${preEn(fd)}`,
+      'Прибыль остаётся в общем P&L, но сделка с нарушением не считается исполнением по правилам и не подтверждает его; единичный исход не обосновывает повторение',
+      'The profit stays in the overall P&L, but a trade with a broken rule does not count as trading by the rules and does not confirm it; one result does not justify doing it again',
+      {id:'dirty_profit', count:spd.w, threshold:1, trades:wins,
+       act:['Откройте одну из этих сделок. Запишите нарушенное правило и условие, при котором вы пропустите такой вход в следующий раз', 'Open one of these trades. Write down the broken rule and the condition under which you will skip such an entry next time']}
+    );
+  }
+  // 20. losing trades the trader marked as by the plan: a loss alone is not a mistake
+  const planLosses = t.filter(x=>x.byPlan===true && tradeDiscipline(x)!=='dirty' && tradeOutcome(x)==='loss');
+  if(planLosses.length){
+    const sum = planLosses.reduce((s,x)=>s+tradeNet(x),0), full = planLosses.filter(x=>tradeDiscipline(x)==='clean').length;
+    const fp = facts(planLosses);
+    ins('info', ICON.check,
+      `В ${ruIn(planLosses.length, ['убыточной','убыточных'])} вы отметили соблюдение плана`,
+      planLosses.length===1 ? 'You marked a losing trade as following the plan' : `You marked ${planLosses.length} losing trades as following the plan`,
+      `Их итог ${money(sum)}${preRu(fp)}; с полным чеклистом ${full}, только ответ «по плану» ${planLosses.length-full}`,
+      `Their total ${money(sum)}${preEn(fp)}; with a full checklist ${full}, only the answer «by plan» ${planLosses.length-full}`,
+      'Убыток сам по себе не подтверждает ошибку и не доказывает правильность стратегии',
+      'A loss alone neither proves a mistake nor proves the strategy right',
+      {id:'plan_losses', count:planLosses.length, trades:worstFirst(planLosses),
+       act:['Проверьте одну сделку по записанным условиям. Если нарушение не найдено, это пример исполнения плана при убытке — не записывайте его как ошибку', 'Check one trade against its recorded conditions. If no rule was broken, it is an example of following the plan at a loss — do not log it as a mistake']}
+    );
+  }
+
+  // ── 21. PLAN ANSWERS OVER TIME ─────────────────────
+  // Two back-to-back windows of 20 explicit «by plan» answers in one strategy and revision (a display
+  // threshold, not a statistical one). It is the trader's own rating of the execution, not the money.
+  {
+    const ctxKey = x => (x.strategyId||'')+'|'+(x.strategyRevId||'');
+    const answered = t.filter(x=>x.byPlan===true||x.byPlan===false).sort(byTime);
+    if(answered.length>=20){
+      const last = answered[answered.length-1], key = ctxKey(last);
+      const same = t.filter(x=>ctxKey(x)===key).sort(byTime);
+      const ans = same.filter(x=>x.byPlan===true||x.byPlan===false);
+      const nameRu = last.strategyId ? (last.strategyName?`в стратегии «${last.strategyName}»`:'в одной стратегии') : 'без стратегии';
+      const nameEn = last.strategyId ? (last.strategyName?`in the strategy "${last.strategyName}"`:'in one strategy') : 'without a strategy';
+      if(ans.length>=40){
+        const cur = ans.slice(-20), prev = ans.slice(-40,-20);
+        const yc = cur.filter(x=>x.byPlan===true).length, yp = prev.filter(x=>x.byPlan===true).length, d = (yc-yp)*5;
+        const unans = same.slice(same.indexOf(prev[0]), same.indexOf(cur[cur.length-1])+1).filter(x=>x.byPlan!==true&&x.byPlan!==false).length;
+        const broken = cur.filter(x=>x.byPlan===false);
+        ins('info', ICON.up,
+          `Ответ «по плану» ${nameRu}: ${yc} из 20 (${yc*5}%), до этого ${yp} из 20 (${yp*5}%)${d?`: ${d>0?'+':'−'}${Math.abs(d)} п.п.`:' — доля не изменилась'}`,
+          `«By plan» answers ${nameEn}: ${yc} of 20 (${yc*5}%), before that ${yp} of 20 (${yp*5}%)${d?`: ${d>0?'+':'−'}${Math.abs(d)} pp`:' — the share did not change'}`,
+          `Два последних периода по 20 ответов${unans?`; в них ещё ${unans} без ответа о плане`:''}`,
+          `The last two periods of 20 answers${unans?`; ${unans} more records in them without a plan answer`:''}`,
+          'Это динамика вашей самооценки исполнения, а не рост прибыльности и не доказательство устойчивого улучшения',
+          'This is how your own rating of the execution moved, not a rise in profit and no proof of a lasting change',
+          {id:'plan_dynamics', scopeKey:key, count:ans.length, threshold:5, trades:broken,
+           act: broken.length ? [`Откройте последние ${broken.length===1?'нарушение':`${broken.length} нарушений`} и выберите, какое условие всё ещё пропускается`, `Open the last ${broken.length===1?'rule break':`${broken.length} rule breaks`} and pick the condition still being skipped`]
+                              : ['Продолжайте отмечать ответ о плане в каждой сделке: тогда следующий период можно будет сравнить', 'Keep answering the plan question in every trade, so the next period can be compared']}
+        );
+      } else if(ans.length>=20){
+        ins('info', ICON.up,
+          `Ответов о плане ${nameRu}: ${ans.length} из 40 для сравнения двух периодов`,
+          `Plan answers ${nameEn}: ${ans.length} of 40 to compare two periods`,
+          `Два периода по 20 ответов; до сравнения ещё ${40-ans.length}`, `Two periods of 20 answers; ${40-ans.length} more until the comparison`,
+          'Пока данных мало для вывода об изменении', 'Too few answers yet for any conclusion about a change',
+          {id:'plan_dynamics', scopeKey:key, count:ans.length, threshold:5,
+           act:['Отмечайте ответ «Следовал плану?» в каждой сделке, в том числе в быстрой записи', 'Answer «Followed plan?» in every trade, the quick entry included']}
+        );
+      }
+    }
+  }
+
+  // ── 11. MISTAKE MARKS ──────────────────────────────
+  // A mark in 3+ different trades (a repeat inside one trade does not count twice) — a co-occurrence, not a cause
+  const mistakeTrades = Object.create(null);
+  t.forEach(x=>new Set(x.mistakes||[]).forEach(m=>{(mistakeTrades[m]=mistakeTrades[m]||[]).push(x);}));
+  const mistakeEntries = Object.entries(mistakeTrades).sort((a,b)=>b[1].length-a[1].length);
+  if(mistakeEntries.length && mistakeEntries[0][1].length>=3){
+    const [topMistake, withIt] = mistakeEntries[0];
+    const f = facts(withIt), sp = split(withIt), n = withIt.length;
+    const actBy = {
+      early_entry:[`Откройте эти ${ruTrades(n)} и запишите, какого именно вашего подтверждения вы не дождались`, `Open these ${enTrades(n)} and write down which of your confirmations you did not wait for`],
+      late_entry:[`Откройте эти ${ruTrades(n)} и сверьте момент входа с моментом допуска по вашему плану`, `Open these ${enTrades(n)} and compare the entry moment with the moment your plan allows`],
+      no_confirm:[`Откройте эти ${ruTrades(n)} и запишите, какого подтверждения из вашего плана не было`, `Open these ${enTrades(n)} and write down which confirmation from your plan was missing`],
+      overtrade:[`Откройте эти ${ruTrades(n)} и сверьте число сделок в эти дни с вашим личным лимитом, если он задан`, `Open these ${enTrades(n)} and compare the trade count on those days with your own limit, if you have one`],
+      broke_plan:[`Откройте эти ${ruTrades(n)} и для каждой укажите невыполненное условие плана`, `Open these ${enTrades(n)} and name the unmet condition of the plan for each`],
+    };
+    ins('warn', ICON.search,
+      `Отметка «${mLabel(topMistake)}» — в ${n} из ${t.length} сделок: в плюсе ${sp.w}, в минусе ${sp.l}`,
+      `The mark "${mLabel(topMistake)}" — in ${n} of ${t.length} trades: in profit ${sp.w}, in loss ${sp.l}`,
+      `${splitRu(sp)}; итог ${money(f.pnl)}${preRu(f)}`,
+      `${splitEn(sp)}; total ${money(f.pnl)}${preEn(f)}`,
+      'Ошибку отметили вы; совпадение с итогом не показывает, что именно она его вызвала',
+      'You marked the mistake yourself; that it came with the result does not show it caused it',
+      {id:'mistake_'+idPart(topMistake), count:n, trades:withIt,
+       act: actBy[topMistake] || [`Откройте эти ${ruTrades(n)} и запишите, что именно означала отметка в каждой`, `Open these ${enTrades(n)} and write down what the mark meant in each`]}
+    );
+  }
+
+  // ── 12–16. PLANNED E MODEL ─────────────────────────
+  const exp = overallTotal >= 30 ? calcExpectancy(t) : null;
+  const marked = t.filter(x=>x.result==='win'||x.result==='loss'||x.result==='be');
+  const eligibleMarked = marked.filter(x=>x.result!=='win'||parseRR(x.rr)>0);
+  if(exp === null){
+    // 12. not enough data for the model: 30 is a display threshold, not a call to trade more
+    const withRR = t.filter(x=>parseRR(x.rr)).length;
+    ins('info', ICON.pulse,
+      `В истории ${ruTrades(t.length)}: результат отмечен у ${marked.length}, R:R указан у ${withRR}`,
+      `The history has ${enTrades(t.length)}: the result is marked for ${marked.length}, the R:R is given for ${withRR}`,
+      overallTotal < 30 ? `Плановая модель E показывается с 30 записей; сейчас ${overallTotal} из 30; вся история, все стратегии вместе` : 'Для модели E нужны отмеченный результат и R:R; вся история, все стратегии вместе',
+      overallTotal < 30 ? `The planned E model shows from 30 records; now ${overallTotal} of 30; whole history, all strategies together` : 'The E model needs a marked result and an R:R; whole history, all strategies together',
+      'Количество записей не доказывает качество стратегии',
+      'The number of records does not prove the quality of a strategy',
+      {id:'strategy_no_data', count:overallTotal, trades:t,
+       act:['Дополните существующие записи, где известен плановый R:R; неизвестное оставьте пустым', 'Fill in the existing records where the planned R:R is known; leave the unknown empty']}
     );
   } else {
-    const exp = calcExpectancy(t);
-    if(exp !== null){
-      // E is the planned-R model on the marked results (TP / SL, R:R), not the money after costs:
-      // the meta keeps the two bases apart, and only the real total after costs speaks of money
-      const expFmt = (exp>=0?'+':'')+exp.toFixed(2)+'R';
-      const rrVals = t.map(x=>parseRR(x.rr)).filter(Boolean);
-      const avgRR  = rrVals.length ? (rrVals.reduce((a,b)=>a+b,0)/rrVals.length).toFixed(2) : '—';
-      const markWR = (t.filter(x=>x.result==='win').length/t.length*100).toFixed(0)+'%';
-      const wrFmt  = overallWR!==null ? overallWR.toFixed(0)+'%' : '—';
-      const money  = (overallPnl>0?'+':overallPnl<0?'−':'')+'$'+Math.abs(overallPnl).toFixed(2);
-      const pre    = costsPendingIn(t);
-      const metaRu = `По отметкам: Win ${markWR}, avg RR 1:${avgRR} · после расходов: WR ${wrFmt}, P&L ${money}${pre?' предв.':''} · ${overallTotal} сделок`;
-      const metaEn = `Marked results: Win ${markWR}, avg RR 1:${avgRR} · after costs: WR ${wrFmt}, P&L ${money}${pre?' prelim.':''} · ${overallTotal} trades`;
-      if(exp < 0){
-        ins('alert', stratIcon,
-          `Плановая модель по отметкам в минусе (E = ${expFmt})`,
-          `Planned model on marked results is negative (E = ${expFmt})`,
-          metaRu, metaEn,
-          isRu?'Отрицательный E по отметкам = при таких входах и R:R план теряет ещё до расходов. Срочно пересмотрите входы':'Negative E on marked results = with these entries and R:R the plan loses even before costs. Urgently review entries',
-          'Negative E on marked results = with these entries and R:R the plan loses even before costs. Urgently review entries',
-          {id:'strategy_expectancy_bad', count:overallTotal}
-        );
-      } else if(exp < 0.2){
-        ins('warn', stratIcon,
-          `Слабая плановая модель по отметкам (E = ${expFmt})`,
-          `Weak planned model on marked results (E = ${expFmt})`,
-          metaRu, metaEn,
-          isRu?'E по отметкам близко к нулю — план едва покрывает убытки. Проверьте качество входов и дисциплину':'E on marked results near zero — the plan barely covers losses. Check entry quality and discipline',
-          'E on marked results near zero — the plan barely covers losses. Check entry quality and discipline',
-          {id:'strategy_expectancy_ok', count:overallTotal}
-        );
-      } else if(overallWR===null || overallPnl <= 0){
-        const noMoney = overallWR===null;   // no trade has a P&L: nothing to say about money yet
-        const whyEn = noMoney ? 'No trade has a P&L yet, so there is no total after costs.' : `The total after costs is ${money}: commissions and swaps eat the plan's edge.`;
-        ins('warn', stratIcon,
-          noMoney ? `Плановая модель по отметкам в плюсе (E = ${expFmt}), итог после расходов неизвестен` : `Плановая модель по отметкам в плюсе (E = ${expFmt}), но не после расходов`,
-          noMoney ? `Planned model on marked results is positive (E = ${expFmt}), the total after costs is unknown` : `Planned model on marked results is positive (E = ${expFmt}), but not after costs`,
-          metaRu, metaEn,
-          (isRu ? (noMoney ? 'У сделок пока нет P&L, итога после расходов нет.' : `Итог после расходов ${money}: комиссии и свопы съедают преимущество плана.`)+' Не масштабируйте, пока итог после расходов не в плюсе' : whyEn+" Don't scale until the total after costs is positive"),
-          whyEn+" Don't scale until the total after costs is positive",
-          {id:'strategy_expectancy_costs', count:overallTotal}
-        );
-      } else {
-        ins('good', stratIcon,
-          `Плановая модель по отметкам в плюсе (E = ${expFmt})`,
-          `Planned model on marked results is positive (E = ${expFmt})`,
-          metaRu, metaEn,
-          isRu?'Положительный E по отметкам и итог после расходов в плюсе. Не меняйте то, что работает — масштабируйте постепенно':'Positive E on marked results and a positive total after costs. Don\'t change what\'s working — scale gradually',
-          'Positive E on marked results and a positive total after costs. Don\'t change what\'s working — scale gradually',
-          {id:'strategy_expectancy_good', count:overallTotal}
-        );
-      }
-    }
-  }
-
-  // ── 6. IMPULSIVE TRADES ────────────────────────────
-  const emo = t.filter(x=>x.emotional===true);
-  const notEmo = t.filter(x=>x.emotional===false);
-  if(emo.length>=2 && notEmo.length>=2){
-    const {wr:eWR} = calcStats(emo);
-    const {wr:nWR} = calcStats(notEmo);
-    if(eWR!==null && nWR!==null && eWR<nWR-15){
-      ins('alert','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-        `Эмоциональные сделки снижают WR на ${(nWR-eWR).toFixed(0)}%`,
-        `Emotional trades reduce WR by ${(nWR-eWR).toFixed(0)}%`,
-        `${eWR.toFixed(0)}% vs ${nWR.toFixed(0)}%`,
-        `${eWR.toFixed(0)}% vs ${nWR.toFixed(0)}%`,
-        `Эмоциональный вход = торговля без edge. Правило: 10 сек паузы + чеклист перед каждой сделкой`,
-        `Emotional entry = trading without edge. Rule: 10 sec pause + checklist before every trade`,
-        {id:'emotional', count:emo.length}
+    // E is the planned-R model on the marked results (TP / SL, R:R), not the money after costs:
+    // the meta keeps the two bases apart, and only the real total after costs speaks of money.
+    // The branch reads the same rounded number as the card, so a −0.004 is not «negative −0.00R».
+    const e = Math.round(exp*100)/100 || 0;
+    const expFmt = (e<0?'−':e>0?'+':'')+Math.abs(e).toFixed(2)+'R';   // a zero has no sign
+    const share = k => pct(k/marked.length*100);
+    const mW = marked.filter(x=>x.result==='win').length, mL = marked.filter(x=>x.result==='loss').length, mB = marked.length-mW-mL;
+    const rrVals = marked.map(x=>parseRR(x.rr)).filter(Boolean);
+    const avgRR = (rrVals.reduce((a,b)=>a+b,0)/rrVals.length).toFixed(2);
+    const noMark = t.length - marked.length;
+    const f = facts(t);
+    const wrFmt = f.wr!==null ? pct(f.wr) : '—';
+    const moneyFmt = f.known ? money(f.pnl) : '—';
+    const metaRu = `По отметкам: Win ${share(mW)}, Loss ${share(mL)}, B/E ${share(mB)}${noMark?`, без отметки ${noMark}`:''}, пригодных исходов ${eligibleMarked.length} из ${t.length}, ср. плановый R:R ${rrVals.length?'1:'+avgRR:'—'}; после расходов: WR ${wrFmt}, P&L ${moneyFmt}${f.unknown?` (известен у ${f.known} из ${f.total})`:''}${preRu(f)}; ${ruTrades(overallTotal)}${f.dirty?`, с нарушением правил ${f.dirty}`:''}`;
+    const metaEn = `Marked results: Win ${share(mW)}, Loss ${share(mL)}, B/E ${share(mB)}${noMark?`, unmarked ${noMark}`:''}, eligible outcomes ${eligibleMarked.length} of ${t.length}, avg planned R:R ${rrVals.length?'1:'+avgRR:'—'}; after costs: WR ${wrFmt}, P&L ${moneyFmt}${f.unknown?` (known for ${f.known} of ${f.total})`:''}${preEn(f)}; ${enTrades(overallTotal)}${f.dirty?`, ${f.dirty} with a broken rule`:''}`;
+    const modelRu = 'Модель: среднее Win по собственному плановому R:R, Loss −1R, B/E 0R. Это не деньги и не фактический R';
+    const modelEn = 'The model: mean of Win at its own planned R:R, Loss −1R, B/E 0R. It is not money or realised R';
+    const markedRR = marked.filter(x=>parseRR(x.rr));
+    if(e < 0){
+      ins('alert', ICON.pulse,
+        `Плановая модель по отметкам в минусе (E = ${expFmt})`,
+        `Planned model on marked results is negative (E = ${expFmt})`,
+        metaRu, metaEn,
+        modelRu+'; модель и деньги могут расходиться — это не утверждение «система теряет деньги»',
+        modelEn+'; the model and the money can differ — this does not say «the system loses money»',
+        {id:'strategy_expectancy_bad', count:overallTotal, trades:markedRR,
+         act:['Сверьте отметки результата и плановые R:R в связанных сделках, затем сравните с денежными итогами', 'Check the marked results and the planned R:R of the related trades, then compare them with the money']}
+      );
+    } else if(e < 0.2){
+      ins('warn', ICON.pulse,
+        `Слабая плановая модель по отметкам (E = ${expFmt})`,
+        `Weak planned model on marked results (E = ${expFmt})`,
+        metaRu, metaEn, modelRu+'; порог 0.2R — настройка показа, а не научная граница', modelEn+'; the 0.2R line is a display setting, not a scientific one',
+        {id:'strategy_expectancy_ok', count:overallTotal, trades:markedRR,
+         act:['Проверьте полноту расходов и соответствие записанного R:R первоначальному плану', 'Check that the costs are complete and the recorded R:R matches the original plan']}
+      );
+    } else if(!f.known || f.pnl <= 0){
+      const noMoney = !f.known;   // no trade has a P&L: nothing to say about money yet
+      // What the records show about the costs. A P&L before costs (gross) minus the commission plus the
+      // swap is the total after costs; a P&L after costs (net) already has them inside, the fields only
+      // tell how much. Either way: before costs = after costs + commission − swap, when both are given.
+      // An older trade (no mode) does not say whether its P&L holds the costs: its costs stay unknown.
+      let cSum=0, wSum=0, costKnown=0;
+      t.forEach(x=>{
+        if(typeof tradeNet(x)!=='number' || !Number.isFinite(tradeNet(x))) return;
+        const c = costNum(x.commission), w = costNum(x.swap);
+        if((x.pnlMode==='gross'||x.pnlMode==='net') && Number.isFinite(c) && Number.isFinite(w)){ cSum+=c; wSum+=w; costKnown++; }
+      });
+      cSum = Math.round(cSum*100)/100; wSum = Math.round(wSum*100)/100;
+      const before = Math.round((f.pnl + cSum - wSum)*100)/100, allCosts = costKnown===f.known;
+      const cFmt = '$'+cSum.toFixed(2), wFmt = (wSum<0?'−':wSum>0?'+':'')+'$'+Math.abs(wSum).toFixed(2);
+      const after = `${money(f.pnl)}${preRu(f)}`, afterEn = `${money(f.pnl)}${preEn(f)}`;
+      const whyRu = noMoney ? 'У сделок пока нет P&L, итога после расходов нет'
+        : !allCosts ? (costKnown ? `Комиссии ${cFmt} и свопы ${wFmt} указаны у ${costKnown} из ${f.known} сделок с P&L; у остальных` : 'У сделок с P&L') + ' комиссия и своп указаны не полностью или неясно, входят ли они в P&L, поэтому итог до расходов не восстановить'
+        : before>0 ? `До расходов итог ${money(before)}; комиссии ${cFmt}, свопы ${wFmt}; после расходов ${after}`
+        : `Комиссии ${cFmt}, свопы ${wFmt}; до этих расходов итог ${money(before)} — тоже не в плюсе`;
+      const whyEn = noMoney ? 'No trade has a P&L yet, so there is no total after costs'
+        : !allCosts ? (costKnown ? `Commissions ${cFmt} and swaps ${wFmt} are given for ${costKnown} of ${f.known} trades with a P&L; for the rest` : 'For the trades with a P&L') + ' the commission and the swap are not both given, or it is unclear whether the P&L holds them, so the total before costs cannot be rebuilt'
+        : before>0 ? `Before costs the total is ${money(before)}; commissions ${cFmt}, swaps ${wFmt}; after costs ${afterEn}`
+        : `Commissions ${cFmt}, swaps ${wFmt}; before these costs the total is ${money(before)} — not positive either`;
+      ins('warn', ICON.pulse,
+        noMoney ? `Плановая модель по отметкам в плюсе (E = ${expFmt}), итог после расходов неизвестен` : `Плановая модель по отметкам в плюсе (E = ${expFmt}), а итог после расходов ${money(f.pnl)}${preRu(f)}`,
+        noMoney ? `Planned model on marked results is positive (E = ${expFmt}), the total after costs is unknown` : `Planned model on marked results is positive (E = ${expFmt}), the total after costs is ${money(f.pnl)}${preEn(f)}`,
+        metaRu, metaEn,
+        whyRu+'. Модель считает по отметкам и плановому R:R, а не по суммам',
+        whyEn+'. The model works from the marks and the planned R:R, not from the sums',
+        {id:'strategy_expectancy_costs', count:overallTotal, trades:worstFirst(t.filter(x=>tradeOutcome(x)!==null)),
+         act:['Сравните план и фактическое закрытие связанных сделок; отдельно проверьте расходы', 'Compare the plan and the real close of the related trades; check the costs apart']}
+      );
+    } else if(f.firm && f.clean===f.total){
+      // the green verdict only when the money is firm and every trade is confirmed by the rules
+      ins('good', ICON.pulse,
+        `Плановая модель по отметкам в плюсе (E = ${expFmt})`,
+        `Planned model on marked results is positive (E = ${expFmt})`,
+        metaRu, metaEn,
+        `Модель и итог после расходов в плюсе. Это описание всей истории (${ruTrades(overallTotal)}), а не проверка одной стратегии и не доказательство преимущества`,
+        `The model and the total after costs are positive. This describes the whole history (${enTrades(overallTotal)}); it does not test one strategy and is not proof of an edge`,
+        {id:'strategy_expectancy_good', count:overallTotal, trades:worstFirst(t),
+         act:['Следите, держится ли модель на новых сделках; это описание прошлого, не прогноз', 'Watch whether the model holds on new trades; it describes the past, it is no forecast']}
+      );
+    } else if(f.firm){
+      // the money is in profit, but the execution is not confirmed: a number, not a verdict
+      ins('info', ICON.pulse,
+        `Плановая модель по отметкам в плюсе (E = ${expFmt}); по правилам подтверждено ${f.clean} из ${f.total}`,
+        `Planned model on marked results is positive (E = ${expFmt}); by the rules confirmed for ${f.clean} of ${f.total}`,
+        metaRu, metaEn,
+        `Итог после расходов ${money(f.pnl)} учтён как есть, но не оценивает исполнение: с нарушением правил ${f.dirty}, без полных ответов ${f.total-f.clean-f.dirty}`,
+        `The total after costs ${money(f.pnl)} counts as it is, but it does not rate the execution: ${f.dirty} with a broken rule, ${f.total-f.clean-f.dirty} without full answers`,
+        {id:'strategy_expectancy_good', count:overallTotal, trades:dirty.length?dirty:t.filter(x=>tradeDiscipline(x)===null),
+         act: dirty.length ? ['Откройте сделки с нарушением отдельно от сделок по правилам и сравните их итоги', 'Open the trades with a broken rule apart from those by the rules and compare their totals']
+                           : ['Откройте сделки без полной оценки и дополните ответы о плане там, где можете их подтвердить', 'Open the trades without a full rating and add the plan answers where you can confirm them']}
+      );
+    } else {
+      // positive so far, but the money is not all there: no confident verdict
+      const gaps = t.filter(x=>tradeOutcome(x)===null || tradeCostsPending(x));
+      ins('info', ICON.pulse,
+        `Плановая модель по отметкам в плюсе (E = ${expFmt}), деньги — предварительно`,
+        `Planned model on marked results is positive (E = ${expFmt}), the money is preliminary`,
+        metaRu, metaEn,
+        f.unknown ? `P&L известен у ${f.known} из ${f.total} сделок: вывод о деньгах предварительный` : 'Расходы заполнены не у всех сделок: итог после расходов предварительный',
+        f.unknown ? `The P&L is known for ${f.known} of ${f.total} trades: the money verdict is preliminary` : 'Costs are not filled in for every trade: the total after costs is preliminary',
+        {id:'strategy_expectancy_good', count:overallTotal, trades:gaps,
+         act:['Дополните P&L и расходы там, где они известны; неизвестное оставьте пустым', 'Fill in the P&L and costs where they are known; leave the unknown empty']}
       );
     }
   }
 
-  // ── 7. DRAWDOWN WARNING ────────────────────────────
-  const sortedT = [...t].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  let peak=baseCapital,cur=baseCapital,maxDD=0;
-  for(const x of sortedT){
-    cur+=tradeNet(x)||0;
-    if(cur>peak) peak=cur;
-    const dd=peak>0?(peak-cur)/peak*100:0;
-    if(dd>maxDD) maxDD=dd;
-  }
-  if(maxDD>10){
-    ins('warn','<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline stroke-linecap="round" stroke-linejoin="round" points="17 18 23 18 23 12"/></svg>',
-      `Макс. просадка: ${maxDD.toFixed(1)}%`,
-      `Max drawdown: ${maxDD.toFixed(1)}%`,
-      isRu?'Снизьте размер позиций':'Consider reducing position sizes',
-      'Consider reducing position sizes',
-      `Просадка = риск 0.5%, только A+ сетапы. На просадке мстите рынку — не давайте себе этой возможности`,
-      `Drawdown = 0.5% risk, A+ setups only. In drawdown you revenge-trade — don't give yourself the option`,
-      {id:'drawdown', count:t.length}
+  // ── 17. EMOTIONAL MARK ─────────────────────────────
+  // At least two known results on each side; the gap is in percentage points
+  const emoList = t.filter(x=>x.emotional===true);
+  const fe = facts(emoList), fn = facts(t.filter(x=>x.emotional===false));
+  if(fe.known>=2 && fn.known>=2 && fe.wr<fn.wr-15){
+    ins('warn', ICON.pulse,
+      `С эмоциональной отметкой прибыльных ${fe.wins} из ${fe.known}, без неё ${fn.wins} из ${fn.known}: разница ${(fn.wr-fe.wr).toFixed(0)} п.п.`,
+      `With the emotional mark ${fe.wins} of ${fe.known} in profit, without it ${fn.wins} of ${fn.known}: a gap of ${(fn.wr-fe.wr).toFixed(0)} pp`,
+      `Итог с отметкой ${money(fe.pnl)}${preRu(fe)}, без неё ${money(fn.pnl)}${preRu(fn)}`,
+      `Total with the mark ${money(fe.pnl)}${preEn(fe)}, without it ${money(fn.pnl)}${preEn(fn)}`,
+      'Связь не доказывает причину; эмоциональная отметка сама по себе не нарушение',
+      'A link does not prove a cause; the emotional mark is not a rule break by itself',
+      {id:'emotional', count:fe.total, trades:emoList,
+       act:['В двух сделках с этой отметкой опишите состояние перед входом и проверьте, нарушили ли вы конкретное правило', 'In two trades with this mark describe your state before the entry and check whether you broke a specific rule']}
     );
   }
 
-  // Sort by priority: alert > warn > good > info
+  // ── 18. DRAWDOWN ───────────────────────────────────
+  // Only against a known starting capital: without it no percent of the account can be told.
+  // The largest fall from a peak in the history, and apart from it how far below the peak the account is now.
+  if(baseCapital>0){
+    const sortedT = [...t].sort(byTime);
+    let peak=baseCapital, cur=baseCapital, maxDD=0, ddPeak=baseCapital, low=baseCapital, peakAt=-1, ddFrom=-1, ddTo=-1;
+    sortedT.forEach((x,i)=>{
+      const v = tradeNet(x);
+      if(typeof v==='number' && Number.isFinite(v)) cur+=v;
+      if(cur>peak){ peak=cur; peakAt=i; }
+      if(cur<low) low=cur;
+      const dd=(peak-cur)/peak*100;
+      if(dd>maxDD){ maxDD=dd; ddPeak=peak; ddFrom=peakAt+1; ddTo=i; }
+    });
+    const nowDD = (peak-cur)/peak*100;
+    const f = facts(t);
+    if(low<=0.005){
+      // the account worked out from the capital reached zero or went below: no percent of it is told.
+      // That alone does not prove the capital setting wrong — deposits and withdrawals are not in the journal.
+      const zero = low>-0.005;
+      ins('warn', ICON.down,
+        zero ? 'Убытки равны начальному капиталу из настроек' : 'Убытки больше начального капитала из настроек',
+        zero ? 'The losses equal the starting capital in the settings' : 'The losses exceed the starting capital in the settings',
+        `Капитал $${baseCapital.toFixed(2)}, наименьший расчётный остаток ${zero?'$0.00':money(low)}${preRu(f)}; процент просадки не считается`,
+        `Capital $${baseCapital.toFixed(2)}, the lowest worked-out balance ${zero?'$0.00':money(low)}${preEn(f)}; no drawdown percent is given`,
+        'Остаток считается как капитал из настроек плюс итог сделок; пополнения и выводы журнал не знает',
+        'The balance is the capital in the settings plus the trades’ totals; the journal does not know deposits or withdrawals',
+        {id:'drawdown', count:t.length,
+         act:['Если капитал указан не полностью, сверьте его в настройках', 'If the capital is not the whole account, check it in the settings']}
+      );
+    } else if(maxDD>10){
+      ins('warn', ICON.down,
+        `Наибольшая просадка за историю: ${maxDD.toFixed(1)}%`,
+        `Largest drawdown in the history: ${maxDD.toFixed(1)}%`,
+        `От пика $${ddPeak.toFixed(2)}; сейчас ${nowDD.toFixed(1)}% ниже пика; расчёт по записанным закрытым сделкам${f.unknown?`, без P&L не учтено: ${f.unknown}`:''}${preRu(f)}`,
+        `From a peak of $${ddPeak.toFixed(2)}; now ${nowDD.toFixed(1)}% below the peak; worked out from the recorded closed trades${f.unknown?`, left out without a P&L: ${f.unknown}`:''}${preEn(f)}`,
+        'Это не текущая угроза и не внутридневная просадка; пополнения, выводы и сделки без P&L ограничивают расчёт',
+        'This is no current threat and no intraday drawdown; deposits, withdrawals and trades without a P&L limit the figure',
+        {id:'drawdown', count:t.length, trades:ddTo>=ddFrom && ddFrom>=0 ? sortedT.slice(ddFrom, ddTo+1) : [],
+         act:['Откройте период снижения и сверьте его с действовавшими личными ограничениями риска', 'Open the period of the fall and compare it with the risk limits you had then']}
+      );
+    }
+  }
+
+  // ── 27. DATA FOR THE REVIEW ────────────────────────
+  // What is missing in the last 20 records; the groups can overlap and are not added up
+  {
+    const recent = [...t].sort(byTime).slice(-20);
+    const noPlan = recent.filter(x=>x.byPlan!==true&&x.byPlan!==false);
+    const noPnl = recent.filter(x=>tradeOutcome(x)===null);
+    const noCosts = recent.filter(tradeCostsPending);
+    const parts = [[noPlan,'без ответа о плане','without a plan answer'],[noPnl,'без P&L','without a P&L'],[noCosts,'без расходов','without costs']].filter(p=>p[0].length);
+    if(parts.length){
+      const first = parts[0];
+      ins('info', ICON.search,
+        `В последних ${recent.length} записях: ${parts.map(p=>`${p[1]} — ${p[0].length}`).join(', ')}`,
+        `In the last ${recent.length} records: ${parts.map(p=>`${p[2]} — ${p[0].length}`).join(', ')}`,
+        parts.length>1 ? 'Эти группы могут пересекаться' : `${first[0].length} из ${recent.length}`,
+        parts.length>1 ? 'These groups can overlap' : `${first[0].length} of ${recent.length}`,
+        'Выводы инсайтов строятся только на заполненном; незаполненное не считается ни ошибкой, ни соблюдением',
+        'The insights use only what is filled in; an empty field counts neither as a mistake nor as following the rules',
+        {id:'data_gaps', count:noPlan.length+noPnl.length+noCosts.length, trades:first[0],
+         act:[`Откройте записи ${first[1]} и заполните только то, что можете подтвердить`, `Open the records ${first[2]} and fill in only what you can confirm`]}
+      );
+    }
+  }
+
+  // 22–26: learning uses the same analytics subset; day limits deliberately use the whole account.
+  if(typeof MJLearning!=='undefined' && typeof learningPrefs==='function'){
+    const prefs=learningPrefs();
+    const rows=MJLearning.cards(t,{prefs,lang,net:tradeNet});
+    const dayRows=MJLearning.cards(trades,{prefs,lang,net:tradeNet}).filter(i=>/^(trade_limit_|daily_limit_)/.test(i.id));
+    for(const card of [...rows.filter(i=>!/^(trade_limit_|daily_limit_)/.test(i.id)),...dayRows]){
+      const scope=card.id==='mistake_dynamics'?(prefs.tracking?.id||''):card.id==='action_progress'?(prefs.action?.id||''):'';
+      card.id+=scope?'_'+idPart(scope):'';
+      if(!isInsightDismissed(card.id,card.dismissCount,3))insights.push({...card,icon:ICON.search});
+    }
+  }
+  // Sort by priority: alert > warn > good > info. Every fired card is kept: «Все» shows them all.
   const order = {alert:0,warn:1,good:2,info:3};
   insights.sort((a,b)=>(order[a.type]??3)-(order[b.type]??3));
 
-  return insights.slice(0,7);
+  return insights;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5541,7 +5906,7 @@ function renderHome(){
     document.getElementById('discBar').style.background = col;
     // only trades with an answer count; none answered → «—», as in the progress tab
     const planN = trades.filter(x=>x.byPlan===true||x.byPlan===false).length;
-    const clN   = trades.filter(x=>x.checklistScore!==null&&x.checklistScore!==undefined&&!x.quickTrade).length;
+    const clN   = trades.filter(x=>checklistScoreOf(x)!==null&&!x.quickTrade).length;
     document.getElementById('discPlan').textContent = planN ? Math.round(disc.byPlan / planN * 100) + '%' : '—';
     document.getElementById('discChecklist').textContent = clN ? Math.round(disc.clFull / clN * 100) + '%' : '—';
     document.getElementById('discEmotional').textContent = disc.emotional;
@@ -5617,14 +5982,19 @@ function renderInsights(showAll){
   const list = _insightsShowAll ? ins : ins.slice(0,1);
   const iconColor = i => i.type==='good'?'var(--positive)':i.type==='alert'?'var(--negative)':i.type==='warn'?'var(--warning)':'var(--info-2)';
 
+  // A setup name or a mistake mark is the user's text: shown as text, never as markup.
+  // A sum keeps its sign next to it on a narrow screen («−$98.00», not «−» / «$98.00»).
+  const view = s => escapeHtml(s).replace(/[+−]?\$\d[\d.,]*/g, '<span class="insight-num">$&</span>');
   let html = list.map(i=>`
     <div class="insight-card type-${i.type}" onclick="openInsightDetail('${i.id}')">
       ${i.id?`<button class="insight-dismiss" onclick="event.stopPropagation();dismissInsight('${i.id}',${i.dismissCount})">${ru?'Запомнил':'Got it'}</button>`:''}
-      <div style="display:flex;align-items:flex-start;gap:9px;${i.id?'padding-right:66px':''}">
+      <div style="display:flex;align-items:flex-start;gap:9px">
         <div style="flex:1;min-width:0">
-          <div class="insight-text">${i.text}</div>
-          ${i.meta?`<div class="insight-meta">${i.meta}</div>`:''}
-          ${i.rec?`<div class="insight-rec"><span>${ru?'Совет':'Tip'}</span>${i.rec}</div>`:''}
+          <div class="insight-text"${i.id?' style="padding-right:92px"':''}>${view(i.text)}</div>
+          ${i.meta?`<div class="insight-meta">${view(i.meta)}</div>`:''}
+          ${i.rec?`<div class="insight-rec"><span>${ru?'Пояснение':'Note'}</span>${view(i.rec)}</div>`:''}
+          ${i.act?`<div class="insight-act"><span>${ru?'Действие':'Step'}</span>${view(i.act)}</div>`:''}
+          ${i.tradeIds&&i.tradeIds.length?`<button type="button" class="insight-trades-btn" onclick="event.stopPropagation();openInsightTrades('${i.id}')">${ru?'Сделки':'Trades'}: ${i.tradeIds.length}</button>`:''}
         </div>
       </div>
     </div>`).join('');
@@ -5636,6 +6006,11 @@ function renderInsights(showAll){
         ${ru?`Ещё ${more} ${plural(more,'инсайт','инсайта','инсайтов')}`:`${more} more ${more===1?'insight':'insights'}`}
       </button></div>`;
   }
+  // What the cards are built from: the whole history, not a date or one strategy
+  const quick = appSettings.quickInAnalytics;
+  html += `<div class="insights-scope">${ru
+    ? `Вся история${quick?', с быстрыми сделками':', без быстрых сделок'}; все стратегии вместе. Дневные лимиты учитывают все записи аккаунта, включая быстрые. Доля побед и деньги — разные цифры.`
+    : `Whole history${quick?', quick trades included':', quick trades left out'}; all strategies together. Day limits count all account records, including quick entries. The win rate and money are different numbers.`}</div>`;
 
   wrap.innerHTML = html;
   renderDismissedSection(wrap);
@@ -5695,36 +6070,31 @@ function goalHTML(g){
 
 function getGoalLabel(type){ return T('goal_'+type)||type; }
 
+// A short note under a goal: what the number is and where to look — no ready-made trading rules,
+// no risk or size figures; the trader's own strategy sets those.
 function getGoalTip(g, pct, cur){
   const ru = lang==='ru';
   const done = pct >= 100;
   switch(g.type){
     case 'winrate':
-      if(done)  return ru?'Цель достигнута. Поддерживайте стабильность — не меняйте рабочую систему':'Goal reached. Maintain consistency — don\'t change what\'s working';
-      if(pct<50) return ru?'WR отстаёт — входите только при 100% подтверждении сетапа. Меньше сделок, выше качество':'WR lagging — enter only at 100% setup confirmation. Fewer trades, higher quality';
-      if(pct<75) return ru?'Прогресс есть. Ищите A+ точки входа — один хороший вход лучше трёх сомнительных':'Progress made. Hunt A+ entries — one quality entry beats three mediocre ones';
-      return ru?'Близко к цели. Не меняйте стратегию — продолжайте торговать только свой сетап':'Close to target. Don\'t change strategy — keep trading your setup only';
+      if(done)  return ru?'Цель достигнута. Доля побед — не деньги: сверьте её с итогом после расходов':'Goal reached. A win rate is not money: compare it with the total after costs';
+      return ru?'Доля побед считается по сделкам с известным P&L. Сравните прибыльные и убыточные сделки по соблюдению своих правил':'The win rate counts trades with a known P&L. Compare winning and losing trades by how they followed your rules';
     case 'trades':
-      if(done)  return ru?'Выборка набрана. Теперь анализируйте статистику и ищите паттерны':'Sample complete. Now analyze your statistics and find patterns';
-      if(pct<50) return ru?'Набирайте выборку без спешки. Качество каждой сделки важнее скорости':'Build sample without rush. Quality of each trade matters more than speed';
-      return ru?'Хороший темп. Не торгуйте ради числа — только подтверждённые сетапы':'Good pace. Don\'t trade for count — confirmed setups only';
+      if(done)  return ru?'Выборка набрана. Посмотрите инсайты и разберите связанные сделки':'The sample is complete. Look at the insights and review the related trades';
+      return ru?'Число сделок — порог для статистики, а не повод торговать чаще':'The trade count is a threshold for the statistics, not a reason to trade more often';
     case 'pnl':
-      if(done)  return ru?'Цель по P&L выполнена. Зафиксируйте подход, который привёл к результату':'P&L goal reached. Document the approach that got you here';
-      if(cur<0) return ru?'P&L в минусе — снизьте риск до 0.5% на сделку, торгуйте только лучшие сетапы':'P&L negative — reduce risk to 0.5% per trade, trade best setups only';
-      if(pct<50) return ru?'Медленный старт. Один убыток не должен съедать больше трёх побед — контролируйте размер':'Slow start. One loss shouldn\'t cancel three wins — control position size';
-      return ru?'Прогресс есть. Не рискуйте ради ускорения — стабильность важнее рывка':'Progress is there. Don\'t rush — consistency beats acceleration';
+      if(done)  return ru?'Цель по P&L выполнена. Посмотрите, какая часть итога получена по плану, а какая — с нарушениями':'P&L goal reached. Look at how much of the total came by the plan and how much with broken rules';
+      if(cur<0) return ru?'P&L в минусе. Сверьте убыточные сделки с правилами риска своей стратегии':'P&L is negative. Compare the losing trades with your strategy’s risk rules';
+      return ru?'P&L считается после расходов; незаполненные расходы делают итог предварительным':'P&L is after costs; missing costs make the total preliminary';
     case 'discipline':
-      if(done)  return ru?'Дисциплина на уровне. Это ваш главный edge — поддерживайте':'Discipline level achieved. This is your main edge — maintain it';
-      if(pct<50) return ru?'Дисциплина просела. Чеклист перед каждым входом — не опционально. Одно нарушение = стоп на день':'Discipline dropped. Checklist before every entry — not optional. One violation = stop for the day';
-      return ru?'Прогресс есть. Система и среда важнее мотивации — уберите лишние триггеры':'Progress made. Systems beat motivation — remove triggers that cause violations';
+      if(done)  return ru?'Дисциплина на уровне цели. Она считается по вашим ответам о плане, чеклисте и эмоциях':'Discipline is at the target. It is counted from your answers about the plan, the checklist and emotions';
+      return ru?'Откройте сделки с нарушением и выберите одно правило для проверки перед входом':'Open the trades with a broken rule and pick one rule to check before the entry';
     case 'rr':
-      if(done)  return ru?'R:R достигнут. Не двигайте SL — позволяйте победителям идти до TP':'R:R reached. Don\'t move SL — let winners run to TP';
-      if(pct<50) return ru?'R:R ниже цели. Не берите ранний TP — один хороший выход компенсирует два убытка':'R:R below target. Don\'t take early TP — one good exit offsets two losses';
-      return ru?'R:R растёт. Режьте убытки рано, держите победителей до TP — не выходите на эмоциях':'R:R growing. Cut losses early, hold winners to TP — don\'t exit emotionally';
+      return ru?'R:R здесь — плановый, по входу, стопу и цели; сверьте его с тем, как сделки закрывались на деле':'The R:R here is the planned one, from the entry, stop and target; compare it with how the trades really closed';
     case 'drawdown':
-      return ru?`Лимит просадки: ${g.target}%. После достижения — обязательный стоп, разбор причин, снижение риска до восстановления`:`Drawdown limit: ${g.target}%. When hit — mandatory stop, review causes, reduce risk until recovered`;
+      return ru?`Лимит просадки: ${g.target}%. Что делать при его достижении — решает ваша стратегия`:`Drawdown limit: ${g.target}%. What to do when it is hit is up to your strategy`;
     default:
-      return ru?'Следуйте плану. Стабильность важнее скорости':'Stick to the plan. Consistency beats speed';
+      return ru?'Сверяйте результат со своими правилами':'Compare the result with your own rules';
   }
 }
 
@@ -5897,7 +6267,7 @@ function renderTrades(resetExpand=false){
   const setups = [...new Set(trades.map(t=>t.setup).filter(Boolean))];
   const sel = document.getElementById('filterSetup');
   const cur = sel.value;
-  sel.innerHTML = `<option value="">${T('filter_setups')}</option>` + setups.map(s=>`<option value="${s}">${escapeHtml(setupDisplayName(s))}</option>`).join('');
+  sel.innerHTML = `<option value="">${T('filter_setups')}</option>` + setups.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(setupDisplayName(s))}</option>`).join('');
   sel.value = cur;
   buildStyledSelect('filterSetup'); // options changed — rebuild the visible list
 }
@@ -6069,7 +6439,7 @@ const _inValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'val
 function dpFormat(v){
   const ru = lang==='ru';
   if(!v) return ru?'Выберите дату':'Pick a date';
-  const today = new Date().toISOString().split('T')[0];
+  const today = journalToday();
   const yest  = new Date(Date.now()-86400000).toISOString().split('T')[0];
   const txt = new Date(v+'T12:00:00').toLocaleDateString(ru?'ru-RU':'en-GB',{day:'numeric',month:'long',year:'numeric'}).replace(' г.','');
   if(v===today) return (ru?'Сегодня, ':'Today, ')+txt;
@@ -6096,7 +6466,7 @@ function enhanceDate(inp){
   const st = {y:0,m:0};
   const draw = ()=>{
     const ru = lang==='ru';
-    const v = inp.value, today = new Date().toISOString().split('T')[0];
+    const v = inp.value, today = journalToday();
     const first = new Date(st.y, st.m, 1);
     const lead = (first.getDay()+6)%7, days = new Date(st.y, st.m+1, 0).getDate();
     const wd = ru?['Пн','Вт','Ср','Чт','Пт','Сб','Вс']:['Mo','Tu','We','Th','Fr','Sa','Su'];
@@ -6196,7 +6566,7 @@ function toggleBulkItem(id,e){
   if(!bulkMode) return;
   e.stopPropagation();
   if(bulkSelected.has(id)) bulkSelected.delete(id); else bulkSelected.add(id);
-  const card=document.querySelector(`.tc[data-id="${id}"]`);
+  const card=Array.from(document.querySelectorAll('.tc')).find(c=>c.dataset.id===String(id));
   if(card){
     const sel=bulkSelected.has(id);
     card.style.outline=sel?'2px solid var(--accent)':'none';
@@ -6305,7 +6675,7 @@ function renderAnalytics(){
     : `<div style="color:var(--text-muted);font-size:12px">${T('no_session_data')}</div>`;
 
   // Setups — group by actual setup name only (quick trades without a setup are skipped)
-  const setupGroups = {};
+  const setupGroups = Object.create(null);
   t.forEach(x=>{
     const key = x.setup || null;
     if(key){ (setupGroups[key]=setupGroups[key]||[]).push(x); }
@@ -6379,7 +6749,7 @@ function renderAnalytics(){
   document.getElementById('mistakesCard').innerHTML = mistakeList.length
     ? mistakeList.map(([m,c])=>`
         <div class="mistake-row">
-          <div class="mistake-name">${mLabel(m)}</div>
+          <div class="mistake-name">${escapeHtml(mLabel(m))}</div>
           <div class="mistake-bar-wrap"><div class="mistake-bar" style="width:${c/maxMist*100}%"></div></div>
           <div class="mistake-count">${c}</div>
         </div>`).join('')
@@ -6405,9 +6775,9 @@ function renderAnalytics(){
     return `<div class="setup-row"><div class="setup-name">${b.label}</div><div class="setup-pills"><span class="s-pill ${wr>=50?'g':'r'}">${wr!==null?wr.toFixed(0)+'%':'—'}</span><span class="s-pill">${total} ${lang==='ru'?plural(total,'сделка','сделки','сделок'):(total===1?'trade':'trades')}</span></div></div>`;
   }).join('');
 
-  // Clean vs Dirty trades
-  const clean = t.filter(x=>x.checklistScore>=0.8 && x.byPlan===true && x.emotional!==true);
-  const dirty = t.filter(x=>x.checklistScore!==null && (x.checklistScore<0.6 || x.emotional===true || x.byPlan===false));
+  // Clean vs Dirty trades — the same rule as the insights (tradeDiscipline)
+  const clean = t.filter(x=>tradeDiscipline(x)==='clean');
+  const dirty = t.filter(x=>tradeDiscipline(x)==='dirty');
   const neutral = t.length - clean.length - dirty.length;
   const cdEl = document.getElementById('cleanDirtyCard');
   if(t.length>0){
@@ -6431,7 +6801,7 @@ function renderAnalytics(){
 
   // Error analysis — shows mistakes by frequency, % of all trades, P&L impact
   const lossEl = document.getElementById('lossCard');
-  const allMistakeStats = {};
+  const allMistakeStats = Object.create(null);
   t.forEach(x=>{
     (x.mistakes||[]).forEach(m=>{
       if(!allMistakeStats[m]) allMistakeStats[m]={count:0, trades:0, pnl:0};
@@ -6460,7 +6830,7 @@ function renderAnalytics(){
       return `
         <div style="margin-bottom:14px">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-            <div style="font-size:12px;font-weight:600;color:var(--text)">${mLabel(m)}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${escapeHtml(mLabel(m))}</div>
             <div style="display:flex;gap:6px;align-items:center">
               <span style="font-size:12px;font-weight:700;color:var(--negative);background:var(--negative-muted);border-radius:5px;padding:2px 6px">${pct}%</span>
               <span style="font-size:12px;color:${pnlCol};font-family:var(--sans)">${pnlStr}</span>
@@ -6542,7 +6912,7 @@ function renderProgress(){
         <div class="disc-bar-wrap"><div class="disc-bar" style="width:${disc.score}%;background:${col}"></div></div>
         <div class="disc-items">
           <div class="disc-item"><div class="disc-item-val" style="color:var(--positive)">${(()=>{const n=trades.filter(x=>x.byPlan===true||x.byPlan===false).length;return n?Math.round(disc.byPlan/n*100)+'%':'—';})()}</div><div class="disc-item-lbl">${T('disc_byplan_lbl')}</div></div>
-          <div class="disc-item"><div class="disc-item-val" style="color:var(--blue)">${(()=>{const n=trades.filter(x=>x.checklistScore!==null&&x.checklistScore!==undefined&&!x.quickTrade).length;return n?Math.round(disc.clFull/n*100)+'%':'—';})()}</div><div class="disc-item-lbl">${T('disc_checklist_lbl')}</div></div>
+          <div class="disc-item"><div class="disc-item-val" style="color:var(--blue)">${(()=>{const n=trades.filter(x=>checklistScoreOf(x)!==null&&!x.quickTrade).length;return n?Math.round(disc.clFull/n*100)+'%':'—';})()}</div><div class="disc-item-lbl">${T('disc_checklist_lbl')}</div></div>
           <div class="disc-item"><div class="disc-item-val" style="color:var(--negative)">${disc.emotional}</div><div class="disc-item-lbl">${T('disc_emotional_lbl')}</div></div>
         </div>
       </div>`;
@@ -6722,19 +7092,19 @@ function tcHTML(t){
     ? (()=>{ const _n=parseFloat(t.rr.replace('1:','')); return `<span class="tc-rr" style="color:${rrColor(_n)}">R:R ${escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n)))}</span>`; })()
     : `<span class="tc-rr" style="color:var(--text-muted)">—</span>`;
 
-  const isClean = t.checklistScore>=0.8 && t.byPlan===true && t.emotional!==true;
-  const isDirty = t.checklistScore!==null && t.checklistScore!==undefined &&
-                  (t.checklistScore<0.6 || t.emotional===true || t.byPlan===false);
+  const discipline = tradeDiscipline(t);   // the same rule as the insights
+  const isClean = discipline==='clean';
+  const isDirty = discipline==='dirty';
   const hasMistakes = t.mistakes?.length > 0;
 
   let qualityHTML = '';
   if(isClean){
     qualityHTML = `<span class="tc-quality-lbl" style="color:var(--positive)"><span class="tc-quality-dot" style="background:var(--positive)"></span>${lang==='ru'?'Чистая':'Clean'}</span>`;
   } else if(isDirty){
-    const mistakeLabel = hasMistakes ? `, ${mLabel(t.mistakes[0])}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}` : '';
+    const mistakeLabel = hasMistakes ? `, ${escapeHtml(mLabel(t.mistakes[0]))}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}` : '';
     qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--negative)"></span>${lang==='ru'?'Грязная':'Dirty'}${mistakeLabel}</span>`;
   } else if(hasMistakes){
-    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--warning)"></span>${mLabel(t.mistakes[0])}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}</span>`;
+    qualityHTML = `<span class="tc-quality-lbl" style="color:var(--text-muted)"><span class="tc-quality-dot" style="background:var(--warning)"></span>${escapeHtml(mLabel(t.mistakes[0]))}${t.mistakes.length>1?` +${t.mistakes.length-1}`:''}</span>`;
   }
 
   // ── Tags (only if they exist, compact) ───────────
@@ -6742,7 +7112,7 @@ function tcHTML(t){
     ? `<div class="tc-tags">${t.tags.map(tg=>`<span class="tag">#${escapeHtml(tg)}</span>`).join('')}</div>`
     : '';
 
-  return `<div class="tc ${resCls}" data-id="${t.id}" onclick="bulkMode?toggleBulkItem('${t.id}',event):openDetail('${t.id}')">
+  return `<div class="tc ${resCls}" data-id="${escapeHtml(t.id)}" onclick="bulkMode?toggleBulkItem(${escapeHtml(JSON.stringify(t.id))},event):openDetail(${escapeHtml(JSON.stringify(t.id))})">
     <div class="tc-body">
       ${dateCol}
       <div class="tc-text">
@@ -6771,7 +7141,7 @@ function tradeRowHTML(t){
   const rrText = t.rr ? escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n))) : '—';
   const dirHTML = t.dir ? `<span style="color:${t.dir==='buy'?'var(--positive)':'var(--negative)'};font-weight:600">${t.dir==='buy'?'Buy':'Sell'}</span>` : '—';
   const pnlHTML = hasPnl ? `<span class="mono" style="color:${pnlCol};font-weight:600">${pnlNum>0?'+':pnlNum<0?'−':''}$${Math.abs(pnlNum).toFixed(2)}</span>${tradeCostsPending(t)?`<span class="tc-prelim">${lang==='ru'?'предв.':'prelim.'}</span>`:''}` : '—';
-  return `<tr class="tt-row ${resCls}" data-id="${t.id}" onclick="bulkMode?toggleBulkItem('${t.id}',event):openDetail('${t.id}')">
+  return `<tr class="tt-row ${resCls}" data-id="${escapeHtml(t.id)}" onclick="bulkMode?toggleBulkItem(${escapeHtml(JSON.stringify(t.id))},event):openDetail(${escapeHtml(JSON.stringify(t.id))})">
     <td class="mono">${ds}</td>
     <td class="tt-pair">${escapeHtml(t.pair||t.asset||'—')}${syncLabelHTML(t.id)}</td>
     <td class="tt-muted">${m.label}</td>
@@ -6803,7 +7173,7 @@ function emptyHTML(title,sub){
 // ── Date group label ────────────────────────────────
 function dateGroupLabel(dateStr){
   if(!dateStr) return lang==='ru'?'Раньше':'Older';
-  const today    = new Date().toISOString().split('T')[0];
+  const today    = journalToday();
   const yesterday= new Date(Date.now()-86400000).toISOString().split('T')[0];
   if(dateStr===today)     return lang==='ru'?'Сегодня':'Today';
   if(dateStr===yesterday) return lang==='ru'?'Вчера':'Yesterday';
@@ -6869,7 +7239,7 @@ function calcTraderScore(){
   const rrScore       = avgRR ? Math.min((avgRR-0.5)/2.5*100,100) : 40; // 3:1 = perfect
   const mistakeCount  = trades.reduce((s,t)=>s+(t.mistakes?.length||0),0);
   const mistakeScore  = Math.max(0, 100 - (mistakeCount/trades.length)*40);
-  const cleanTrades   = trades.filter(t=>t.checklistScore>=0.8&&t.byPlan===true&&t.emotional!==true);
+  const cleanTrades   = trades.filter(t=>tradeDiscipline(t)==='clean');   // the same rule as the insights
   const cleanScore    = (cleanTrades.length/trades.length)*100;
 
   const score = Math.round(
@@ -6905,16 +7275,16 @@ function openDetail(id){
   const ds=t.date?new Date(t.date+'T12:00:00').toLocaleDateString(lang==='ru'?'ru-RU':'en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
   const rrDisplay=t.rr?escapeHtml(t.rr.replace(/1:([\d.]+)/,(_,n)=>'1:'+fmtRR(n))):'—';
   const detailImgSrc = t.img || t.img_url || null;
-  const imgBlock=detailImgSrc?`<button type="button" class="detail-img-wrap" onclick="openFullscreen('${t.id}')" aria-label="${escapeHtml(lang==='ru'?'Открыть скриншот на весь экран':'Open the screenshot full screen')}"><img class="detail-img ${lazyCls(detailImgSrc)}" src="${escapeHtml(detailImgSrc)}" alt="${escapeHtml(T('img_chart_alt')+' '+(t.pair||t.asset||''))}" decoding="async" onload="imgReady(this)" onerror="imgFail(this)"><span class="detail-img-ov" aria-hidden="true"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7"/></svg></span></button>`:'';
+  const imgBlock=detailImgSrc?`<button type="button" class="detail-img-wrap" onclick="openFullscreen(${escapeHtml(JSON.stringify(t.id))})" aria-label="${escapeHtml(lang==='ru'?'Открыть скриншот на весь экран':'Open the screenshot full screen')}"><img class="detail-img ${lazyCls(detailImgSrc)}" src="${escapeHtml(detailImgSrc)}" alt="${escapeHtml(T('img_chart_alt')+' '+(t.pair||t.asset||''))}" decoding="async" onload="imgReady(this)" onerror="imgFail(this)"><span class="detail-img-ov" aria-hidden="true"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 3h6m0 0v6m0-6l-7 7M9 21H3m0 0v-6m0 6l7-7"/></svg></span></button>`:'';
   // Checklist detail
   const clKeys=[{id:'liq',key:'cl_liq'},{id:'str',key:'cl_str'},{id:'htf',key:'cl_htf'},{id:'news',key:'cl_news'},{id:'risk',key:'cl_risk'}];
   const clDetail=t.checklistDetail;
   const clBlock=clDetail&&Object.keys(clDetail).length
     ?`<div class="dblock"><div class="dblock-title">${T('detail_checklist')} — ${Math.round((t.checklistScore||0)*100)}%</div>${clKeys.map(c=>{const val=clDetail[c.id];const col=val===true?'var(--positive)':val===false?'var(--negative)':'var(--text-muted)';const icon=val===true?'✓':val===false?'✗':'—';return`<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:5px"><span style="color:${col};font-weight:700;flex-shrink:0;font-size:12px;width:12px">${icon}</span><span style="font-size:12px;color:var(--text-secondary);line-height:1.4">${T(c.key)}</span></div>`;}).join('')}</div>`
-    :(t.checklistScore!==undefined?`<div class="dblock"><div class="dblock-title">${T('detail_checklist')}</div>${Math.round((t.checklistScore||0)*100)}%</div>`:'');
+    :(checklistScoreOf(t)!==null?`<div class="dblock"><div class="dblock-title">${T('detail_checklist')}</div>${Math.round((t.checklistScore||0)*100)}%</div>`:'');
   // Mistakes
   const mkList=t.mistakes||[];
-  const mkBlock=mkList.length?`<div class="dblock"><div class="dblock-title">${T('detail_mistakes')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${mkList.map(mk=>`<span style="font-size:12px;padding:2px 9px;border-radius:20px;background:rgba(255,107,107,.1);color:var(--negative);border:1px solid rgba(255,107,107,.18)">${mLabel(mk)}</span>`).join('')}</div></div>`:'';
+  const mkBlock=mkList.length?`<div class="dblock"><div class="dblock-title">${T('detail_mistakes')}</div><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${mkList.map(mk=>`<span style="font-size:12px;padding:2px 9px;border-radius:20px;background:rgba(255,107,107,.1);color:var(--negative);border:1px solid rgba(255,107,107,.18)">${escapeHtml(mLabel(mk))}</span>`).join('')}</div></div>`:'';
 
   const levels=levelsRulerHTML(t);
   document.getElementById('detailBody').innerHTML=`<div class="detail-spread${imgBlock||levels?' has-media':''}"><div class="ds-media">${imgBlock}${levels}</div><div class="ds-info">
@@ -6931,6 +7301,7 @@ function openDetail(id){
     </div>
     ${resultMarkWhy(t)?`<p class="res-why">${resultMarkWhy(t)}</p>`:''}
     ${costBlockHTML(t)}
+    ${typeof learningRiskDetails==='function'?learningRiskDetails(t):''}
     ${stratTradeBlockHTML(t)}
     ${t.entry||t.sl||t.tp?`<div class="dstat-row">
       ${t.entry?`<div class="dstat"><div class="dstat-val mono" style="font-size:12px">${escapeHtml(t.entry)}</div><div class="dstat-lbl">${T('detail_entry')}</div></div>`:''}
@@ -6938,15 +7309,15 @@ function openDetail(id){
       ${t.tp?`<div class="dstat"><div class="dstat-val mono green" style="font-size:12px">${escapeHtml(t.tp)}</div><div class="dstat-lbl">${T('detail_tp')}</div></div>`:''}
     </div>`:''}
     ${t.byPlan===true||t.byPlan===false||t.emotional===true||t.emotional===false?`<div class="dstat-row">
-      ${t.byPlan!==undefined?`<div class="dstat"><div class="dstat-val" style="color:${t.byPlan?'var(--positive)':'var(--negative)'}">${t.byPlan?T('yes'):T('no')}</div><div class="dstat-lbl">${T('detail_byplan')}</div></div>`:''}
-      ${t.emotional!==undefined?`<div class="dstat"><div class="dstat-val" style="color:${t.emotional===false?'var(--positive)':'var(--negative)'}">${t.emotional===false?T('no'):T('yes')}</div><div class="dstat-lbl">${T('detail_impulsive')}</div></div>`:''}
+      ${t.byPlan===true||t.byPlan===false?`<div class="dstat"><div class="dstat-val" style="color:${t.byPlan?'var(--positive)':'var(--negative)'}">${t.byPlan?T('yes'):T('no')}</div><div class="dstat-lbl">${T('detail_byplan')}</div></div>`:''}
+      ${t.emotional===true||t.emotional===false?`<div class="dstat"><div class="dstat-val" style="color:${t.emotional===false?'var(--positive)':'var(--negative)'}">${t.emotional===false?T('no'):T('yes')}</div><div class="dstat-lbl">${T('detail_impulsive')}</div></div>`:''}
     </div>`:''}
     ${clBlock}${mkBlock}
     ${t.notes?`<div class="dblock"><div class="dblock-title">${T('detail_notes')}</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap">${escapeHtmlNl(t.notes)}</div></div>`:''}
     ${t.tags?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">${t.tags.map(tg=>`<span class="tag">#${escapeHtml(tg)}</span>`).join('')}</div>`:''}
     <div class="detail-actions">
-      <button style="flex:1;margin-top:0;gap:5px;padding:8px 10px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;gap:5px" onclick="openEditTrade('${t.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>${T('detail_edit')}</button>
-      <button style="flex:1;padding:8px 10px;border-radius:var(--radius-md);background:rgba(255,107,107,.07);color:var(--negative);border:1px solid rgba(255,107,107,.18);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="deleteTrade('${t.id}')"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>${T('detail_delete')}</button>
+      <button style="flex:1;margin-top:0;gap:5px;padding:8px 10px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface-2);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;gap:5px" onclick="openEditTrade(${escapeHtml(JSON.stringify(t.id))})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>${T('detail_edit')}</button>
+      <button style="flex:1;padding:8px 10px;border-radius:var(--radius-md);background:rgba(255,107,107,.07);color:var(--negative);border:1px solid rgba(255,107,107,.18);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px" onclick="deleteTrade(${escapeHtml(JSON.stringify(t.id))})"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6m5 0V4h4v2"/></svg>${T('detail_delete')}</button>
     </div></div></div>`;
   openModal('detailModal');
 }
@@ -7039,6 +7410,7 @@ function openFilterModal(resultType){
 // ── Toggle-button state setter ──────────────────────────
 function setTrade(key, val){
   tForm[key]=val;
+  if(key==='dir'&&typeof calcPosition==='function')calcPosition();
   if(key==='dir'){
     document.getElementById('btnBuy').className='tbtn'+(val==='buy'?' sel-buy':'');
     document.getElementById('btnSell').className='tbtn'+(val==='sell'?' sel-sell':'');
@@ -7143,65 +7515,49 @@ function setRRDisplay(rrStr){
 // toggleRRMode kept for backward compat
 function toggleRRMode(){ setRRMode(!rrManualMode); }
 
-function onRRManualInput(){
-  const inp = document.getElementById('rrManualInput');
-  inp.value = inp.value.replace(/[^0-9.:]/g,'');
-  const raw = inp.value.trim();
-  const clean = raw.replace(/^1:/,'');
-  const n = parseFloat(clean);
-  if(!isNaN(n) && n>0){
-    const rrStr = '1:'+fmtRR(n);
-    tForm.rrCalc = rrStr;
-    setRRDisplay(rrStr);
-  } else {
-    tForm.rrCalc = null;
-    setRRDisplay(null);
-  }
+// Does an edit open the trade's R:R in manual mode? The trade's own rrMode decides. An older trade
+// without one opens in auto only when its levels give the same R:R: an unrelated edit never
+// replaces the R:R the trader wrote.
+function rrEditManual(t){
+  if(!t.rr) return false;
+  if(t.rrMode==='manual') return true;
+  if(t.rrMode==='auto') return false;
+  const e=parseFloat(t.entry), sl=parseFloat(t.sl), tp=parseFloat(t.tp);
+  if(!rrPointsValid(e, sl, tp, t.dir||'buy')) return true;
+  const saved=parseRR(t.rr);
+  return saved===null || fmtRR(saved)!==fmtRR(Math.abs(tp-e)/Math.abs(e-sl));
 }
 
+function onRRManualInput(){
+  const n=parseRR(document.getElementById('rrManualInput').value);
+  tForm.rrCalc=n===null?null:'1:'+fmtRR(n);setRRDisplay(tForm.rrCalc);
+}
 function onRRManualBlur(){
-  const raw = document.getElementById('rrManualInput').value.trim();
-  if(!raw){ tForm.rrCalc=null; setRRDisplay(null); return; }
-  const clean = raw.replace(/^1:/,'');
-  const n = parseFloat(clean);
-  if(!isNaN(n) && n>0){
-    const rrStr='1:'+fmtRR(n);
-    document.getElementById('rrManualInput').value = rrStr;
-    tForm.rrCalc=rrStr;
-    setRRDisplay(rrStr);
-  }
+  onRRManualInput();if(tForm.rrCalc)document.getElementById('rrManualInput').value=tForm.rrCalc;
 }
 
 function calcRR(){
   if(rrManualMode){
-    // In manual mode: also calculate from Entry/SL/TP if filled,
-    // but only update the display WITHOUT overriding the manual input
-    const e=parseFloat(document.getElementById('tEntry').value);
-    const sl=parseFloat(document.getElementById('tSL').value);
-    const tp=parseFloat(document.getElementById('tTP').value);
-    if(!isNaN(e)&&!isNaN(sl)&&!isNaN(tp)&&Math.abs(e-sl)>0){
-      const rrVal=Math.abs(tp-e)/Math.abs(e-sl);
-      const rrStr='1:'+fmtRR(rrVal);
-      tForm.rrCalc=rrStr;
-      // Update manual input to show calculated value
-      document.getElementById('rrManualInput').value='1:'+fmtRR(rrVal);
-      setRRDisplay(rrStr);
-    }
-    return;
+    setRRDisplay(tForm.rrCalc||null);return; // Explicit manual input always wins over point calculations.
   }
   const e=parseFloat(document.getElementById('tEntry').value);
   const sl=parseFloat(document.getElementById('tSL').value);
   const tp=parseFloat(document.getElementById('tTP').value);
-  if(isNaN(e)||isNaN(sl)||isNaN(tp)){
-    setRRDisplay(null); tForm.rrCalc=null; return;
+  if(!rrPointsValid(e, sl, tp, tForm.dir)){
+    setRRDisplay(null); tForm.rrCalc=null; return;   // the screen and the saved value agree
   }
-  const risk=Math.abs(e-sl);
-  const reward=Math.abs(tp-e);
-  if(risk===0){ setRRDisplay(null); return; }
-  const rrVal=reward/risk;
+  const rrVal=Math.abs(tp-e)/Math.abs(e-sl);
   const rrStr='1:'+fmtRR(rrVal);
   setRRDisplay(rrStr);
   tForm.rrCalc=rrStr;
+}
+
+// Entry / SL / TP make an R:R only when the stop and the target sit on the right sides for the
+// direction: buy — SL below the entry, TP above; sell — the other way round. A stop at the entry
+// or on the wrong side gives no R:R (and no old R:R is kept for saving).
+function rrPointsValid(e, sl, tp, dir){
+  if(isNaN(e)||isNaN(sl)||isNaN(tp) || e===sl) return false;
+  return dir==='sell' ? (sl>e && tp<e) : (sl<e && tp>e);
 }
 
 // ── Checklist ──────────────────────────────────────────
@@ -7231,8 +7587,12 @@ function updateCLScore(){
   const pct=total?Math.round(yesCount/total*100):0;
   const el=document.getElementById('clScoreVal');
   if(el){ el.textContent=`${yesCount} / ${total} (${pct}%)`; el.style.color=pct===100?'var(--positive)':pct>=60?'var(--warning)':'var(--negative)'; }
-  tForm.checklistScore=total?yesCount/total:null;
-  tForm.checklistDetail={...checklistState};
+  // No item answered = no checklist answer, not 0 %. An older trade that has only a score
+  // (no per-item answers) keeps it until the trader answers the items again.
+  const answered=Object.values(checklistState).filter(v=>v===true||v===false).length;
+  const legacy=typeof tForm.legacyCL==='number';
+  tForm.checklistScore=answered&&total ? yesCount/total : legacy ? tForm.legacyCL : null;
+  tForm.checklistDetail=answered||!legacy ? {...checklistState} : undefined;
 }
 
 // ── Tags ───────────────────────────────────────────────
@@ -7252,7 +7612,7 @@ function renderTags(){
   currentTags.forEach((tag,i)=>{
     const chip=document.createElement('span');
     chip.className='tag-chip-input';
-    chip.innerHTML=`#${tag}<button class="tag-remove" onclick="removeTag(${i})">×</button>`;
+    chip.innerHTML=`#${escapeHtml(tag)}<button class="tag-remove" onclick="removeTag(${i})">×</button>`;
     wrap.appendChild(chip);
   });
   wrap.appendChild(input);
@@ -7386,8 +7746,9 @@ function syncStateToForm(){
   document.getElementById('tSwap').value       = tForm.swap ?? '';
   document.getElementById('tPnlNet').checked   = tForm.pnlMode==='net';
   updateCostTotal('t');
-  document.getElementById('tDate').value   = tForm.date   ||new Date().toISOString().split('T')[0];
+  document.getElementById('tDate').value   = tForm.date   ||journalToday();
   document.getElementById('tNotes').value  = tForm.notes  ||'';
+  renderLearningTrade('t', editingId ? trades.find(t=>t.id===editingId) : null);
   // Toggle buttons
   setTrade('dir',    tForm.dir    ||'buy');
   setTrade('result', tForm.result);
@@ -7434,7 +7795,7 @@ function copyLastTrade(){
     if(last.dir) setTrade('dir',last.dir);
     if(last.session) document.getElementById('tSession').value=last.session;
     if(last.setup) setTrade('setup',last.setup);
-    document.getElementById('tDate').value=new Date().toISOString().split('T')[0];
+    document.getElementById('tDate').value=journalToday();
     showToast(lang==='ru'?'Шаблон из последней сделки':'Template from last trade');
   },100);
 }
@@ -7518,7 +7879,8 @@ function openQuickAdd(){
   document.getElementById('qRR').value='';
   document.getElementById('qPair').value='';
   document.getElementById('qNotes').value='';
-  document.getElementById('qDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('qDate').value=journalToday();
+  renderLearningTrade('q', null);   // after the date: the questions depend on it
   // Reset screenshot
   document.getElementById('qImgPreview').style.display='none';
   document.getElementById('qImgUploadArea').style.display='flex';
@@ -7571,12 +7933,12 @@ function saveQuickTrade(){
   const qMode = document.getElementById('qPnlNet').checked ? 'net' : 'gross';
   const qLink = stratTradeLink(document.getElementById('qStrategy').value, null);
   const rrRaw = document.getElementById('qRR').value.trim();
-  let rrVal = null;
-  if(rrRaw){
-    const n = parseFloat(rrRaw.replace(/^1:/,''));
-    if(!isNaN(n)) rrVal = '1:'+fmtRR(n);
-  }
+  const parsedRR=parseRR(rrRaw);
+  if(rrRaw&&parsedRR===null){toastWarn(lang==='ru'?'Проверьте R:R: например, 1:2 или 2':'Check R:R, for example 1:2 or 2');return;}
+  const rrVal=parsedRR===null?null:'1:'+fmtRR(parsedRR);
   const trade={
+    learning:readLearningTrade('q',null,qLink,document.getElementById('qDate').value||journalToday()),
+    riskSnapshot:null, dayPolicy:learningDayPolicy(document.getElementById('qDate').value||journalToday()), recordedAt:new Date().toISOString(), tradingTimezone:learningTimezone(),
     id:Date.now().toString()+Math.floor(Math.random()*900+100).toString(),
     pair:document.getElementById('qPair').value.trim()||'—',
     asset:document.getElementById('qPair').value.trim()||'—',
@@ -7587,7 +7949,7 @@ function saveQuickTrade(){
     commission:costs.commission, swap:costs.swap, pnlMode:qMode,
     ...(qLink.strategyId ? qLink : {}),
     rr:rrVal,
-    date:document.getElementById('qDate').value||new Date().toISOString().split('T')[0],
+    date:document.getElementById('qDate').value||journalToday(),
     quickTrade:true,
     dir:null, entry:null, sl:null, tp:null,
     setup:null, tags:[], img:qCurrentImg||null, checklistScore:null, checklistDetail:{}, mistakes:[],
@@ -7861,13 +8223,21 @@ function stratRevisions(strategyId){
   return sdocAll('revision', d=>d.data.strategyId===strategyId).sort((a,b)=>String(b.data.createdAt||'').localeCompare(String(a.data.createdAt||'')));
 }
 // The revision for the strategy's current rules: an existing one with the same content, or a new frozen copy
+// The stored revision with the strategy's current rules, or null. Only looks: a form that is just
+// drawn creates no document.
+function stratCurrentRevision(strategyId){
+  const s = sdocs[strategyId];
+  if(!s || s.kind!=='strategy' || s.del) return null;
+  const hash = stratHash(stratContent(s.data));
+  return stratRevisions(strategyId).find(r=>r.data.hash===hash)?.id || null;
+}
 function stratEnsureRevision(strategyId, notes){
   const s = sdocs[strategyId];
   if(!s || s.kind!=='strategy' || s.del) return null;
   const content = stratContent(s.data), hash = stratHash(content);
   if(!notes){
-    const same = stratRevisions(strategyId).find(r=>r.data.hash===hash);
-    if(same) return same.id;
+    const same = stratCurrentRevision(strategyId);
+    if(same) return same;
   }
   const rev = sdocPut('revision', {strategyId, auto:!notes, label:(notes&&notes.label)||s.data.version||'', what:(notes&&notes.what)||'',
     why:(notes&&notes.why)||'', results:(notes&&notes.results)||'', createdAt:new Date().toISOString(), hash, content});
@@ -7945,7 +8315,7 @@ function parseStrategyText(text){
 // ── Numbers of a strategy: its own trades only ──
 // Period: 'all', or a number of days back from today, or {from, to} (YYYY-MM-DD, inclusive)
 function stratTrades(strategyId, period){
-  const today = new Date().toISOString().split('T')[0];
+  const today = journalToday();
   let from = null, to = null;
   if(typeof period==='number'){ from = new Date(Date.now()-(period-1)*864e5).toISOString().split('T')[0]; to = today; }
   else if(period && typeof period==='object'){ from = period.from; to = period.to; }
@@ -8262,7 +8632,7 @@ function srNotesHTML(){
     : `<div class="sr-blank"><p>${srT('Пока пусто. Запишите наблюдение после сессии, чтобы вернуться к нему при разборе.','Empty for now. Write a note after a session to come back to it in your review.')}</p></div>`}
   </div>`;
 }
-function srWeekStart(d){ const x = new Date((d||new Date().toISOString().split('T')[0])+'T12:00:00'); const dow = (x.getDay()+6)%7; x.setDate(x.getDate()-dow); return x.toISOString().split('T')[0]; }
+function srWeekStart(d){ const x = new Date((d||journalToday())+'T12:00:00'); const dow = (x.getDay()+6)%7; x.setDate(x.getDate()-dow); return x.toISOString().split('T')[0]; }
 function srShiftWeek(ws, n){ const x = new Date(ws+'T12:00:00'); x.setDate(x.getDate()+7*n); return x.toISOString().split('T')[0]; }
 function srWeekHTML(){
   if(!SU.week) SU.week = srWeekStart();
@@ -9320,7 +9690,7 @@ function renderIdeas(){
 
 function openAddTrade(){
   editingId=null;
-  tForm={dir:'buy',date:new Date().toISOString().split('T')[0], pnlMode:defaultPnlMode(), commission:'', swap:'', strategyId:''};   // no result until the trader picks one
+  tForm={dir:'buy',date:journalToday(), pnlMode:defaultPnlMode(), commission:'', swap:'', strategyId:''};   // no result until the trader picks one
   resultError('tResultErr', false);
   currentTags=[]; currentImg=null; currentMistakes=[]; checklistState={};
   currentStep=0; rrManualMode=false;
@@ -9340,16 +9710,20 @@ function openEditTrade(id){
     pair:   t.pair||t.asset||'', market: t.market||'forex', session: t.session||'London',
     dir:    t.dir||'buy',        entry:  t.entry||'',
     sl:     t.sl||'',            tp:     t.tp||'',
-    pnl:    t.pnl||'',           date:   t.date||new Date().toISOString().split('T')[0],
+    pnl:    t.pnl||'',           date:   t.date||journalToday(),
     result: t.result,            setup:  t.setup||null,
     notes:  t.notes||'',         tags:   t.tags?[...t.tags]:[],
     img:    t.img||t.img_url||null, byPlan: t.byPlan,
     emotional:t.emotional,       checklistScore:t.checklistScore,
     checklistDetail:t.checklistDetail||{},
+    // an older trade with a score but no per-item answers keeps that score (see updateCLScore)
+    legacyCL:(t.checklistDetail&&Object.values(t.checklistDetail).some(v=>v===true||v===false)) ? null
+      : (typeof t.checklistScore==='number' ? t.checklistScore : null),
     mistakes:t.mistakes?[...t.mistakes]:[],
     rrCalc: t.rr||null,
     commission: t.commission ?? '', swap: t.swap ?? '',
     strategyId: t.strategyId || '',
+    learning: t.learning || null, riskSnapshot: t.riskSnapshot || null,
     pnlMode: t.pnlMode, pnlModeTouched: false,   // an older trade keeps «not set» until the trader decides
     costsWere: {commission: t.commission ?? '', swap: t.swap ?? ''},
   };
@@ -9358,16 +9732,14 @@ function openEditTrade(id){
   currentMistakes=[...(t.mistakes||[])];
   checklistState={...(t.checklistDetail||{})};
   currentStep=0;
-  // If trade has RR but no entry/SL/TP → restore in manual mode
-  const hasPoints = t.entry && t.sl && t.tp;
-  rrManualMode = !hasPoints && !!t.rr;
+  // The saved R:R is kept: a manual one reopens in manual mode, even with the levels filled
+  rrManualMode = rrEditManual(t);
   setRRMode(rrManualMode);
-  if(rrManualMode && t.rr){
-    const n=parseFloat(t.rr.replace('1:',''));
-    if(!isNaN(n)){
-      document.getElementById('rrManualInput').value='1:'+fmtRR(n);
-      setRRDisplay(t.rr);
-    }
+  if(rrManualMode){
+    const n=parseRR(t.rr);
+    tForm.rrCalc=n===null?t.rr:'1:'+fmtRR(n);
+    document.getElementById('rrManualInput').value=tForm.rrCalc;
+    setRRDisplay(tForm.rrCalc);
   }
   syncStateToForm();
   renderChecklist();
@@ -9434,7 +9806,15 @@ function saveTrade(){
   // An older trade without a mode gets one only if the trader changed a cost or used the switch
   const mode = tFormCostMode(costs.commission, costs.swap);
   const link = stratTradeLink(tForm.strategyId||'', editingId ? trades.find(x=>x.id===editingId) : null);
+  const previous = editingId ? trades.find(x=>x.id===editingId) : null;
+  const learning = readLearningTrade('t',previous,link,tForm.date||journalToday());
+  let riskSnapshot;
+  try{ riskSnapshot=readLearningRisk(previous,link,tForm.date||journalToday()); }
+  catch(e){toastWarn(e.message);return;}
   const tradeData={
+    ...(previous?.quickTrade?{quickTrade:true}:{}),
+    learning, riskSnapshot, dayPolicy:previous ? (previous.dayPolicy||null) : learningDayPolicy(tForm.date||journalToday()),
+    recordedAt:previous?.recordedAt||new Date().toISOString(), tradingTimezone:previous?.tradingTimezone||learningTimezone(),
     pair, asset:pair,
     market:tForm.market||'forex',
     session:tForm.session||'London',
@@ -9442,13 +9822,13 @@ function saveTrade(){
     entry:parseFloat(tForm.entry)||null,
     sl:parseFloat(tForm.sl)||null,
     tp:parseFloat(tForm.tp)||null,
-    rr:tForm.rrCalc||null,
+    rr:tForm.rrCalc||null, rrMode:rrManualMode?'manual':'auto',
     result:tForm.result,
     pnl:tForm.pnl||'',
     commission:costs.commission, swap:costs.swap,
     ...(mode ? {pnlMode:mode} : {}),
     ...(link.strategyId ? link : {}),
-    date:tForm.date||new Date().toISOString().split('T')[0],
+    date:tForm.date||journalToday(),
     setup:tForm.setup||null,
     notes:tForm.notes||'',
     tags:[...currentTags],
@@ -9459,7 +9839,7 @@ function saveTrade(){
     byPlan:tForm.byPlan,
     emotional:tForm.emotional,
     checklistScore:tForm.checklistScore,
-    checklistDetail:{...checklistState},
+    checklistDetail:tForm.checklistDetail,
     mistakes:[...currentMistakes],
   };
   if(editingId){
@@ -9635,6 +10015,24 @@ function exportCSV(){
   showToast(lang==='ru'?'CSV скачан':'CSV downloaded');
 }
 
+function validateTradeImport(data){
+  if(!data || typeof data!=='object' || !Array.isArray(data.trades)) throw new Error('Invalid trade list');
+  const ids=new Set();
+  for(const t of data.trades){
+    if(!t || typeof t!=='object' || Array.isArray(t) || !['string','number'].includes(typeof t.id)) throw new Error('Invalid trade');
+    const id=String(t.id);
+    if(!id || id.length>128 || /[\u0000-\u001f\u007f]/.test(id) || ids.has(id)) throw new Error('Invalid or duplicate trade id');
+    ids.add(id);
+    for(const key of ['pair','asset','market','session','notes','setup','rr','img','img_url']) if(t[key]!==null && t[key]!==undefined && typeof t[key]!=='string') throw new Error('Invalid trade text');
+    for(const key of ['tags','mistakes']) if(t[key]!==undefined && (!Array.isArray(t[key]) || t[key].some(v=>typeof v!=='string'))) throw new Error('Invalid trade labels');
+    for(const key of ['entry','sl','tp','pnl','commission','swap']) if(t[key]!==undefined && t[key]!==null && !['string','number'].includes(typeof t[key])) throw new Error('Invalid trade value');
+    if(t.checklistDetail!==undefined && t.checklistDetail!==null && (typeof t.checklistDetail!=='object'||Array.isArray(t.checklistDetail))) throw new Error('Invalid checklist');
+  }
+  if(data.baseCapital!==undefined && (typeof data.baseCapital!=='number'||!Number.isFinite(data.baseCapital)||data.baseCapital<0)) throw new Error('Invalid capital');
+  if(data.goals!==undefined && (!Array.isArray(data.goals)||data.goals.some(g=>!g||typeof g!=='object'||typeof g.id!=='string'||!/^[A-Za-z0-9_.:-]+$/.test(g.id)))) throw new Error('Invalid goals');
+  return data;
+}
+
 function importJSON(input){
   const file=input.files[0]; if(!file) return;
   const owner=dataOwner, epoch=ownerEpoch;
@@ -9645,6 +10043,7 @@ function importJSON(input){
     if(!isCurrentOwner(owner, epoch)){ toastWarn(lang==='ru'?'Аккаунт сменился — импорт отменён':'Account changed — import cancelled'); return; }
     try{
       const data=JSON.parse(e.target.result);
+      validateTradeImport(data);
       if(data.trades&&Array.isArray(data.trades)){
         const count=data.trades.length;
         const who=accountLabel();
@@ -10356,7 +10755,7 @@ function applyLang(){
   if(fsel){
     const cur=fsel.value;
     const setups=[...new Set(trades.map(t=>t.setup).filter(Boolean))];
-    fsel.innerHTML=`<option value="">${T('filter_setups')}</option>`+setups.map(s=>`<option value="${s}">${s}</option>`).join('');
+    fsel.innerHTML=`<option value="">${T('filter_setups')}</option>`+setups.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
     fsel.value=cur;
   }
 
@@ -10493,6 +10892,8 @@ function applyLang(){
 
   // Re-render checklist if open
   if(document.getElementById('step2')?.style.display==='block') renderChecklist();
+  // the learning blocks of the settings and the trade forms, keeping what was typed
+  if(typeof relangLearning==='function') relangLearning();
 }
 
 // Helper: set textContent or attribute on element by id
@@ -10574,6 +10975,7 @@ function openSettings(){
   }
   renderSubscription();
   if(!IN_TELEGRAM && webSession && !subState) loadSubscription();
+  openLearningSettings();
   openModal('settingsModal');
   // Auto-ping server when settings open
   pingServer();
@@ -10750,7 +11152,7 @@ function getTradesByDate(){
 function buildCalendar(calId){
   const s = calState[calId];
   const tradeMap = getTradesByDate();
-  const today = new Date().toISOString().split('T')[0];
+  const today = journalToday();
   const year = s.year, month = s.month;
 
   const firstDay = new Date(year, month, 1);
@@ -10914,17 +11316,23 @@ initSwipeClose();
 // ═══════════════════════════════════════════════════════
 const L = (ru,en)=> lang==='ru' ? ru : en;
 const money = (v,dec=2)=> (v>0?'+':v<0?'−':'')+'$'+Math.abs(v).toFixed(dec);
-function getRiskPct(){ const v=parseFloat(localStorage.getItem('riskPct')); return v>0 && v<=100 ? v : 1; }
-function getDailyLimit(){ const v=parseFloat(localStorage.getItem('dailyLossLimit')); return v>0 ? v : null; }
+function getRiskPct(){ const v=Number(lsJSON('calculator_risk_v1',null)); return v>0 && v<=100 ? v : null; }
+function getDailyLimit(){
+  if(typeof learningPrefs==='function'){const h=MJLearning.ruleAt(learningPrefs().history,journalToday());if(h)return h.dailyLoss||null;}
+  return null;
+}
 function setRiskPct(v){
   v=parseFloat(v);
-  if(v>0 && v<=100) localStorage.setItem('riskPct', String(v));
+  if(v>0 && v<=100) lsSet('calculator_risk_v1', JSON.stringify(v));
+  else if(!v) lsSet('calculator_risk_v1', 'null');
   calcPosition(); syncRiskSettings();
   if(document.getElementById('page-analytics').classList.contains('active')) renderTradingAnalytics();
 }
 function setDailyLimit(v){
-  v=parseFloat(v);
-  if(v>0) localStorage.setItem('dailyLossLimit', String(v)); else localStorage.removeItem('dailyLossLimit');
+  const raw=String(v).trim(),value=raw===''?null:Number(raw);
+  if(value!==null&&(!Number.isFinite(value)||value<=0)){toastWarn(L('Введите положительный лимит или оставьте поле пустым','Enter a positive limit or leave it blank'));return;}
+  const p=learningPrefs(),effectiveDay=journalToday(),current=MJLearning.ruleAt(p.history,effectiveDay)||{};
+  learningSavePrefs({...p,history:[...(p.history||[]),{...current,effectiveDay,timezone:learningTimezone(),maxTrades:current.maxTrades||null,dailyLoss:value,savedAt:new Date().toISOString()}]});
   renderDailyLimit();
 }
 function syncRiskSettings(){
@@ -10932,8 +11340,8 @@ function syncRiskSettings(){
   const d=document.getElementById('setDailyLimit'); if(d && document.activeElement!==d) d.value=getDailyLimit()||'';
   const lbl=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
   lbl('sGrpRisk', L('Риск','Risk'));
-  lbl('setRiskLbl', L('Риск на сделку, %','Risk per trade, %'));
-  lbl('setRiskSub', L('Для калькулятора позиции и прогноза просадки','Used by the position calculator and drawdown forecast'));
+  lbl('setRiskLbl', L('Выбранный риск для расчёта, %','Chosen risk for sizing, %'));
+  lbl('setRiskSub', L('Не личный максимум. Максимум задаётся для каждой стратегии в разделе обучения','Not your personal maximum. Set a maximum for each strategy in Learning'));
   lbl('setLimitLbl', L('Лимит убытка за день, $','Daily loss limit, $'));
   lbl('setLimitSub', L('Пусто — без лимита','Leave empty for no limit'));
 }
@@ -10944,66 +11352,31 @@ function pairInfo(raw){
   return {p, base:p.slice(0,3), quote:p.slice(3,6)};
 }
 function calcPosition(){
-  const out=document.getElementById('pcOut'); if(!out) return;
-  const risk=getRiskPct();
-  document.querySelectorAll('#posCalc .pc-chip').forEach(b=>b.classList.toggle('on', parseFloat(b.dataset.r)===risk));
-  const inp=document.getElementById('pcRiskInput'); if(inp && document.activeElement!==inp) inp.value=risk;
-  const t=document.getElementById('pcTitle'); if(t) t.textContent=L('Размер позиции','Position size');
-  const e=parseFloat(document.getElementById('tEntry').value);
-  const sl=parseFloat(document.getElementById('tSL').value);
-  const cap=computeCapital();
-  const mkt=document.getElementById('tMarket').value;
-  if(!(cap>0)){ out.innerHTML=`<p class="pc-note">${L('Укажите депозит на главной, чтобы считать риск в процентах.','Set your deposit on the home screen to size by percent.')}</p>`; return; }
-  const riskUsd=cap*risk/100;
-  if(isNaN(e)||isNaN(sl)||e===sl){
-    out.innerHTML=`<div class="pc-grid"><div><span>${L('Риск','Risk')}</span><b>$${riskUsd.toFixed(2)}</b></div></div><p class="pc-note">${L('Введите Entry и Stop Loss — посчитаю объём.','Enter Entry and Stop Loss to get the size.')}</p>`;
-    return;
-  }
-  const stop=Math.abs(e-sl);
-  const {p,base,quote}=pairInfo(document.getElementById('tPair').value);
-  let size='', sizeLbl=L('Объём','Size'), stopTxt='', note='';
-  const f=(n,d)=>n.toLocaleString('en-US',{maximumFractionDigits:d});
-  if(mkt==='forex' && p.length>=6){
-    const pip = quote==='JPY' ? 0.01 : 0.0001;
-    const pips = stop/pip;
-    stopTxt = f(pips,1)+L(' пипс',' pips');
-    let pipPerLot = null;                         // $ per pip for 1 standard lot (100,000 units)
-    if(quote==='USD') pipPerLot = 100000*pip;
-    else if(base==='USD') pipPerLot = 100000*pip/e;
-    if(pipPerLot){
-      const lots = riskUsd/(pips*pipPerLot);
-      size = f(lots,2)+L(' лота',' lots'); sizeLbl=L('Лоты','Lots');
-      if(base==='USD') note=L('Стоимость пункта пересчитана по цене входа.','Pip value converted at the entry price.');
-    } else {
-      size='—';
-      note=L('Для кросс-пары нужен курс к доллару — посмотрите стоимость пункта у брокера.','A cross pair needs a USD rate — check the pip value with your broker.');
-    }
-  } else if(mkt==='metals' && /^XA[UG]/.test(p)){
-    const oz = p.startsWith('XAG') ? 5000 : 100;
-    const units = riskUsd/stop;
-    stopTxt = '$'+f(stop,2);
-    size = f(units/oz,2)+L(' лота',' lots'); sizeLbl=L('Лоты','Lots');
-    note = L(`1 лот = ${oz} унций.`,`1 lot = ${oz} oz.`);
-  } else if(mkt==='crypto'){
-    // linear (USDT) contract, taker fees 0.02% in / 0.05% out — same defaults as tradingcalc
-    const units = riskUsd/(stop + e*0.0002 + sl*0.0005);
-    stopTxt = f(stop/e*100,2)+'%';
-    size = f(units, units<1?4:2)+(base?' '+p.replace(/USDT?$|USDC$/,''):'');
-    note = L(`Позиция ≈ $${f(units*e,0)}. С учётом комиссий 0.02% + 0.05%.`,`Notional ≈ $${f(units*e,0)}. Includes 0.02% + 0.05% fees.`);
-  } else {
-    const units = riskUsd/stop;
-    stopTxt = '$'+f(stop,2);
-    size = f(units, units<10?2:0)+L(' шт.',' units');
-    note = L(`Позиция ≈ $${f(units*e,0)}.`,`Notional ≈ $${f(units*e,0)}.`);
-  }
-  out.innerHTML=`<div class="pc-grid">
-      <div><span>${L('Риск','Risk')}</span><b>$${riskUsd.toFixed(2)}</b></div>
-      <div><span>${L('Стоп','Stop')}</span><b>${stopTxt}</b></div>
-      <div class="pc-main"><span>${sizeLbl}</span><b>${size}</b></div>
-    </div>${note?`<p class="pc-note">${note}</p>`:''}`;
+  const out=document.getElementById('pcOut');if(!out)return;
+  const risk=getRiskPct(),L=learningText;
+  const sid=document.getElementById('tStrategy').value,date=document.getElementById('tDate').value||journalToday(),maxPct=learningMax(sid,date);
+  const inp=document.getElementById('pcRiskInput');if(inp&&document.activeElement!==inp)inp.value=risk||'';
+  document.querySelectorAll('#posCalc .pc-chip').forEach(b=>{b.classList.toggle('on',parseFloat(b.dataset.r)===risk);b.disabled=maxPct!==null&&parseFloat(b.dataset.r)>maxPct;b.title=b.disabled?L('Выше личного максимума стратегии','Above your strategy maximum'):'';});
+  if(!(baseCapital>0)||!risk){out.textContent=L('Укажите начальный капитал и выбранный риск для расчёта; личный максимум настраивается отдельно в стратегии.','Set starting capital and your chosen risk to calculate a size; your personal maximum is configured separately for the strategy.');return;}
+  const entry=Number(document.getElementById('tEntry').value),stop=Number(document.getElementById('tSL').value);
+  const market=document.getElementById('tMarket').value,{p,base,quote}=pairInfo(document.getElementById('tPair').value);
+  let multiplier=null,step=null,minimum=null,label=L('единиц','units');
+  if(market==='forex'&&quote==='USD'){multiplier=100000;step=.01;minimum=.01;label=L('лота','lots');}
+  else if(market==='crypto'){multiplier=1;step=.0001;minimum=.0001;}
+  else if(market==='metals'&&/^XA[UG]/.test(p)){multiplier=p.startsWith('XAG')?5000:100;step=.01;minimum=.01;label=L('лота','lots');}
+  // If the trader has supplied a contract/step, use those values instead of the model defaults.
+  const read=id=>{const e=document.getElementById('lr'+id);return e?.value!==''&&e?Number(e.value):null;};
+  multiplier=read('Multiplier')??multiplier;step=read('Step')??step;minimum=read('Minimum')??minimum;
+  const fi=read('FeeIn'),fo=read('FeeOut'),feeEntry=fi===null?0:fi/100,feeExit=fo===null?0:fo/100;
+  const args={capital:computeCapital(),riskPct:risk,maxPct,entry,stop,dir:tForm.dir||'buy',multiplier,step,minimum,feeEntry,feeExit};
+  const r=MJLearning.position(args);
+  if(r.size===null){out.textContent=r.reason==='maximum'?L('Выбранный риск выше личного максимума. Расчёт объёма не выполнен.','Your chosen risk exceeds your personal maximum. No size was calculated.'):L('Для расчёта нужны корректный стоп, известный контракт, шаг и минимальный объём.','A calculation needs a valid stop, known contract, size step and minimum.');return;}
+  out.innerHTML='<p>'+escapeHtml(L('Расчётный объём: ','Calculated size: ')+r.size+' '+label)+'</p><p>'+escapeHtml(L('Плановый риск модели: $','Modelled planned risk: $')+r.risk.toFixed(2))+'</p><p class="note">'+escapeHtml(L('Это модель, не фактическое исполнение. Сверьте контракт, шаг и комиссии у брокера; проскальзывание не предсказано.','This is a model, not actual execution. Check the contract, step and fees with your broker; slippage is not predicted.'))+'</p><p class="note">'+escapeHtml(maxPct===null?L('Личный максимум не задан.','Your personal maximum is not set.'):L('Личный максимум: ','Your personal maximum: ')+maxPct+'%')+'</p><p class="note">'+escapeHtml(fi===null||fo===null?L('Комиссии не заполнены: размер предварительный, пока считается без неизвестных комиссий.','Fees are missing: sizing is preliminary and excludes unknown fees.'):'')+'</p>';
+  const btn=document.createElement('button');btn.type='button';btn.className='insight-trades-btn';btn.textContent=L('Перенести расчёт для проверки','Copy calculation for review');
+  btn.onclick=()=>{const set=(id,v)=>{document.getElementById('lr'+id).value=v;};set('Capital',args.capital);set('Size',r.size);set('Multiplier',multiplier);set('Step',step);set('Minimum',minimum);set('FeeIn',fi??'');set('FeeOut',fo??'');document.getElementById('lrConfirm').checked=false;document.getElementById('tLearningRisk').dataset.dirty='1';document.getElementById('tLearningRisk').open=true;learningRiskPreview();};out.appendChild(btn);
 }
 function initPositionCalc(){
-  ['tEntry','tSL','tPair'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', calcPosition); });
+  ['tEntry','tSL','tPair','tStrategy','tDate'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input', calcPosition); });
   const m=document.getElementById('tMarket'); if(m) m.addEventListener('change', calcPosition);
   document.querySelectorAll('#posCalc .pc-chip').forEach(b=>b.addEventListener('click',()=>setRiskPct(b.dataset.r)));
   const inp=document.getElementById('pcRiskInput'); if(inp) inp.addEventListener('change',()=>setRiskPct(inp.value));
@@ -11097,7 +11470,7 @@ function renderExpectancy(list){
       <div><span>${L('Средний минус','Average loss')}</span><b class="red">${x.avgLoss!==null?'$'+x.avgLoss.toFixed(2):'—'}</b></div>
     </div>
     ${x.rs.length?`<div class="r-hist">${buckets.map((b,i)=>`<div class="rh-col" title="${counts[i]}"><div class="rh-bar-wrap"><div class="rh-bar" style="height:${counts[i]/max*100}%;background:${col(i)}"></div></div><div class="rh-n">${counts[i]||''}</div><div class="rh-k">${b.k}</div></div>`).join('')}</div>
-    <p class="tt-foot">${L('Распределение результатов в R: убыток = −1R, прибыль = плановый R:R.','Results in R: a loss is −1R, a win is the planned R:R.')}</p>`:''}`;
+    <p class="tt-foot">${L('Условная модель R: Loss = −1R, Win = собственный плановый R:R, B/E = 0R. Это не реализованный R.','Modelled R: Loss = −1R, Win = its own planned R:R, B/E = 0R. This is not realised R.')}</p>`:''}`;
 }
 
 // ── 3. Drawdown risk (Monte Carlo over your own R results) ──
@@ -11123,6 +11496,7 @@ function renderDrawdownRisk(list){
   const el=document.getElementById('ddCard'); if(!el) return;
   const rs=list.map(tradeR).filter(r=>r!==null);
   const risk=getRiskPct();
+  if(!risk){el.textContent=L('Выберите риск в настройках калькулятора для условной симуляции.','Choose a risk in calculator settings for a model simulation.');return;}
   if(rs.length<20){
     el.innerHTML=`<p class="tt-empty">${L(`Прогноз появится после 20 сделок с результатом и R:R. Сейчас: ${rs.length}.`,`The forecast appears after 20 trades with a result and R:R. Now: ${rs.length}.`)}</p>`;
     return;
@@ -11208,7 +11582,7 @@ function renderPnlCalendar(){
   const byDay={};
   trades.forEach(t=>{ if(!t.date) return; const d=byDay[t.date]||(byDay[t.date]={pnl:0,n:0}); d.pnl+=tradeNet(t)||0; d.n++; });
   const first=new Date(pnlCal.y,pnlCal.m,1), lead=(first.getDay()+6)%7, days=new Date(pnlCal.y,pnlCal.m+1,0).getDate();
-  const today=new Date().toISOString().split('T')[0], sel=calState.trades.date;
+  const today=journalToday(), sel=calState.trades.date;
   const title=first.toLocaleDateString(ru?'ru-RU':'en-GB',{month:'long',year:'numeric'}).replace(' г.','');
   const vals=Object.entries(byDay).filter(([k])=>k.startsWith(pnlCal.y+'-'+String(pnlCal.m+1).padStart(2,'0'))).map(([,v])=>Math.abs(v.pnl));
   const maxAbs=Math.max(1,...vals);
@@ -11357,7 +11731,7 @@ function renderDailyLimit(){
   const tile=document.getElementById('nowTile'), el=document.getElementById('nowLimit');
   if(!tile||!el) return;
   const lim=getDailyLimit();
-  const todayStr=new Date().toISOString().split('T')[0];
+  const todayStr=journalToday();
   const pnl=trades.filter(t=>t.date===todayStr).reduce((s,t)=>s+(tradeNet(t)||0),0);
   tile.classList.remove('limit-hit','limit-near');
   if(!lim){ el.textContent=''; el.hidden=true; return; }

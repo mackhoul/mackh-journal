@@ -22,8 +22,7 @@ const ctx = {
 vm.createContext(ctx);
 vm.runInContext([
   cut('function costNum(', '// The account\'s last choice'),
-  cut('function calcStats(list){', '// Expectancy ='),
-  cut('function calcExpectancy(list){', '// Honest period-over-period'),
+  cut('function calcStats(list){', '// Honest period-over-period'),   // calcStats, tradeDiscipline, calcExpectancy
   cut('function generateInsights(){', 'function renderHome(){'),
   cut('function getGoalProgress(g){', '// ═══'),
 ].join('\n') + '\n;globalThis.__set = (k, v) => { if (k === "trades") trades = v; if (k === "lang") lang = v; };', ctx);
@@ -45,7 +44,7 @@ const broken = r => /undefined|null%|NaN/.test(all(r));
 {
   const r = run([...many(3, { setup: 'Trend', pnl: '10' }), ...many(3, { setup: 'Range', pnl: '' })]);
   check('three Trend with P&L, three Range without: insights do not throw', r.error === null, r.error);
-  check('… the Range group without P&L is not «weak» and has no rate', !has(r, 'Слабый сетап') && !has(r, '"Range" (WR'), all(r));
+  check('… the Range group without P&L is not «weak» and has no rate', !has(r, 'самой низкой долей побед') && !has(r, '«Range» (WR'), all(r));
   check('… nothing reads undefined / null% / NaN', !broken(r), all(r));
 }
 {
@@ -54,19 +53,19 @@ const broken = r => /undefined|null%|NaN/.test(all(r));
 }
 {
   const r = run([...many(3, { session: 'London', pnl: '-10' }), ...many(3, { session: 'New York', pnl: '' })]);
-  check('one session known, one without P&L: no best / worst between them', r.error === null && !has(r, 'Лучшая сессия') && !has(r, 'Худшая сессия') && !broken(r), r.error || all(r));
+  check('one session known, one without P&L: no best / worst between them', r.error === null && !has(r, 'Сессия с самой') && !broken(r), r.error || all(r));
 }
 {
   const r = run([...many(3, { setup: 'Trend', pnl: '-10', result: 'win' }), ...many(3, { setup: 'Range', pnl: '10' })]);
-  check('a real 0% win rate (three known losses) is still shown as 0%', has(r, 'Слабый сетап: "Trend" (WR 0%)') && has(r, '3 убытков из 3'), all(r));
+  check('a real 0% win rate (three known losses) is still shown as 0%', has(r, 'Сетап с самой низкой долей побед: «Trend» — прибыльных 0 из 3 (0%)') && has(r, 'В минусе 3 из 3'), all(r));
 }
 {
   const r = run([...many(2, { setup: 'Trend', pnl: '-10' }), tr({ setup: 'Trend', pnl: '' }), ...many(3, { setup: 'Range', pnl: '10' })]);
-  check('two known losses + one without P&L: too few known results for a setup verdict', !has(r, 'Слабый сетап') && !broken(r), all(r));
+  check('two known losses + one without P&L: too few known results for a setup verdict', !has(r, 'самой низкой долей побед') && !broken(r), all(r));
 }
 {
   const r = run([...many(3, { setup: 'Trend', pnl: '0', result: 'be' }), tr({ setup: 'Trend', pnl: '' }), ...many(3, { setup: 'Range', pnl: '10' })]);
-  check('three real B/E + one without P&L: the setup counts 0% of 3 known', has(r, 'Слабый сетап: "Trend" (WR 0%)') && has(r, '0 убытков из 3'), all(r));
+  check('three real B/E + one without P&L: the setup counts 0% of 3 known', has(r, 'Сетап с самой низкой долей побед: «Trend» — прибыльных 0 из 3 (0%)') && has(r, 'В минусе 0 из 3'), all(r));
 }
 
 // ── the planned model on the marked results and the money after costs ──
@@ -84,13 +83,16 @@ const broken = r => /undefined|null%|NaN/.test(all(r));
 {
   const r = run(many(30, { pnl: '1', commission: '0', swap: '0', rr: '1:2' }));
   const s = r.ins.find(i => /E = /.test(i.text)) || {};
-  check('the same 30 with costs given as 0: +$30.00, the model and the money agree', s.type === 'good' && /после расходов: WR 100%, P&L \+\$30\.00/.test(s.meta || '') && !/предв/.test(s.meta || ''), s);
+  check('the same 30 with costs given as 0: +$30.00, the model and the money agree, but no green verdict without plan answers', s.type === 'info' && /подтверждено 0 из 30/.test(s.text || '') && /после расходов: WR 100%, P&L \+\$30\.00/.test(s.meta || '') && !/предв/.test(s.meta || ''), s);
+  const ok = run(many(30, { pnl: '1', commission: '0', swap: '0', rr: '1:2', byPlan: true, emotional: false, checklistScore: 1, checklistDetail: { liq: true, str: true, htf: true, news: true, risk: true } }));
+  const g = ok.ins.find(i => /E = /.test(i.text)) || {};
+  check('… the same 30 all confirmed by the rules: the green verdict', g.type === 'good', g);
 }
 
 {
   const r = run(many(30, { pnl: '', rr: '1:2' }));
   const s = r.ins.find(i => /E = /.test(i.text)) || {};
-  check('30 marked Win without any P&L: the money is «unknown», not $0.00 eaten by costs', r.error === null && /итог после расходов неизвестен/.test(s.text || '') && /после расходов: WR —, P&L \$0\.00/.test(s.meta || '') && !/съедают/.test(s.rec || '') && !/масштабируйте постепенно/.test(all(r)), s);
+  check('30 marked Win without any P&L: the money is «unknown» («—»), not $0.00 eaten by costs', r.error === null && /итог после расходов неизвестен/.test(s.text || '') && /после расходов: WR —, P&L — \(известен у 0 из 30\)/.test(s.meta || '') && !/съедают/.test(s.rec || '') && !/масштабируйте постепенно/.test(all(r)), s);
 }
 
 // ── preliminary: a cost still missing ──
