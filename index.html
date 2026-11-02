@@ -1899,7 +1899,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     </div>
 
     <button class="auth-btn" id="authBtn" onclick="doAuth()">Войти</button>
-    <div class="auth-msg" id="authMsg"></div>
+    <div class="auth-msg" id="authMsg" role="alert"></div>
     <div class="auth-foot" id="authFoot">Данные синхронизируются с приложением в Telegram</div>
   </div>
 </div>
@@ -3176,7 +3176,7 @@ async function fetchSupaConfig(){
   }catch(e){ return null; }
 }
 
-function setAuthMode(mode){
+function setAuthMode(mode, keepMsg){
   authMode = mode;
   const ru = lang==='ru';
   document.getElementById('authTabIn').classList.toggle('active', mode==='in');
@@ -3184,7 +3184,7 @@ function setAuthMode(mode){
   document.getElementById('authBtn').textContent = mode==='in'
     ? (ru?'Войти':'Sign in') : (ru?'Создать аккаунт':'Create account');
   document.getElementById('authPass').autocomplete = mode==='in' ? 'current-password' : 'new-password';
-  hideAuthMsg();
+  if(!keepMsg) hideAuthMsg();
 }
 function showAuthMsg(text, kind){
   const el=document.getElementById('authMsg');
@@ -3205,6 +3205,11 @@ async function doAuth(){
     showAuthMsg(ru?'Пароль должен быть от 6 символов':'Password must be at least 6 characters'); return;
   }
 
+  // A disabled button loses the focus: it comes back after an attempt that did not sign in.
+  // The message that was just shown stays on the screen.
+  const hadFocus = document.activeElement===btn;
+  const again = mode=>{ btn.disabled=false; setAuthMode(mode, true); if(hadFocus) btn.focus(); };
+
   btn.disabled = true;
   btn.textContent = ru?'Секунду...':'One moment...';
   hideAuthMsg();
@@ -3213,7 +3218,7 @@ async function doAuth(){
   if(!cfg || !cfg.web_auth_ready){
     showAuthMsg(ru?'Сервер недоступен. Попробуйте ещё раз через минуту.'
                   :'Server unavailable. Try again in a minute.');
-    btn.disabled=false; setAuthMode(authMode); return;
+    again(authMode); return;
   }
 
   const endpoint = authMode==='in' ? 'token?grant_type=password' : 'signup';
@@ -3233,14 +3238,14 @@ async function doAuth(){
       else if(m.includes('rate'))            msg = ru?'Слишком много попыток, подождите немного':'Too many attempts, wait a moment';
       else                                   msg = data.error_description || data.msg || (ru?'Не получилось':'Something went wrong');
       showAuthMsg(msg);
-      btn.disabled=false; setAuthMode(authMode); return;
+      again(authMode); return;
     }
 
     if(!data.access_token){
       // Signup succeeded but e-mail confirmation is switched on in Supabase
       showAuthMsg(ru?'Аккаунт создан. Подтвердите email и войдите.'
                     :'Account created. Confirm your email, then sign in.','ok');
-      btn.disabled=false; setAuthMode('in'); return;
+      again('in'); return;
     }
 
     saveWebSession({
@@ -3253,7 +3258,7 @@ async function doAuth(){
     await startApp();
   }catch(e){
     showAuthMsg(ru?'Нет связи с сервером':'No connection to server');
-    btn.disabled=false; setAuthMode(authMode);
+    again(authMode);
   }
 }
 
@@ -3425,7 +3430,7 @@ function setDataOwner(owner){
   clearTimeout(syncPendingQueue._retryTimer);
   trades = []; baseCapital = 0; goals = []; ideas = [];
   stratReset();
-  _serverIds = null; _localChangeAt.clear(); _hiddenByOtherTab.clear();
+  _serverIds = null; _settingsSave = null; _localChangeAt.clear(); _hiddenByOtherTab.clear();
   subState = null;
   if(typeof document!=='undefined' && document.getElementById('subGroup')) renderSubscription();
   resetFormsForAccountSwitch();
@@ -3543,7 +3548,8 @@ function patchCachedTrade(owner, id, patch){
 // ═══════════════════════════════════════════════════════
 const TOMB_KEY = 'deleted_trades_v1';
 const TOMB_KEEP_MS = 30*24*60*60*1000;   // confirmed deletions are remembered for 30 days
-let _serverIds = null;                    // ids the server returned on the last load; null = unknown
+let _serverIds = null;                    // ids the server returned on the last load, as text; null = unknown
+let _settingsSave = null;                 // the write of capital and goals on its way
 const _localChangeAt = new Map();         // trade id -> time of the last local save/delete or confirmed save (this session)
 function noteLocalChange(id){ _localChangeAt.set(id, Date.now()); }
 const _hiddenByOtherTab = new Set();       // trade ids hidden here because another tab deleted them (it may still undo)
@@ -3554,7 +3560,7 @@ function getQueue(owner=dataOwner){
   const q = lsJSON(PENDING_KEY, [], owner);
   return Array.isArray(q) ? q.filter(x=>x && typeof x==='object' && x.id) : [];
 }
-function stripQueueFields(entry){ const {__qv, ...rest} = entry; return rest; }
+function stripQueueFields(entry){ const {__qv, __addOnly, ...rest} = entry; return rest; }
 let _queueIdsMemo = {owner:null, raw:null, ids:new Set()};
 function queuedIds(owner=dataOwner){
   const raw = lsGet(PENDING_KEY, owner);
@@ -3572,6 +3578,12 @@ function setTombs(list, owner=dataOwner){
 function tombIds(owner=dataOwner){ return new Set(getTombs(owner).map(x=>x.id)); }
 function updateTomb(owner, id, patch){
   setTombs(getTombs(owner).map(x=>x.id===id ? {...x, ...patch} : x), owner);
+}
+// Trades this device has and the server does not, with nothing on its way there. 0 while the server's list is unknown.
+function localOnlyCount(){
+  if(!_serverIds) return 0;
+  const waiting = new Set([...queuedIds()].map(String));
+  return trades.filter(t=>!_serverIds.has(String(t.id)) && !waiting.has(String(t.id))).length;
 }
 
 // Deletes a trade on this device right away and records the deletion so the
@@ -3600,7 +3612,7 @@ function unmarkTradeDeleted(id){
 function syncLabelHTML(id){
   if(!dataOwner) return '';
   if(queuedIds().has(id)) return `<span class="tc-sync">${lang==='ru'?'Не отправлено':'Not sent'}</span>`;
-  if(_serverIds && !_serverIds.has(id)) return `<span class="tc-sync local">${lang==='ru'?'Нет на сервере':'Not on server'}</span>`;
+  if(_serverIds && !_serverIds.has(String(id))) return `<span class="tc-sync local">${lang==='ru'?'Нет на сервере':'Not on server'}</span>`;
   return '';
 }
 
@@ -3629,7 +3641,7 @@ function syncPendingQueue(opts={}){
 
 async function syncPass(run){
   const {owner, epoch} = run;
-  let blocked = false, delivered = 0, droppedDeleted = 0;
+  let blocked = false, delivered = 0, droppedDeleted = 0, kept = 0;
 
   // 1. Deletions, oldest first
   const tombs = getTombs(owner).filter(x=>!x.done).sort((a,b)=>(a.at||0)-(b.at||0));
@@ -3643,7 +3655,7 @@ async function syncPass(run){
     if(res){
       updateTomb(owner, tomb.id, {done:true, doneAt:Date.now(), rejected:false,
                                   ...(Number.isSafeInteger(res.deletion) ? {gen:res.deletion} : {})});
-      if(isCurrentOwner(owner, epoch) && _serverIds) _serverIds.delete(tomb.id);
+      if(isCurrentOwner(owner, epoch) && _serverIds) _serverIds.delete(String(tomb.id));
       delivered++;
       console.log(`[SYNC] ✓ Deletion of ${tomb.id} confirmed`);
       continue;
@@ -3675,8 +3687,18 @@ async function syncPass(run){
       if(!entry) continue;
       const payload = stripQueueFields(entry);
       api._lastStatus = null;
-      const result = await api('POST', '/trades', payload);
+      const result = await api('POST', entry.__addOnly ? '/trades?add_only=1' : '/trades', payload);
       const st = api._lastStatus; run.lastStatus = st;
+      if(result && result.skipped==='exists'){
+        // An imported trade the account already has: the account's version stays. A newer
+        // queued save of it (an edit made here) goes next as an ordinary save.
+        removeFromPendingQueue(id, owner, entry.__qv===undefined ? null : entry.__qv);
+        delivered++; kept++;
+        if(getQueue(owner).some(q=>q.id===id)){ run.again = true; continue; }
+        applyKeptVersion(owner, id, result.trade, payload, isCurrentOwner(owner, epoch));
+        if(!isCurrentOwner(owner, epoch)) return;
+        continue;
+      }
       if(result && result.skipped==='deleted'){
         // The server refused this version because the trade is deleted there.
         // Drop only the version that was sent: a newer queued save (e.g. an
@@ -3698,7 +3720,7 @@ async function syncPass(run){
           if(result.img_url) patchCachedTrade(owner, id, {img_url: result.img_url});
           return;
         }
-        if(_serverIds) _serverIds.add(id);
+        if(_serverIds) _serverIds.add(String(id));
         noteLocalChange(id);
         applySaveResult(owner, id, payload, result);
         console.log(`[SYNC] ✓ Trade ${id} saved on server${result.img_failed?' (without photo)':''}`);
@@ -3724,8 +3746,10 @@ async function syncPass(run){
   const open = getTombs(owner).filter(x=>!x.done);
   const rejected = open.filter(x=>x.rejected).length;
   const left = getQueue(owner).length + open.length;
-  setSyncStatus(left>0 ? 'pending' : 'synced');
-  if(!run.again && delivered>0 && !run.quiet){
+  setSyncStatus(left>0 || localOnlyCount()>0 ? 'pending' : 'synced');
+  if(kept>0){
+    showSyncStatus(lang==='ru' ? `Уже есть в аккаунте: ${kept}, файл их не изменил` : `Already in the account: ${kept}, the file changed nothing`, 'pending');
+  } else if(!run.again && delivered>0 && !run.quiet){
     showSyncStatus(lang==='ru' ? `Досинхронизировано: ${run.delivered}` : `Synced ${run.delivered} pending change(s)`);
   }
   if(rejected && !_rejectNotified){
@@ -3747,6 +3771,24 @@ async function syncPass(run){
   }
 }
 
+// The server kept its own version of an imported trade: that version replaces the file's copy here.
+// If the stored copy is no longer what was sent, another tab has saved an edit meanwhile: that one stays.
+function applyKeptVersion(owner, id, version, sent, isCurrent){
+  const same = t=>String(t.id)===String(id);
+  const print = t=>JSON.stringify(t, (k,v)=>k==='img' ? undefined : v);   // the stored copy never holds the picture itself
+  const stored = lsJSON('trades_v3', [], owner).find(same);
+  const newest = stored && print(stored)!==print(sent) ? stored : version;
+  const swap = list => newest ? list.map(t=>same(t) ? newest : t) : list;
+  if(isCurrent){
+    trades = swap(trades);
+    safeLocalStorageSet('trades_v3', trades, owner);
+    if(_serverIds) _serverIds.add(String(id));
+    noteLocalChange(id);
+  } else {
+    safeLocalStorageSet('trades_v3', swap(lsJSON('trades_v3', [], owner)), owner);
+  }
+}
+
 // The server refused a save because the trade is deleted there. Every queued
 // version goes, the deletion is recorded as confirmed, the trade leaves the journal.
 let _serverDeletedNotified = 0;
@@ -3758,7 +3800,7 @@ function applyServerDeleted(owner, id, isCurrent){
   if(isCurrent){
     trades = trades.filter(t=>t.id!==id);
     safeLocalStorageSet('trades_v3', trades, owner);
-    if(_serverIds) _serverIds.delete(id);
+    if(_serverIds) _serverIds.delete(String(id));
     noteLocalChange(id);
     if(Date.now() - _serverDeletedNotified > 3000){
       _serverDeletedNotified = Date.now();
@@ -3776,7 +3818,7 @@ function applyServerDeleted(owner, id, isCurrent){
 function dropDeletedTrade(owner, id, isCurrent){
   if(isCurrent){
     trades = trades.filter(t=>t.id!==id);
-    if(_serverIds) _serverIds.delete(id);
+    if(_serverIds) _serverIds.delete(String(id));
   }
   safeLocalStorageSet('trades_v3', lsJSON('trades_v3', [], owner).filter(t=>t.id!==id), owner);
 }
@@ -3801,7 +3843,7 @@ function applyOtherTabDeletions(){
   }
   if(changed) trades = trades.filter(t=>!deleted.has(t.id));
   for(const id of [..._hiddenByOtherTab]){
-    if(confirmed.has(id)){ _hiddenByOtherTab.delete(id); if(_serverIds) _serverIds.delete(id); continue; }
+    if(confirmed.has(id)){ _hiddenByOtherTab.delete(id); if(_serverIds) _serverIds.delete(String(id)); continue; }
     if(deleted.has(id)) continue;                                     // still inside the other tab's undo window
     const copy = lsJSON('trades_v3', [], owner).find(t=>t && t.id===id);
     if(!copy) continue;                                               // undone; its copy is written right after
@@ -4066,8 +4108,11 @@ async function api(method, path, body, _retried, _ctx){
   }
 }
 
-async function loadData(){
+// Resolves with what the server answered on this call. A refresh keeps what the page holds
+// instead of starting from the stored copy.
+async function loadData({refresh=false}={}){
   const owner = dataOwner, epoch = ownerEpoch;
+  const fresh = {trades:false, settings:false};
   showLoader(true);
 
   // First: always load this account's local copy instantly
@@ -4075,27 +4120,32 @@ async function loadData(){
   const localCapital  = parseFloat(lsGet('baseCapital_v3', owner)||'0');
   const localGoals    = lsJSON('goals_v1', [], owner);
 
-  trades = localTrades;
-  baseCapital = localCapital;
-  goals = localGoals;
+  if(!refresh){
+    trades = localTrades;
+    baseCapital = localCapital;
+    goals = localGoals;
+  }
 
   showLoader(false); // show local data immediately, don't wait for server
 
   // Then: try to get fresher data from server in background
   try{
-    if(!owner) return;
+    if(!owner) return fresh;
     const loadStarted = Date.now();
+    const settingsBefore = settingsNow(owner);
+    await _settingsSave;                      // a read must not overtake a save on its way
     const [t,s] = await Promise.all([api('GET','/trades'), api('GET','/settings')]);
     // The account changed while we waited — this answer belongs to someone else's journal
-    if(!isCurrentOwner(owner, epoch)){ console.log('[SYNC] Late server answer for a previous account ignored'); return; }
+    if(!isCurrentOwner(owner, epoch)){ console.log('[SYNC] Late server answer for a previous account ignored'); return fresh; }
 
     if(t && Array.isArray(t)){
       // CRITICAL MERGE: take server data as base, then add anything
       // that's in localStorage but NOT yet confirmed on server.
       // This covers both pending queue AND trades saved while server was starting.
       t.forEach(x=>{ if(x && typeof x==='object') delete x.__restore; });
+      fresh.trades = true;
       const serverIds = new Set(t.map(x=>x.id));
-      _serverIds = new Set(serverIds);
+      _serverIds = new Set(t.map(x=>String(x.id)));
       // Read at merge time: deletions and edits made while the request was out count
       const deleted = tombIds(owner);
       const waiting = new Map(getQueue(owner).map(q=>[q.id, stripQueueFields(q)]));
@@ -4150,10 +4200,13 @@ async function loadData(){
     }
 
     if(s){
-      baseCapital = s.base_capital||0;
-      goals = s.goals||[];
-      lsSet('baseCapital_v3', String(baseCapital), owner);
-      lsSet('goals_v1', JSON.stringify(goals), owner);
+      fresh.settings = true;
+      if(settingsNow(owner)===settingsBefore){
+        baseCapital = s.base_capital||0;
+        goals = s.goals||[];
+        lsSet('baseCapital_v3', String(baseCapital), owner);
+        lsSet('goals_v1', JSON.stringify(goals), owner);
+      }
     }
   }catch(e){
     // Server failed — local data already shown, nothing to do
@@ -4161,6 +4214,7 @@ async function loadData(){
 
   // Sync pending saves and deletions (5s delay gives Render cold start time to wake up)
   setTimeout(()=>{ if(isCurrentOwner(owner, epoch)) syncPendingQueue(); }, 5000);
+  return fresh;
 }
 
 function showSyncStatus(msg, type){
@@ -4215,7 +4269,34 @@ async function syncSettings(){
   if(!owner) return;
   lsSet('baseCapital_v3', String(baseCapital), owner);
   lsSet('goals_v1', JSON.stringify(goals), owner);
-  await api('POST','/settings',{base_capital:baseCapital, goals});
+  _settingsSave = api('POST','/settings',{base_capital:baseCapital, goals});
+  await _settingsSave;
+}
+// Capital and goals as this page and the stored copy hold them. An answer that was on its way while
+// these changed is older than the change: applied, it would undo it, and the next save would send
+// the old values back to the server.
+function settingsNow(owner){
+  return JSON.stringify([baseCapital, goals, lsGet('baseCapital_v3', owner), lsGet('goals_v1', owner)]);
+}
+// Capital and goals from a backup file: the server writes each only while the account has none, so a
+// value set on another device stays. Its answer is what the account holds now, and this device shows that.
+async function fillEmptySettings(owner, epoch){
+  const ru = lang==='ru';
+  const store = ()=>{ try{ lsSet('baseCapital_v3', String(baseCapital), owner); lsSet('goals_v1', JSON.stringify(goals), owner); }catch(e){} };
+  store();
+  const before = settingsNow(owner);
+  await _settingsSave;
+  // Both values always go: a server from before this request writes both of whatever it gets
+  _settingsSave = api('POST','/settings?fill_empty=1',{base_capital:baseCapital, goals});
+  const saved = await _settingsSave;
+  if(!isCurrentOwner(owner, epoch)) return;
+  if(!saved){ toastWarn(ru?'Депозит и цели не дошли до сервера.':'Capital and goals did not reach the server.'); return; }
+  if(saved.base_capital===undefined || settingsNow(owner)!==before) return;
+  const ids = list=>list.map(g=>g.id).join();
+  const same = saved.base_capital===baseCapital && ids(saved.goals||[])===ids(goals);
+  baseCapital = saved.base_capital; goals = saved.goals||[];
+  store();
+  if(!same){ renderHome(); toastWarn(ru?'Депозит или цели уже заданы в аккаунте':'Capital or goals are already in the account'); }
 }
 
 function showLoader(show){
@@ -10183,16 +10264,30 @@ function updateBackupStatus(){
   const warning = document.getElementById('pendingWarning');
   if(!card) return;
 
-  if(pending.length>0){
+  // «Safe» is said only when the server has confirmed every trade on this device
+  const ru = lang==='ru', onlyHere = localOnlyCount();
+  const notice = pending.length>0 ? [
+      ru?`${pending.length} ${plural(pending.length,'сделка ждёт','сделки ждут','сделок ждут')} сервера`:`${pending.length} trades pending`,
+      ru?`Эти сделки сохранены на вашем устройстве, но ещё не попали в облако. Они синхронизируются автоматически при следующем подключении к серверу.`
+        :`These trades are saved on your device but not yet in the cloud. They will sync automatically when the server is reachable.`]
+    : !_serverIds ? [
+      ru?'Нет связи с сервером':'No connection to the server',
+      ru?'Журнал не удалось сверить с сервером, поэтому часть записей может быть только на этом устройстве.'
+        :'The journal could not be checked against the server, so some records may be on this device only.']
+    : onlyHere>0 ? [
+      ru?`${onlyHere} ${plural(onlyHere,'сделка есть','сделки есть','сделок есть')} только на этом устройстве`
+        :`${onlyHere} ${onlyHere===1?'trade is':'trades are'} on this device only`,
+      ru?'Их нет на сервере: при очистке браузера они пропадут. Скачайте резервную копию.'
+        :'They are not on the server and will be lost if the browser data is cleared. Download a backup.']
+    : null;
+  if(notice){
     dot.style.background = 'var(--warning)';
-    text.textContent = lang==='ru'?`${pending.length} сделок ждут сервера`:`${pending.length} trades pending`;
+    text.textContent = notice[0];
     text.style.color = 'var(--warning)';
     card.style.background = 'rgba(242,208,107,.06)';
     card.style.borderColor = 'var(--accent-muted)';
     warning.style.display = 'block';
-    warning.textContent = lang==='ru'
-      ? `Эти сделки сохранены на вашем устройстве, но ещё не попали в облако. Они синхронизируются автоматически при следующем подключении к серверу.`
-      : `These trades are saved on your device but not yet in the cloud. They will sync automatically when the server is reachable.`;
+    warning.textContent = notice[1];
   } else {
     dot.style.background = 'var(--positive)';
     text.textContent = lang==='ru'?'Все данные в безопасности':'All data is safe';
@@ -10242,20 +10337,81 @@ function exportCSV(){
 
 function validateTradeImport(data){
   if(!data || typeof data!=='object' || !Array.isArray(data.trades)) throw new Error('Invalid trade list');
+  const empty=v=>v===undefined || v===null || v==='';
+  // A file goes to the server and to every device, so a value the screens cannot show stops it here
+  const isDay=v=>{
+    if(typeof v!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+    const d=new Date(v+'T12:00:00Z');
+    return !isNaN(d) && d.toISOString().slice(0,10)===v;   // 2026-02-30 would quietly become March
+  };
   const ids=new Set();
   for(const t of data.trades){
     if(!t || typeof t!=='object' || Array.isArray(t) || !['string','number'].includes(typeof t.id)) throw new Error('Invalid trade');
     const id=String(t.id);
-    if(!id || id.length>128 || /[\u0000-\u001f\u007f]/.test(id) || ids.has(id)) throw new Error('Invalid or duplicate trade id');
+    if(!t.id || id.length>128 || /[\u0000-\u001f\u007f]/.test(id) || ids.has(id)) throw new Error('Invalid or duplicate trade id');
     ids.add(id);
     for(const key of ['pair','asset','market','session','notes','setup','rr','img','img_url']) if(t[key]!==null && t[key]!==undefined && typeof t[key]!=='string') throw new Error('Invalid trade text');
     for(const key of ['tags','mistakes']) if(t[key]!==undefined && (!Array.isArray(t[key]) || t[key].some(v=>typeof v!=='string'))) throw new Error('Invalid trade labels');
     for(const key of ['entry','sl','tp','pnl','commission','swap']) if(t[key]!==undefined && t[key]!==null && !['string','number'].includes(typeof t[key])) throw new Error('Invalid trade value');
+    for(const key of ['entry','sl','tp','pnl']) if(!empty(t[key]) && !Number.isFinite(parseFloat(t[key]))) throw new Error('Invalid trade number');
+    for(const key of ['commission','swap']) if(!empty(t[key]) && String(t[key]).trim()!=='' && !Number.isFinite(Number(String(t[key]).trim().replace(',','.')))) throw new Error('Invalid trade cost');
+    if(!empty(t.date) && !isDay(t.date)) throw new Error('Invalid trade date');
     if(t.checklistDetail!==undefined && t.checklistDetail!==null && (typeof t.checklistDetail!=='object'||Array.isArray(t.checklistDetail))) throw new Error('Invalid checklist');
   }
   if(data.baseCapital!==undefined && (typeof data.baseCapital!=='number'||!Number.isFinite(data.baseCapital)||data.baseCapital<0)) throw new Error('Invalid capital');
-  if(data.goals!==undefined && (!Array.isArray(data.goals)||data.goals.some(g=>!g||typeof g!=='object'||typeof g.id!=='string'||!/^[A-Za-z0-9_.:-]+$/.test(g.id)))) throw new Error('Invalid goals');
+  const GOAL_TYPES=['winrate','trades','pnl','discipline','rr','drawdown'];
+  if(data.goals!==undefined && (!Array.isArray(data.goals)||data.goals.some(g=>!g||typeof g!=='object'||typeof g.id!=='string'||!/^[A-Za-z0-9_.:-]+$/.test(g.id)||!GOAL_TYPES.includes(g.type)||!(parseFloat(g.target)>0)))) throw new Error('Invalid goals');
   return data;
+}
+
+// What a backup file gives this account. An import only adds: a trade the server has keeps the
+// journal's version, one deleted here stays deleted, one only on this device goes out in its local
+// version. Capital and goals are taken only where the account has none and the server has just said so.
+// The server has the last word on both: see add_only and fill_empty in server.js.
+function planTradeImport(data, owner, settingsFresh){
+  const text=list=>new Set([...list].map(String));
+  const onServer=_serverIds, gone=text(tombIds(owner)), waiting=text(queuedIds(owner));
+  const here=new Map(trades.map(t=>[String(t.id),t]));
+  const plan={send:[], add:[], known:0, gone:0,
+    capital:settingsFresh && data.baseCapital>0 && !(baseCapital>0),
+    goals:settingsFresh && Array.isArray(data.goals) && data.goals.length>0 && !goals.length};
+  data.trades.forEach(t=>{
+    const id=String(t.id);
+    if(gone.has(id)) plan.gone++;
+    else if(onServer.has(id) || waiting.has(id)) plan.known++;
+    else{
+      if(!here.has(id)) plan.add.push(t);
+      plan.send.push(here.get(id)||t);
+    }
+  });
+  return plan;
+}
+function importQuestion(count, plan, who){
+  const ru=lang==='ru', n=plan.send.length;
+  const fill=plan.capital&&plan.goals ? (ru?'Депозит и цели из файла будут подставлены: в аккаунте их нет.':'Capital and goals from the file will be used: the account has none.')
+    : plan.capital ? (ru?'Депозит из файла будет подставлен: в аккаунте его нет.':'Capital from the file will be used: the account has none.')
+    : plan.goals ? (ru?'Цели из файла будут подставлены: в аккаунте их нет.':'Goals from the file will be used: the account has none.') : '';
+  return (ru ? [
+    `В файле ${count} ${plural(count,'сделка','сделки','сделок')}.`,
+    n?`В аккаунт ${who} будет добавлено: ${n}, они уйдут на сервер.`:`Аккаунт: ${who}.`,
+    plan.known?`Уже есть в журнале: ${plan.known}, они не изменятся.`:'',
+    plan.gone?`Удалены раньше и не вернутся: ${plan.gone}.`:'',
+    fill, 'Ничего не удаляется.'
+  ] : [
+    `The file has ${count} ${count===1?'trade':'trades'}.`,
+    n?`${n} will be added to ${who} and sent to the server.`:`Account: ${who}.`,
+    plan.known?`Already in the journal: ${plan.known}, they stay as they are.`:'',
+    plan.gone?`Deleted earlier, they will not come back: ${plan.gone}.`:'',
+    fill, 'Nothing is deleted.'
+  ]).filter(Boolean).join(' ');
+}
+const withoutQueueFields=({__restore, __qv, __addOnly, ...t})=>t;
+// One write for the whole file. Throws when the device has no room, and then nothing has changed.
+function queueImportedTrades(list, owner){
+  if(!list.length) return;
+  const q=getQueue(owner);
+  list.forEach(t=>q.push({...withoutQueueFields(t), __addOnly:true, __qv:Date.now().toString(36)+Math.random().toString(36).slice(2,8)}));
+  lsSet(PENDING_KEY, JSON.stringify(q), owner);
 }
 
 function importJSON(input){
@@ -10263,27 +10419,39 @@ function importJSON(input){
   const owner=dataOwner, epoch=ownerEpoch;
   if(!owner){ toastWarn(lang==='ru'?'Сначала войдите в аккаунт':'Sign in first'); input.value=''; return; }
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async e=>{
     // The file was chosen for the account signed in at that moment
     if(!isCurrentOwner(owner, epoch)){ toastWarn(lang==='ru'?'Аккаунт сменился — импорт отменён':'Account changed — import cancelled'); return; }
-    try{
-      const data=JSON.parse(e.target.result);
-      validateTradeImport(data);
-      if(data.trades&&Array.isArray(data.trades)){
-        const count=data.trades.length;
-        const who=accountLabel();
-        if(!confirm((lang==='ru'?`Импортировать ${count} сделок в аккаунт ${who}? Текущие данные этого аккаунта на устройстве будут заменены.`:`Import ${count} trades into ${who}? This account's current data on this device will be replaced.`))) return;
-        if(!isCurrentOwner(owner, epoch)) return;
-        trades=data.trades;
-        if(data.baseCapital!==undefined) baseCapital=data.baseCapital;
-        if(data.goals) goals=data.goals;
-        safeLocalStorageSet('trades_v3', trades);
-        try{ lsSet('baseCapital_v3',String(baseCapital)); lsSet('goals_v1',JSON.stringify(goals)); }catch(e){}
-        renderHome(); renderTrades();
-        closeModal('exportModal');
-        showToast(lang==='ru'?`Импортировано ${count} сделок`:`Imported ${count} trades`);
-      } else { toastWarn(lang==='ru'?'Неверный формат файла':'Invalid file format'); }
-    }catch(err){ toastWarn(lang==='ru'?'Ошибка чтения файла':'File read error'); }
+    const ru=lang==='ru';
+    let data;
+    try{ data=JSON.parse(e.target.result); validateTradeImport(data); }
+    catch(err){ toastWarn(ru?'Файл не подошёл. Журнал не изменён.':'This file cannot be used. Nothing changed.'); return; }
+    // The page may have been open for days, so the plan starts from what the account holds now.
+    // Without that answer the question could promise what is not true, so the import waits for a connection.
+    showToast(ru?'Сверяем журнал с сервером...':'Checking the journal with the server...');
+    const fresh=await loadData({refresh:true});
+    if(!isCurrentOwner(owner, epoch)) return;
+    if(!fresh.trades){ toastWarn(ru?'Нет связи с сервером. Импорт не выполнен.':'No connection to the server. Nothing imported.'); return; }
+    renderHome();
+    const plan=planTradeImport(data, owner, fresh.settings), n=plan.send.length;
+    if(!n && !plan.capital && !plan.goals){ closeModal('exportModal'); showToast(ru?'Новых сделок в файле нет':'No new trades in the file'); return; }
+    if(!confirm(importQuestion(data.trades.length, plan, accountLabel()))) return;
+    if(!isCurrentOwner(owner, epoch)) return;
+    try{ queueImportedTrades(plan.send, owner); }
+    catch(err){ toastWarn(ru?'Не хватило памяти. Импорт не выполнен.':'Not enough storage. Nothing imported.'); return; }
+    plan.send.forEach(t=>noteLocalChange(t.id));
+    trades=[...trades, ...plan.add.map(withoutQueueFields)];
+    safeLocalStorageSet('trades_v3', trades, owner);
+    if(plan.capital) baseCapital=data.baseCapital;
+    if(plan.goals) goals=data.goals;
+    if(plan.capital || plan.goals) fillEmptySettings(owner, epoch);
+    if(n) setSyncStatus('pending');
+    renderHome(); renderTrades();
+    closeModal('exportModal');
+    showToast(!n ? (ru?'Настройки из файла подставлены':'Settings from the file are in place')
+      : ru ? `${plural(n,'Добавлена','Добавлено','Добавлено')} ${n} ${plural(n,'сделка','сделки','сделок')}, отправляем на сервер`
+      : `Added ${n} ${n===1?'trade':'trades'}, sending to the server`);
+    if(n) syncPendingQueue();
   };
   reader.readAsText(file);
   input.value='';
@@ -12264,8 +12432,16 @@ function v4TopLayer(){
   return top;
 }
 function v4ModalFocus(){
-  const visible = el=>el && el.isConnected && el.getClientRects().length && getComputedStyle(el).visibility!=='hidden';
-  const focusables = l=>[...l.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]
+  // A closed <details> hides its fields, yet Chromium still gives them a size and then refuses
+  // the focus. Of a closed fold only its heading is a stop.
+  const inClosedFold = el=>{
+    for(let n=el, p=el.parentElement; p; n=p, p=p.parentElement){
+      if(p.tagName==='DETAILS' && !p.open && p.querySelector('summary')!==n) return true;
+    }
+    return false;
+  };
+  const visible = el=>el && el.isConnected && el.getClientRects().length && getComputedStyle(el).visibility!=='hidden' && !inClosedFold(el);
+  const focusables = l=>[...l.querySelectorAll('a[href],button,input,select,textarea,summary,[tabindex]')]
     .filter(el=>!el.disabled && el.tabIndex>=0 && visible(el));
   const boxOf = l=> l.id==='fullscreen' ? l.querySelector('.fs-close') : (l.querySelector('.modal') || l);
   const peers = ()=>[...document.querySelectorAll('.page.active [data-id]')].filter(el=>el.tabIndex>=0 && visible(el));
@@ -12325,10 +12501,18 @@ function v4ModalFocus(){
     e.preventDefault();                                                  // the layer decides every step, nothing behind it is reachable
     const list = focusables(top), a = document.activeElement;
     if(!list.length){ boxOf(top).focus(); return; }
-    const last = list.length-1;
+    const last = list.length-1, dir = e.shiftKey ? -1 : 1;
+    // A control the browser still refuses is stepped over, so Tab can never stick on it
+    const step = from=>{
+      for(let s=1; s<=list.length; s++){
+        const el = list[((from+dir*s)%list.length+list.length)%list.length];
+        el.focus();
+        if(document.activeElement===el) return;
+      }
+    };
     let i = list.indexOf(a);
     if(i<0){
-      if(!top.contains(a) || a===boxOf(top)){ list[e.shiftKey ? last : 0].focus(); return; }
+      if(!top.contains(a) || a===boxOf(top)){ step(e.shiftKey ? 0 : last); return; }
       // focus sits on something hidden inside the layer, e.g. an option of a list that the
       // list's own Tab handler has just closed: step from the list's button, in page order
       const anchor = (a.closest('.ssel') && a.closest('.ssel').querySelector('.ssel-trigger')) || a;
@@ -12336,11 +12520,11 @@ function v4ModalFocus(){
       if(i<0){
         const after = list.findIndex(el=>anchor.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
         const k = after<0 ? list.length : after;
-        list[e.shiftKey ? (k-1<0 ? last : k-1) : (k>last ? 0 : k)].focus();
+        step(e.shiftKey ? k : k-1);
         return;
       }
     }
-    list[e.shiftKey ? (i>0 ? i-1 : last) : (i<last ? i+1 : 0)].focus();
+    step(i);
   });
 }
 // Things that open or switch on a click but are not buttons (trade cards and rows, market

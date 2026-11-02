@@ -510,17 +510,20 @@ async function checkGuardSelftest() {
   return result;
 }
 
+// What the app gets for a stored row
+function tradeFromRow(r) {
+  const t = r.data || {};
+  delete t.__restore;
+  if (r.img_url) t.img_url = r.img_url;
+  return t;
+}
+
 // GET /trades — fetch all trades for authenticated user
 app.get('/trades', auth, async (req, res) => {
   try {
     const guard  = await hasDeletionGuard();
     const rows   = await supabase('GET', `trades?user_id=eq.${req.userId}${guard ? '&deleted_at=is.null' : ''}&select=*&order=created_at.asc`);
-    const trades = (rows || []).map(r => {
-      const t = r.data || {};
-      delete t.__restore;
-      if (r.img_url) t.img_url = r.img_url;
-      return t;
-    });
+    const trades = (rows || []).map(tradeFromRow);
     console.log(`[API] GET /trades → ${trades.length} trade(s) for user ${req.userId}`);
     res.json(trades);
   } catch (e) {
@@ -540,16 +543,37 @@ function isValidTradeId(id) {
   return s.length >= 1 && s.length <= 128 && !/[\u0000-\u001f\u007f]/.test(s);
 }
 
+// The stored row of this id in this account, deletion marks included
+async function storedTrade(userId, id) {
+  const guard = await hasDeletionGuard();
+  const rows  = await supabase('GET', `trades?id=eq.${encodeURIComponent(id)}&user_id=eq.${userId}&select=data,img_url${guard ? ',deleted_at' : ''}`);
+  return rows && rows.length ? rows[0] : null;
+}
+// The answer to add_only when the account already has this id: what it holds stays
+function kept(row) {
+  if (!row) return { ok: true, skipped: 'exists' };
+  return row.deleted_at ? { ok: true, skipped: 'deleted' } : { ok: true, skipped: 'exists', trade: tradeFromRow(row) };
+}
+
 // POST /trades — create or update a trade (upsert by id + user_id)
+// POST /trades?add_only=1 — a trade from a backup file: saved only if the account has no row
+// with this id, so a file never replaces a newer version or brings a deleted trade back.
 app.post('/trades', auth, async (req, res) => {
   try {
     const trade = { ...req.body };
     if (!trade.id) return res.status(400).json({ error: 'Missing trade id' });
     if (!isValidTradeId(trade.id)) return res.status(400).json({ error: 'Invalid trade id' });
+    const addOnly = req.query?.add_only === '1';
     // "Undo" of a delivered deletion sends __restore = that deletion's number.
     // It is a request field only, never stored with the trade.
     const restoreGen = Number.isSafeInteger(trade.__restore) && trade.__restore > 0 ? trade.__restore : null;
     delete trade.__restore;
+
+    if (addOnly) {
+      // Checked first so no picture is uploaded for a trade that will not be saved
+      const row = await storedTrade(req.userId, trade.id);
+      if (row) return res.json(kept(row));
+    }
 
     let imgUrl    = trade.img_url || null;
     let imgFailed = false;
@@ -566,7 +590,20 @@ app.post('/trades', auth, async (req, res) => {
       delete trade.img; // never store base64 in the database
     }
 
-    if (await hasDeletionGuard()) {
+    if (addOnly) {
+      // The database decides at the moment of the write: a row that appeared after the check stays
+      const inserted = await supabase('POST', 'trades?on_conflict=id,user_id', {
+        id:         trade.id,
+        user_id:    req.userId,
+        data:       trade,
+        img_url:    imgUrl,
+        created_at: new Date().toISOString(),
+      }, 'resolution=ignore-duplicates,return=representation');
+      if (!inserted || !inserted.length) {
+        console.log(`[API] POST /trades → trade ${trade.id} from a file not saved, the account has it for user ${req.userId}`);
+        return res.json(kept(await storedTrade(req.userId, trade.id)));
+      }
+    } else if (await hasDeletionGuard()) {
       const outcome = await supabase('POST', 'rpc/mj_save_trade', {
         p_id: trade.id, p_user_id: req.userId, p_data: trade, p_img_url: imgUrl, p_restore_gen: restoreGen,
       });
@@ -688,6 +725,24 @@ app.get('/settings', auth, async (req, res) => {
 });
 
 // POST /settings — save base capital and goals
+// POST /settings?fill_empty=1 — capital and goals from a backup file: each is written only while
+// the account has none. The condition is part of the write, so a value set on another device a
+// moment ago stays. The answer is what the account holds now.
+async function fillEmptySettings(userId, capital, goals) {
+  const now = new Date().toISOString();
+  const inserted = await supabase('POST', 'users?on_conflict=user_id', {
+    user_id:      userId,
+    base_capital: capital > 0 ? capital : 0,
+    goals,
+    updated_at:   now,
+  }, 'resolution=ignore-duplicates,return=representation');
+  if (!inserted || !inserted.length) {
+    if (capital > 0)  await supabase('PATCH', `users?user_id=eq.${userId}&or=(base_capital.is.null,base_capital.eq.0)`, { base_capital: capital, updated_at: now }, 'return=minimal');
+    if (goals.length) await supabase('PATCH', `users?user_id=eq.${userId}&or=(goals.is.null,goals.eq."[]")`, { goals, updated_at: now }, 'return=minimal');
+  }
+  const rows = await supabase('GET', `users?user_id=eq.${userId}&select=base_capital,goals`);
+  return { base_capital: parseFloat(rows?.[0]?.base_capital) || 0, goals: rows?.[0]?.goals || [] };
+}
 app.post('/settings', auth, async (req, res) => {
   try {
     const { base_capital, goals } = req.body;
@@ -698,6 +753,9 @@ app.post('/settings', auth, async (req, res) => {
     }
     if (!Array.isArray(goals) && goals !== undefined) {
       return res.status(400).json({ error: 'Invalid goals format' });
+    }
+    if (req.query?.fill_empty === '1') {
+      return res.json({ ok: true, ...await fillEmptySettings(req.userId, capital, Array.isArray(goals) ? goals : []) });
     }
     await supabase('POST', 'users?on_conflict=user_id', {
       user_id:      req.userId,
