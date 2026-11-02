@@ -1118,15 +1118,22 @@ body.light .mtab.active{background:var(--text);color:var(--surface)}
 .streak-ledger{padding:4px 16px}
 .sl-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
 .sl-row:last-child{border-bottom:none}
-.sl-num{font-family:var(--serif);font-size:32px;font-weight:600;line-height:1;min-width:44px;font-variant-numeric:lining-nums tabular-nums}
+.sl-num{font-family:var(--serif);font-size:32px;font-weight:600;line-height:1;min-width:44px;white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}
+.streak-ledger:has(.sl-note) .sl-num{min-width:62px}
+.sl-note{margin:0;padding:12px 0;font-size:12px;line-height:1.45;color:var(--text-muted)}
+.sl-note+.sl-note{padding-top:0}
 .sl-text{flex:1;min-width:0}
 .sl-lbl{font-size:14px;font-weight:600;color:var(--text)}
 .sl-sub{font-size:12px;color:var(--text-muted);margin-top:2px}
 .sl-best{font-size:12px;color:var(--text-muted);text-align:right;flex-shrink:0}
-.sl-best b{display:block;font-family:var(--serif);font-size:17px;font-weight:600;color:var(--text-secondary);margin-top:2px}
+.sl-best b{display:block;font-family:var(--serif);font-size:17px;font-weight:600;color:var(--text-secondary);margin-top:2px;white-space:nowrap}
 
-.eq-grid{margin:0 16px 10px}
-@media(min-width:640px){.eq-grid{grid-template-columns:repeat(4,1fr)}}
+.eq-grid{margin:0 16px 10px;grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(min-width:640px){.eq-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* a long sum keeps its whole figure on a phone: the «prelim.» mark goes under it */
+.eq-grid .kpi-val .tc-prelim{display:block;margin:2px 0 0}
+.eq-grid .kpi-val{overflow-wrap:anywhere}
+@media(max-width:420px){.eq-grid .kpi-val{font-size:21px}}
 @media(min-width:1024px){.eq-grid{margin:0}}
 
 /* add-choice sheet: a list of named options, quick entry first */
@@ -1521,6 +1528,7 @@ button.detail-img-wrap:focus-visible .detail-img-ov{opacity:1}
 
 /* forms (a11y package): an unchosen result is named next to its buttons; switches show keyboard focus */
 .ferr{margin:8px 0 0;font-size:13px;color:var(--negative)}
+.fhint{margin:6px 0 0;font-size:12px;line-height:1.4;color:var(--text-secondary)}
 .s-toggle input:focus-visible + span{outline:2px solid var(--accent-soft);outline-offset:2px}
 
 /* ── Phone (a11y package, step 3) ── */
@@ -1981,7 +1989,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <div class="bal-sub" id="balSub">Укажите стартовый депозит</div>
     <div id="balPnl" style="visibility:hidden;min-height:26px"></div>
     <div class="bal-actions">
-      <button class="bal-btn" id="btnDeposit" onclick="openModal('capModal')">Депозит</button>
+      <button class="bal-btn" id="btnDeposit" onclick="openCapModal()">Депозит</button>
     </div>
   </div>
 
@@ -2430,6 +2438,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
               style="display:none;position:absolute;inset:0;width:100%;background:var(--surface-3);border:none;outline:none;font-family:var(--sans);font-size:15px;font-weight:500;text-align:center;letter-spacing:.02em;color:var(--text);padding:9px 11px;border-radius:var(--radius-md)"
               oninput="onRRManualInput()" onblur="onRRManualBlur()">
           </div>
+          <p class="fhint" id="rrDirHint" role="status" hidden></p>
         </div>
         <div class="fgroup">
           <label class="flabel" id="lbl_result_el">Результат</label>
@@ -2612,7 +2621,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <div class="mhandle"></div>
     <div class="mhdr"><div class="mtitle" id="capModalTitle">Стартовый депозит</div><button class="mclose" onclick="closeModal('capModal')"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><line stroke-linecap="round" x1="18" y1="6" x2="6" y2="18"/><line stroke-linecap="round" x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mbody">
-      <div class="fgroup"><label class="flabel" id="capLbl">Депозит ($)</label><input class="finput mono" id="capInput" type="number" placeholder="10000" style="font-size:22px"></div>
+      <div class="fgroup"><label class="flabel" id="capLbl">Депозит ($)</label><input class="finput mono" id="capInput" type="number" min="0" step="any" placeholder="10000" style="font-size:22px" onkeydown="if(event.key==='Enter')saveCap()"></div>
       <p id="capModalHint" style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.65">Капитал = Депозит + сумма всех P&L. Обновляется автоматически.</p>
       <button class="btn-primary" id="capSaveBtn" onclick="saveCap()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg><span id="capSaveLbl">Сохранить</span></button>
     </div>
@@ -2635,11 +2644,9 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
           <option value="drawdown">Макс просадка (%)</option>
         </select>
       </div>
-      <div class="frow2">
-        <div class="fgroup"><label id="goalTargetLabel" class="flabel">Цель</label><input class="finput mono" id="goalTarget" type="number" placeholder="60"></div>
-        <div class="fgroup"><label id="goalDaysLabel" class="flabel">Дней</label><input class="finput mono" id="goalDays" type="number" placeholder="30"></div>
-      </div>
-      <div class="fgroup"><label id="goalNameLabel" class="flabel">Название</label><input class="finput" id="goalName" placeholder="Например: Апрельский план"></div>
+      <div class="fgroup"><label id="goalTargetLabel" class="flabel">Цель</label><input class="finput mono" id="goalTarget" type="number" min="0" step="any" placeholder="60" onkeydown="if(event.key==='Enter')saveGoal()"></div>
+      <p class="fgroup" style="font-size:12px;color:var(--text-muted);line-height:1.6" id="goalScope">Цель считается по всем сделкам журнала, без срока.</p>
+      <div class="fgroup"><label id="goalNameLabel" class="flabel">Название</label><input class="finput" id="goalName" placeholder="Например: Апрельский план" onkeydown="if(event.key==='Enter')saveGoal()"></div>
       <p class="fgroup" style="font-size:12px;color:var(--text-muted);line-height:1.6" id="goalHint"></p>
       <button class="btn-primary" id="goalBtnLabel" onclick="saveGoal()"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Создать цель</button>
     </div>
@@ -4554,13 +4561,15 @@ function renderDayMap(){
   const badge = document.getElementById('dmBadge');
   badge.hidden = !n;
   const pre = costsPendingIn(todays);
+  const known = n - noPnl;   // a day whose trades have no P&L is not «flat at $0.00»: it is unknown
   if(n){
-    badge.className = 'dm-badge '+(total>0?'up':total<0?'down':'flat');
-    badge.textContent = (total>0 ? (ru?'в плюсе':'in profit') : total<0 ? (ru?'в минусе':'in loss') : (ru?'в нуле':'flat'))
+    badge.className = 'dm-badge '+(!known?'flat':total>0?'up':total<0?'down':'flat');
+    badge.textContent = !known ? (ru?'без P&L':'no P&L')
+      : (total>0 ? (ru?'в плюсе':'in profit') : total<0 ? (ru?'в минусе':'in loss') : (ru?'в нуле':'flat'))
       + (pre ? (ru?' · предв.':' · prelim.') : '');
   }
   const totEl = document.getElementById('dmTotal');
-  totEl.innerHTML = n ? usd(total)+prelimMark(todays) : '$0.00';
+  totEl.innerHTML = n ? (known ? usd(total)+prelimMark(todays) : '—') : '$0.00';
   totEl.classList.toggle('zero', !n);
   const split = document.getElementById('dmSplit');
   split.hidden = !n;
@@ -4877,66 +4886,134 @@ function calcDiscipline(){
   return {score, byPlan, clFull, emotional, total: t.length};
 }
 
-function calcStreaks(){
-  // ── Trading / Journal streak: consecutive days with ≥1 trade ──────────
-  const daySet = new Set(trades.map(t=>t.date).filter(Boolean));
-  const today  = journalToday();
+// A calendar date 'YYYY-MM-DD' as a whole day number. Pure date arithmetic: no clock, no device
+// time zone and no daylight-saving hour can make two neighbouring dates look 25 hours apart.
+function dayIndex(s){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');
+  return m ? Date.UTC(+m[1], +m[2]-1, +m[3])/86400000 : null;
+}
 
-  // Current journal streak (counting back from today or yesterday)
-  let jCur = 0;
-  let d = new Date(today+'T12:00:00');
-  // Allow today OR yesterday as the starting point (so a streak doesn't
-  // break just because the user hasn't traded yet today)
-  if(!daySet.has(today)) d.setDate(d.getDate()-1);
-  while(daySet.has(d.toISOString().split('T')[0])){
-    jCur++;
-    d.setDate(d.getDate()-1);
+// A run of trades that pass ok(), told as a range. The journal keeps the date of a trade, not its time,
+// so the trades of one date have no known order, and ok() answers null when a trade's answer is not
+// known. cur..curMax and best..bestMax are the lowest and the highest values over every possible order
+// and answer: equal when the number is exact, all null when no trade has a known answer. Trades without
+// a date are left out; the current run starts at today, so a date in the future (an import) does not make it.
+function tradeRun(list, ok, today){
+  const byDay = new Map();
+  let known = 0;
+  list.forEach(t=>{
+    if(dayIndex(t.date)===null) return;
+    if(!byDay.has(t.date)) byDay.set(t.date, {pass:0, fail:0, open:0});
+    const v = ok(t), d = byDay.get(t.date);
+    if(v===null) d.open++; else { known++; if(v) d.pass++; else d.fail++; }
+  });
+  if(byDay.size && !known) return {cur:null, curMax:null, best:null, bestMax:null};
+  const dates = [...byDay.keys()].sort(), days = dates.map(d=>byDay.get(d));
+  // The current run, newest date first: at least the dates that pass whole, at most up to a sure miss
+  let cur = 0, curMax = 0, whole = true;
+  for(const d of [...dates].reverse()){
+    if(today && d>today) continue;
+    const {pass, fail, open} = byDay.get(d);
+    if(whole && !fail && !open) cur += pass; else whole = false;
+    curMax += pass+open;
+    if(fail) break;
   }
-
-  // Best journal streak (longest consecutive run in history)
-  const allDays = [...daySet].sort();
-  let jBest = 0, jRun = 0, prev = null;
-  for(const day of allDays){
-    if(prev){
-      const diff = (new Date(day+'T12:00:00') - new Date(prev+'T12:00:00')) / 86400000;
-      jRun = diff === 1 ? jRun + 1 : 1;
-    } else { jRun = 1; }
-    if(jRun > jBest) jBest = jRun;
-    prev = day;
-  }
-
-  // ── Discipline streak: consecutive trades (newest first) where ─────────
-  //    followed plan = YES  AND  impulsive = NO
-  const byDate = [...trades].sort((a,b)=>(b.date||b.id||'').localeCompare(a.date||a.id||''));
-  let dCur = 0, dBest = 0, dRun = 0;
-  // current (consecutive from most recent)
-  for(const t of byDate){
-    if(t.byPlan===true && t.emotional!==true) dCur++;
-    else break;
-  }
-  // best (longest run in any order)
-  for(const t of [...trades].sort((a,b)=>(a.date||a.id||'').localeCompare(b.date||b.id||''))){
-    if(t.byPlan===true && t.emotional!==true){ dRun++; if(dRun>dBest) dBest=dRun; }
-    else dRun=0;
-  }
-
-  // ── Win streak ──────────────────────────────────────────────────────────
-  // a win is money after costs; a trade without a known P&L ends the run
-  let wCur = 0, wBest = 0, wRun = 0;
-  for(const t of byDate){
-    if(tradeOutcome(t)==='win') wCur++;
-    else break;
-  }
-  for(const t of [...trades].sort((a,b)=>(a.date||a.id||'').localeCompare(b.date||b.id||''))){
-    if(tradeOutcome(t)==='win'){ wRun++; if(wRun>wBest) wBest=wRun; }
-    else wRun=0;
-  }
-
-  return {
-    journal:{cur:jCur, best:jBest},
-    discipline:{cur:dCur, best:dBest},
-    wins:{cur:wCur, best:wBest}
+  // The highest best run: a date with a miss can give all its other trades to the run before or after it
+  let run = 0, bestMax = 0;
+  days.forEach(({pass, fail, open})=>{
+    const can = pass+open;
+    if(fail){ bestMax = Math.max(bestMax, run+can); run = can; } else run += can;
+    bestMax = Math.max(bestMax, run);
+  });
+  // The lowest best run: the smallest limit that some order keeps every run within. Unknown answers count
+  // as misses, and each date passes on to the next as few trades as it can.
+  const fits = limit=>{
+    let carry = 0;
+    return days.every(({pass, fail, open})=>{
+      const misses = fail+open;
+      carry = misses ? Math.max(0, pass-(limit-carry)-(misses-1)*limit) : carry+pass;
+      return carry<=limit;
+    });
   };
+  let best = 0, high = bestMax;
+  while(best<high){ const mid = (best+high)>>1; if(fits(mid)) high = mid; else best = mid+1; }
+  return {cur, curMax, best, bestMax};
+}
+
+// A run and why it is a range. Every unknown answer is settled both ways: whatever still has a range
+// then comes from the order within a date (order), a difference between the two comes from the unknown
+// answers (missing). A range always has at least one of the two, an exact number has neither.
+function tradeRunWhy(list, ok, today){
+  const run = tradeRun(list, ok, today), exact = r=>r.cur===r.curMax && r.best===r.bestMax;
+  if(exact(run)) return {...run, order:false, missing:false};
+  const no = tradeRun(list, t=>ok(t)===true, today), yes = tradeRun(list, t=>ok(t)!==false, today);
+  return {...run, order:!exact(no) || !exact(yes),
+    missing:no.cur!==yes.cur || no.curMax!==yes.curMax || no.best!==yes.best || no.bestMax!==yes.bestMax};
+}
+
+// The note under the streaks says only what is true for this journal
+function streakRangeNote({discipline, wins}){
+  const parts = [(discipline.order||wins.order) && 'str_range_order', wins.missing && 'str_range_pnl', discipline.missing && 'str_range_plan'].filter(Boolean);
+  return parts.length ? ['str_range_note', ...parts].map(k=>T(k)).join(' ') : '';
+}
+
+// A streak on the screen: a plain number only when it is exact, a range when it is not, «—» when unknown
+function streakText(min, max=min){
+  return min===null ? '—' : min===max ? String(min) : min+'–'+max;
+}
+function streakHTML(min, max=min){
+  const text = streakText(min, max);
+  return min===max ? text : `<span aria-hidden="true">${text}</span><span class="sr-visually-hidden">${lang==='ru'?`от ${min} до ${max}`:`from ${min} to ${max}`}</span>`;
+}
+
+function calcStreaks(){
+  // ── Journal streak: consecutive calendar dates (the account's dates) with ≥1 trade ──
+  const idx = [...new Set(trades.map(t=>dayIndex(t.date)).filter(n=>n!==null))].sort((a,b)=>a-b);
+  const has = new Set(idx), today = dayIndex(journalToday());
+  // the current streak counts back from today, or from yesterday when nothing is recorded today yet
+  let jCur = 0, d = has.has(today) ? today : today-1;
+  while(has.has(d)){ jCur++; d--; }
+  let jBest = 0, jRun = 0;
+  idx.forEach((n,i)=>{ jRun = i && n-idx[i-1]===1 ? jRun+1 : 1; if(jRun>jBest) jBest = jRun; });
+
+  // ── Discipline streak: «followed the plan — Yes» and not marked impulsive ──
+  //    (an unanswered impulsive question does not break it, the label says «not marked»;
+  //    an unanswered plan question is not known, so it widens the range)
+  const todayStr = journalToday();
+  const discipline = tradeRunWhy(trades, t=>t.emotional===true||t.byPlan===false ? false : t.byPlan===true ? true : null, todayStr);
+  // ── Win streak: a win is money after costs; a trade without a known P&L is not known ──
+  const wins = tradeRunWhy(trades, t=>{ const o = tradeOutcome(t); return o===null ? null : o==='win'; }, todayStr);
+
+  return {journal:{cur:jCur, best:jBest}, discipline, wins, undated:trades.filter(t=>dayIndex(t.date)===null).length};
+}
+
+// Max drawdown of the account by end-of-day totals — the one model of the Progress tab, the drawdown
+// goal and the drawdown insight. Equity starts at the initial capital and moves by each date's known
+// net P&L; the trades of one date have no known order, so only the day's close counts. No percent
+// (maxPct null) when it cannot be told, and `reason` says why:
+//   'capital'   — no initial capital above 0
+//   'no_pnl'    — no trade with a known P&L
+//   'exhausted' — the worked-out balance reached 0 or went below (deposits and withdrawals are not in
+//                 the journal, so a percent of the capital setting would mislead); `low` is that balance
+// Trades without a known P&L are left out and counted in `unknown`. fromDay..toDay is the fall:
+// the trades dated after the peak day (fromDay, '' = from the start) up to the low day (toDay).
+function calcDrawdown(list){
+  const unknown = list.filter(t=>tradeOutcome(t)===null).length, prelim = costsPendingIn(list);
+  const none = {maxPct:null, nowPct:null, unknown, prelim};
+  if(!(baseCapital>0)) return {...none, reason:'capital'};
+  const byDay = new Map();
+  list.forEach(t=>{ const n = tradeNet(t); if(Number.isFinite(n)) byDay.set(t.date||'', (byDay.get(t.date||'')||0)+n); });
+  if(!byDay.size) return {...none, reason:'no_pnl'};
+  let eq = baseCapital, peak = baseCapital, low = baseCapital, maxPct = 0, peakDay = '', ddPeak = baseCapital, fromDay = null, toDay = null;
+  [...byDay.keys()].sort().forEach(d=>{
+    eq += byDay.get(d);
+    if(eq>peak){ peak = eq; peakDay = d; }
+    if(eq<low) low = eq;
+    const dd = (peak-eq)/peak*100;
+    if(dd>maxPct){ maxPct = dd; ddPeak = peak; fromDay = peakDay; toDay = d; }
+  });
+  if(low<=0.005) return {...none, reason:'exhausted', low};
+  return {maxPct, nowPct:(peak-eq)/peak*100, peak:ddPeak, fromDay, toDay, low, unknown, prelim, reason:null};
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5722,20 +5799,12 @@ function generateInsights(){
   // ── 18. DRAWDOWN ───────────────────────────────────
   // Only against a known starting capital: without it no percent of the account can be told.
   // The largest fall from a peak in the history, and apart from it how far below the peak the account is now.
+  // The same end-of-day model as the Progress tab and the drawdown goal (calcDrawdown).
   if(baseCapital>0){
-    const sortedT = [...t].sort(byTime);
-    let peak=baseCapital, cur=baseCapital, maxDD=0, ddPeak=baseCapital, low=baseCapital, peakAt=-1, ddFrom=-1, ddTo=-1;
-    sortedT.forEach((x,i)=>{
-      const v = tradeNet(x);
-      if(typeof v==='number' && Number.isFinite(v)) cur+=v;
-      if(cur>peak){ peak=cur; peakAt=i; }
-      if(cur<low) low=cur;
-      const dd=(peak-cur)/peak*100;
-      if(dd>maxDD){ maxDD=dd; ddPeak=peak; ddFrom=peakAt+1; ddTo=i; }
-    });
-    const nowDD = (peak-cur)/peak*100;
+    const d = calcDrawdown(t);
+    const maxDD = d.maxPct, nowDD = d.nowPct, ddPeak = d.peak, low = d.low;
     const f = facts(t);
-    if(low<=0.005){
+    if(d.reason==='exhausted'){
       // the account worked out from the capital reached zero or went below: no percent of it is told.
       // That alone does not prove the capital setting wrong — deposits and withdrawals are not in the journal.
       const zero = low>-0.005;
@@ -5753,11 +5822,11 @@ function generateInsights(){
       ins('warn', ICON.down,
         `Наибольшая просадка за историю: ${maxDD.toFixed(1)}%`,
         `Largest drawdown in the history: ${maxDD.toFixed(1)}%`,
-        `От пика $${ddPeak.toFixed(2)}; сейчас ${nowDD.toFixed(1)}% ниже пика; расчёт по записанным закрытым сделкам${f.unknown?`, без P&L не учтено: ${f.unknown}`:''}${preRu(f)}`,
-        `From a peak of $${ddPeak.toFixed(2)}; now ${nowDD.toFixed(1)}% below the peak; worked out from the recorded closed trades${f.unknown?`, left out without a P&L: ${f.unknown}`:''}${preEn(f)}`,
+        `От пика $${ddPeak.toFixed(2)}; сейчас ${nowDD.toFixed(1)}% ниже пика; расчёт по итогам дней записанных закрытых сделок${f.unknown?`, без P&L не учтено: ${f.unknown}`:''}${preRu(f)}`,
+        `From a peak of $${ddPeak.toFixed(2)}; now ${nowDD.toFixed(1)}% below the peak; worked out from the end-of-day totals of the recorded closed trades${f.unknown?`, left out without a P&L: ${f.unknown}`:''}${preEn(f)}`,
         'Это не текущая угроза и не внутридневная просадка; пополнения, выводы и сделки без P&L ограничивают расчёт',
         'This is no current threat and no intraday drawdown; deposits, withdrawals and trades without a P&L limit the figure',
-        {id:'drawdown', count:t.length, trades:ddTo>=ddFrom && ddFrom>=0 ? sortedT.slice(ddFrom, ddTo+1) : [],
+        {id:'drawdown', count:t.length, trades:[...t].filter(x=>(x.date||'')>d.fromDay && (x.date||'')<=d.toDay).sort(byTime),
          act:['Откройте период снижения и сверьте его с действовавшими личными ограничениями риска', 'Open the period of the fall and compare it with the risk limits you had then']}
       );
     }
@@ -5814,7 +5883,10 @@ function renderHome(){
   const cap = computeCapital();
 
   // Balance
-  document.getElementById('balAmount').innerHTML = '$'+cap.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+prelimMark(trades);
+  // without an initial capital the balance is unknown: the P&L alone is not the account (balSub asks for the deposit)
+  // the same rule as «Current capital» on the Progress tab: records but none with a known P&L — unknown too
+  const capKnown = baseCapital>0 && !(trades.length && trades.every(t=>tradeOutcome(t)===null));
+  document.getElementById('balAmount').innerHTML = capKnown ? '$'+cap.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+prelimMark(trades) : '—';
   document.getElementById('balSub').textContent = baseCapital>0 ? T('deposit_label')+baseCapital.toLocaleString('en-US',{minimumFractionDigits:0}) : T('set_deposit');
 
   renderKillzones();
@@ -5844,14 +5916,15 @@ function renderHome(){
     const isPos = allPnl>=0;
     pnlEl.className='bal-pnl '+(isPos?'pos':'neg');
     const arrPath = isPos?'<path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>':'<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>';
-    pnlEl.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor">${arrPath}</svg>${isPos?'+':''}$${allPnl.toFixed(2)}`;
+    pnlEl.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor">${arrPath}</svg>${isPos?'+':'−'}$${Math.abs(allPnl).toFixed(2)}`;
   } else pnlEl.style.visibility='hidden';
 
   // KPIs
   document.getElementById('kpiWins').textContent = wins;
   document.getElementById('kpiLosses').textContent = losses;
   const pnlKpi = document.getElementById('kpiPnl');
-  pnlKpi.innerHTML = (pnl>0?'+':pnl<0?'−':'')+'$'+Math.abs(pnl).toFixed(2)+prelimMark(f);
+  // records but none with a known P&L: unknown, not $0.00
+  pnlKpi.innerHTML = f.length && f.every(t=>tradeOutcome(t)===null) ? '—' : (pnl>0?'+':pnl<0?'−':'')+'$'+Math.abs(pnl).toFixed(2)+prelimMark(f);
   // Profit is data → --positive, never the brand accent (accent is for UI controls)
   pnlKpi.className = 'kpi-val '+(pnl>0?'green':pnl<0?'red':'');
   const kpiRREl = document.getElementById('kpiRR');
@@ -5933,21 +6006,7 @@ function renderHome(){
     }, {once:true});
   }
 
-  // Trader Score
-  const ts = calcTraderScore();
-  const tsEl = document.getElementById('traderScoreWrap');
-  if(tsEl){
-    if(ts){
-      tsEl.style.display='flex';
-      document.getElementById('traderScoreNum').textContent=ts.score;
-      document.getElementById('traderScoreNum').style.color=ts.col;
-      document.getElementById('traderScoreLbl').textContent=ts.label;
-      document.getElementById('traderScoreLbl').style.color=ts.col;
-      // Arc progress
-      const arc=document.getElementById('traderScoreArc');
-      if(arc){const c=2*Math.PI*18;arc.style.strokeDasharray=`${ts.score/100*c} ${c}`;arc.style.stroke=ts.col;}
-    } else { tsEl.style.display='none'; }
-  }
+  renderTraderScore();
 
   // Trade ideas section
   renderIdeas();
@@ -6056,25 +6115,65 @@ function renderGoalsBanner(){
 }
 
 function goalHTML(g){
-  const {pct, cur, label} = getGoalProgress(g);
-  const col = pct>=100?'var(--positive)':pct>=60?'var(--warning)':'var(--blue)';
+  const {pct, label, state} = getGoalProgress(g);
+  // a limit (drawdown) is coloured by how much of it is used; unknown is grey «—»; not confirmed is not green
+  const col = state==='unknown'?'var(--text-muted)':state==='partial'||state==='prelim_within'?'var(--warning)':state==='over'||state==='prelim_over'?'var(--negative)':state==='within'?(pct>=75?'var(--warning)':'var(--blue)')
+    :pct>=100?'var(--positive)':pct>=60?'var(--warning)':'var(--blue)';
+  const width = pct===null ? 0 : Math.max(0, Math.min(pct,100));
   return `<div class="goal-card">
     <div class="goal-row">
       <div class="goal-name">${escapeHtml(g.name||getGoalLabel(g.type))}</div>
-      <div class="goal-pct" style="color:${col}">${Math.min(pct,100).toFixed(0)}%</div>
+      <div class="goal-pct" style="color:${col}">${pct===null?'—':width.toFixed(0)+'%'}</div>
     </div>
-    <div class="goal-bar-wrap"><div class="goal-bar" style="width:${Math.min(pct,100)}%;background:${col}"></div></div>
-    <div class="goal-detail">${label}</div>
+    <div class="goal-bar-wrap"><div class="goal-bar" style="width:${width}%;background:${col}"></div></div>
+    <div class="goal-detail">${label}${goalLimitWords(state, pct)}</div>
   </div>`;
+}
+// A limit or a goal not yet confirmed says in words where it stands — a full bar alone looks like a goal reached
+function goalLimitWords(state, pct){
+  const ru = lang==='ru';
+  if(state==='partial') return ru?'. Пока не подтверждена':'. Not confirmed yet';
+  if(state==='prelim_over') return ru?'. Предварительно: по известным данным лимит превышен':'. Preliminary: the limit is exceeded on known data';
+  if(state==='prelim_within') return ru?`. Предварительно: по известным данным в пределах лимита, использовано ${Math.round(pct)}%`:`. Preliminary: within the limit on known data, ${Math.round(pct)}% used`;
+  if(state==='over') return ru?'. Лимит превышен':'. Limit exceeded';
+  if(state==='within') return ru?`. В пределах лимита, использовано ${Math.round(pct)}%`:`. Within the limit, ${Math.round(pct)}% used`;
+  return '';
 }
 
 function getGoalLabel(type){ return T('goal_'+type)||type; }
 
 // A short note under a goal: what the number is and where to look — no ready-made trading rules,
 // no risk or size figures; the trader's own strategy sets those.
-function getGoalTip(g, pct, cur){
+function getGoalTip(g, pct, cur, reason, state){
   const ru = lang==='ru';
   const done = pct >= 100;
+  if(state==='partial'){   // the known part of the journal, not the whole of it
+    if(g.type==='winrate') return ru?'Доля побед посчитана только по сделкам с известным P&L, поэтому цель пока не подтверждена. Заполните P&L и расходы у остальных сделок':'The win rate counts only trades with a known P&L, so the goal is not confirmed yet. Fill in the P&L and costs of the other trades';
+    return ru?'Это сумма только известных результатов, поэтому цель пока не подтверждена. Заполните P&L и расходы у остальных сделок':'This sum covers known results only, so the goal is not confirmed yet. Fill in the P&L and costs of the other trades';
+  }
+  if(state==='prelim_within' || state==='prelim_over'){   // what is missing may move the drawdown either way, or only one way: no direction is promised
+    const known = {
+      pnl:  ru?'Расчёт сделан только по известным данным: сделки без P&L в него не вошли.':'The figure is counted from known data only: trades without a P&L are not in it.',
+      costs:ru?'Расчёт сделан по известным данным: у некоторых сделок не заполнены расходы.':'The figure is counted from known data: some costs are not filled in.',
+      both: ru?'Расчёт сделан только по известным данным: сделки без P&L в него не вошли, у некоторых сделок не заполнены расходы.':'The figure is counted from known data only: trades without a P&L are not in it and some costs are not filled in.',
+    }[reason];
+    if(state==='prelim_over') return known+(ru?' Итоговая просадка может измениться, но по известным данным лимит превышен. Что делать в этом случае, решает ваша стратегия':' The final drawdown may change, but on known data the limit is exceeded. What to do then is up to your strategy');
+    return known+(ru?' Итоговая просадка может измениться, поэтому соблюдение лимита пока не подтверждено':' The final drawdown may change, so compliance with the limit is not confirmed yet');
+  }
+  if(pct===null){   // what is missing, not advice built on a number nobody knows
+    switch(g.type){
+      case 'winrate': case 'pnl':
+        return ru?'Нет сделок с известным P&L: цель начнёт считаться, когда у сделок будет P&L':'No trades with a known P&L: the goal is counted once trades have a P&L';
+      case 'discipline':
+        return ru?'Ответов о плане, чеклисте и эмоциях ещё нет: дисциплина считается только по ним':'No answers about the plan, the checklist or emotions yet: discipline is counted from them only';
+      case 'rr':
+        return ru?'Нет сделок с R:R: укажите вход, стоп и цель или R:R вручную':'No trades with an R:R: enter the entry, stop and target or the R:R by hand';
+      case 'drawdown':
+        if(reason==='no_pnl') return ru?'Нет сделок с известным P&L: просадку не из чего посчитать':'No trades with a known P&L: there is nothing to count the drawdown from';
+        if(reason==='exhausted') return ru?'Расчётный остаток дошёл до 0. Пополнения и выводы журнал не знает: сверьте начальный капитал':'The worked-out balance reached 0. The journal does not know deposits or withdrawals: check the initial capital';
+        return ru?'Укажите начальный капитал: без него процент просадки не посчитать':'Set the initial capital: without it the drawdown percent cannot be counted';
+    }
+  }
   switch(g.type){
     case 'winrate':
       if(done)  return ru?'Цель достигнута. Доля побед — не деньги: сверьте её с итогом после расходов':'Goal reached. A win rate is not money: compare it with the total after costs';
@@ -6092,18 +6191,23 @@ function getGoalTip(g, pct, cur){
     case 'rr':
       return ru?'R:R здесь — плановый, по входу, стопу и цели; сверьте его с тем, как сделки закрывались на деле':'The R:R here is the planned one, from the entry, stop and target; compare it with how the trades really closed';
     case 'drawdown':
-      return ru?`Лимит просадки: ${g.target}%. Что делать при его достижении — решает ваша стратегия`:`Drawdown limit: ${g.target}%. What to do when it is hit is up to your strategy`;
+      return ru?`Просадка считается по итогам дней от начального капитала. Что делать при лимите ${g.target}% — решает ваша стратегия`:`The drawdown is counted by end-of-day totals from the initial capital. What to do at the ${g.target}% limit is up to your strategy`;
     default:
       return ru?'Сверяйте результат со своими правилами':'Compare the result with your own rules';
   }
 }
 
 function goalDeepHTML(g, i){
-  const {pct, cur, label} = getGoalProgress(g);
+  const {pct, cur, label, state, reason} = getGoalProgress(g);
   const ru = lang==='ru';
-  const clampedPct = Math.min(pct, 100);
-  const col = pct>=100?'var(--positive)':pct>=75?'var(--warning)':pct>=40?'var(--blue)':'var(--negative)';
-  const iconBg = pct>=100?'rgba(79,209,165,.12)':pct>=75?'var(--accent-muted)':pct>=40?'rgba(142,124,240,.12)':'rgba(255,107,107,.1)';
+  const clampedPct = pct===null ? 0 : Math.max(0, Math.min(pct, 100));
+  let col = pct>=100?'var(--positive)':pct>=75?'var(--warning)':pct>=40?'var(--blue)':'var(--negative)';
+  let iconBg = pct>=100?'rgba(79,209,165,.12)':pct>=75?'var(--accent-muted)':pct>=40?'rgba(142,124,240,.12)':'rgba(255,107,107,.1)';
+  // a limit is coloured by how much of it is used, not as progress to collect; unknown is grey
+  if(state==='unknown'){ col='var(--text-muted)'; iconBg='var(--surface-2)'; }
+  else if(state==='partial'||state==='prelim_within'){ col='var(--warning)'; iconBg='var(--accent-muted)'; }
+  else if(state==='over'||state==='prelim_over'){ col='var(--negative)'; iconBg='rgba(255,107,107,.1)'; }
+  else if(state==='within'){ col=pct>=75?'var(--warning)':'var(--blue)'; iconBg=pct>=75?'var(--accent-muted)':'rgba(142,124,240,.12)'; }
   const goalIcons = {
     winrate:   `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
     trades:    `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="17" height="17"><line stroke-linecap="round" x1="18" y1="20" x2="18" y2="10"/><line stroke-linecap="round" x1="12" y1="20" x2="12" y2="4"/><line stroke-linecap="round" x1="6" y1="20" x2="6" y2="14"/></svg>`,
@@ -6115,15 +6219,24 @@ function goalDeepHTML(g, i){
   const icon = goalIcons[g.type] || goalIcons.winrate;
 
   let badgeTxt, badgeBg, badgeCol;
-  if(pct>=100){ badgeTxt=ru?'Выполнено':'Done'; badgeBg='rgba(79,209,165,.12)'; badgeCol='var(--positive)'; }
+  if(state==='unknown'){ badgeTxt=ru?'Нет данных':'No data'; badgeBg='var(--surface-2)'; badgeCol='var(--text-secondary)'; }
+  else if(state==='partial'||state==='prelim_within'){ badgeTxt=ru?'Предварительно':'Preliminary'; badgeBg='rgba(242,208,107,.12)'; badgeCol='var(--warning)'; }
+  else if(state==='prelim_over'){ badgeTxt=ru?'Предварительно, выше лимита':'Preliminary, over the limit'; badgeBg='rgba(255,107,107,.1)'; badgeCol='var(--negative)'; }
+  else if(state==='over'){ badgeTxt=ru?'Лимит превышен':'Limit exceeded'; badgeBg='rgba(255,107,107,.1)'; badgeCol='var(--negative)'; }
+  else if(state==='within'){ badgeTxt=ru?'В пределах лимита':'Within the limit'; badgeBg='rgba(142,124,240,.1)'; badgeCol='var(--info-2)'; }
+  else if(pct>=100){ badgeTxt=ru?'Выполнено':'Done'; badgeBg='rgba(79,209,165,.12)'; badgeCol='var(--positive)'; }
   else if(pct>=75){ badgeTxt=ru?'Близко':'Almost'; badgeBg='rgba(242,208,107,.12)'; badgeCol='var(--warning)'; }
   else if(pct>=40){ badgeTxt=ru?'В процессе':'In progress'; badgeBg='rgba(142,124,240,.1)'; badgeCol='var(--info-2)'; }
   else { badgeTxt=ru?'Отстаём':'Behind'; badgeBg='rgba(255,107,107,.1)'; badgeCol='var(--negative)'; }
 
-  const tip = getGoalTip(g, pct, cur);
+  const tip = getGoalTip(g, pct, cur, reason, state);
+  const used = Math.round(pct);
+  const limitStats = state==='within' ? (ru?`; использовано ${used}% лимита`:`; ${used}% of the limit used`)
+    : state==='prelim_within' ? (ru?`; использовано ${used}% лимита по известным данным`:`; ${used}% of the limit used on known data`)
+    : state==='prelim_over' ? (ru?'; по известным данным лимит превышен':'; on known data the limit is exceeded') : '';
 
   return `<div class="goal-deep">
-    <button class="goal-deep-close" onclick="deleteGoal(${i})">✕</button>
+    <button class="goal-deep-close" onclick="deleteGoal(${i})" aria-label="${ru?'Удалить цель':'Delete the goal'}">✕</button>
     <div class="goal-deep-header">
       <div class="goal-deep-icon" style="background:${iconBg};color:${col}">${icon}</div>
       <div style="flex:1;min-width:0">
@@ -6133,9 +6246,9 @@ function goalDeepHTML(g, i){
     </div>
     <div class="goal-deep-bar-row">
       <div class="goal-deep-bar-wrap"><div class="goal-deep-bar" style="width:${clampedPct}%;background:${col}"></div></div>
-      <div class="goal-deep-pct" style="color:${col}">${clampedPct.toFixed(0)}%</div>
+      <div class="goal-deep-pct" style="color:${col}">${pct===null?'—':clampedPct.toFixed(0)+'%'}</div>
     </div>
-    <div class="goal-deep-stats">${label}</div>
+    <div class="goal-deep-stats">${label}${limitStats}</div>
     <div class="goal-deep-tip">
       <span class="goal-deep-tip-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="13" height="13" style="color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
       <span>${escapeHtml(tip)}</span>
@@ -6143,21 +6256,54 @@ function goalDeepHTML(g, i){
   </div>`;
 }
 
+// A goal is counted over the whole journal: it has no period (see saveGoal). pct is null when the data
+// it needs is not known — no known result, no answer, no R:R, no initial capital — and the card shows
+// «—», never 0 %. The drawdown goal is a limit, not something to collect: its state is 'within' or
+// 'over' the limit, never 'done', and it uses the same drawdown as the Progress tab (calcDrawdown).
+// A goal counted from money is 'partial' while a record has no P&L or its costs are not given: the known
+// part is shown, but the total can still change, so the goal is neither confirmed nor behind. The drawdown
+// goal with such a gap is 'prelim_within' or 'prelim_over': the side of the limit the known part is on,
+// final in neither case; `reason` says what is missing ('pnl', 'costs' or 'both').
 function getGoalProgress(g){
-  const {wr, total, pnl, avgRR} = calcStats(trades);
+  const {wr, total, pnl, avgRR, known, unknown} = calcStats(trades);
   const disc = calcDiscipline();
-  let cur=0, pct=0, label='';
   const target = parseFloat(g.target);
   const ru = lang==='ru', now = ru?'Сейчас':'Now', goal = ru?'цель':'goal';
+  const pending = costsPendingIn(trades);
+  const noPnl = unknown?(ru?`; без P&L: ${unknown}`:`; no P&L: ${unknown}`):'';
+  const missing = noPnl+(pending?(ru?' (предв.)':' (prelim.)'):'');
+  let cur = null, label = '', partial = false;
   switch(g.type){
-    case 'winrate': cur=wr||0; pct=cur/target*100; label=`${now} ${wr!==null?cur.toFixed(1)+'%':'—'} / ${goal} ${target}%`; break;   // no known result yet: «—», not 0%
-    case 'trades': cur=total; pct=cur/target*100; label=ru?`${cur} из ${target} сделок`:`${cur} of ${target} trades`; break;
-    case 'pnl': cur=pnl; pct=cur/target*100; label=ru?`$${cur.toFixed(0)} из $${target}`:`$${cur.toFixed(0)} of $${target}`; break;
-    case 'discipline': cur=disc?disc.score:0; pct=cur/target*100; label=`${now} ${cur.toFixed(0)}% / ${goal} ${target}%`; break;
-    case 'rr': cur=avgRR||0; pct=cur/target*100; label=`${now} 1:${cur.toFixed(2)} / ${goal} 1:${target}`; break;
-    case 'drawdown': label=ru?`Лимит просадки ${target}%`:`Drawdown limit ${target}%`; pct=50; break;
+    case 'winrate':
+      cur=wr; label=`${now} ${cur!==null?cur.toFixed(1)+'%':'—'} / ${goal} ${target}%`;
+      if(cur!==null){ label+=missing; partial=!!missing; }
+      break;
+    case 'trades': cur=total; label=ru?`${cur} из ${target} сделок`:`${cur} of ${target} trades`; break;
+    case 'pnl': {
+      cur = total && !known ? null : pnl;   // records but no known P&L: unknown, not $0
+      const money = cur===null ? '—' : (cur<0?'−':'')+'$'+Math.abs(cur).toFixed(0);
+      label = ru?`${money} из $${target}`:`${money} of $${target}`;
+      if(cur!==null){ label+=missing; partial=!!missing; }
+      break;
+    }
+    case 'discipline': cur=disc?disc.score:null; label=`${now} ${cur!==null?cur.toFixed(0)+'%':'—'} / ${goal} ${target}%`; break;
+    case 'rr': cur=avgRR; label=`${now} ${cur!==null?'1:'+cur.toFixed(2):'—'} / ${goal} 1:${target}`; break;
+    case 'drawdown': {
+      const d = calcDrawdown(trades); cur = d.maxPct;
+      if(cur===null){
+        const why = {capital:ru?'Без начального капитала просадку в процентах не посчитать':'Without an initial capital the drawdown percent is unknown',
+          no_pnl:ru?'Нет сделок с известным P&L':'No trades with a known P&L',
+          exhausted:ru?'Остаток дошёл до 0: сверьте начальный капитал':'The balance reached 0: check the initial capital'}[d.reason];
+        return {pct:null, cur, state:'unknown', reason:d.reason, label:(ru?`Лимит ${target}%. `:`Limit ${target}%. `)+why};
+      }
+      const shown = Math.round(cur*10)/10, over = shown>target;   // the state follows the figure on the screen
+      return {pct:cur/target*100, cur, state:missing?(over?'prelim_over':'prelim_within'):(over?'over':'within'),
+        ...(missing?{reason:unknown&&pending?'both':unknown?'pnl':'costs'}:{}),
+        label:(ru?`Макс. просадка ${shown.toFixed(1)}% при лимите ${target}%`:`Max drawdown ${shown.toFixed(1)}% against a ${target}% limit`)+noPnl};   // the status itself says «preliminary»
+    }
   }
-  return {pct, cur, label};
+  const pct = cur===null ? null : cur/target*100;
+  return {pct, cur, label, state:pct===null?'unknown':partial?'partial':pct>=100?'done':'progress'};
 }
 
 // ═══════════════════════════════════════════════════════
@@ -6871,7 +7017,9 @@ function renderProgress(){
       label: T('str_discipline'),
       sub:   T('str_discipline_sub'),
       cur:   str.discipline.cur,
+      curMax:str.discipline.curMax,
       best:  str.discipline.best,
+      bestMax:str.discipline.bestMax,
       color: 'var(--info-2)',
       glow:  'var(--info-muted)',
       icon:  `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
@@ -6881,7 +7029,9 @@ function renderProgress(){
       label: T('str_wins'),
       sub:   T('str_wins_sub'),
       cur:   str.wins.cur,
+      curMax:str.wins.curMax,
       best:  str.wins.best,
+      bestMax:str.wins.bestMax,
       color: 'var(--positive)',
       glow:  'var(--positive-muted)',
       icon:  `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>`,
@@ -6889,17 +7039,20 @@ function renderProgress(){
   ];
 
   // Streaks — one ledger: the current count is the loud number, best is the footnote
+  const rangeNote = streakRangeNote(str);
   document.getElementById('streaksWrap').innerHTML = `
     <div class="card streak-ledger">
       ${streakDefs.map(s=>`
         <div class="sl-row">
-          <div class="sl-num" style="color:${s.cur>0?s.color:'var(--text-muted)'}">${s.cur}</div>
+          <div class="sl-num" style="color:${s.cur>0?s.color:'var(--text-muted)'}">${streakHTML(s.cur, s.curMax)}</div>
           <div class="sl-text">
             <div class="sl-lbl">${s.label}</div>
             <div class="sl-sub">${s.sub}</div>
           </div>
-          <div class="sl-best">${T('str_best')}<b>${s.best}</b></div>
+          <div class="sl-best">${T('str_best')}<b>${streakHTML(s.best, s.bestMax)}</b></div>
         </div>`).join('')}
+      ${rangeNote?`<p class="sl-note">${rangeNote}</p>`:''}
+      ${str.undated?`<p class="sl-note">${T('str_undated_note')} ${str.undated}</p>`:''}
     </div>`;
 
   // Discipline deep
@@ -6923,22 +7076,30 @@ function renderProgress(){
     document.getElementById('goalsDeep').innerHTML = goals.map((g,i)=>goalDeepHTML(g,i)).join('');
   } else document.getElementById('goalsDeep').innerHTML = `<div style="margin:0 16px 10px"><button class="btn-secondary" onclick="openModal('goalsModal')">${T('goals_empty')}</button></div>`;
 
-  // Equity stats
-  const sortedTrades = [...trades].sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-  let peak=baseCapital, cur=baseCapital, maxDD=0;
-  sortedTrades.forEach(x=>{cur+=tradeNet(x)||0; if(cur>peak) peak=cur; const dd=peak>0?(peak-cur)/peak*100:0; if(dd>maxDD) maxDD=dd;});
+  // Equity stats — the drawdown is the same model as the drawdown goal (calcDrawdown)
+  // Records without a known P&L are not $0: with none known the money tiles show «—»
+  const dd=calcDrawdown(trades), maxDD=dd.maxPct;
+  const noPnl=trades.length>0 && trades.every(t=>tradeOutcome(t)===null);
   const allPnl=trades.reduce((s,t)=>s+(tradeNet(t)||0),0);
-  const growthPct=baseCapital>0?(allPnl/baseCapital*100):null;
+  const growthPct=baseCapital>0&&!noPnl?(allPnl/baseCapital*100):null;
+  const unknownNote=dd.unknown?T('dd_unknown').replace('{0}',dd.unknown):'';
+  const ddNote={capital:T('dd_need_capital'), no_pnl:T('dd_no_pnl'), exhausted:T('dd_exhausted')}[dd.reason] || [T('dd_by_days'),unknownNote].filter(Boolean).join('; ');
+  const muted='var(--text-muted)';
   document.getElementById('equityStats').innerHTML = `
     <div class="kpi-grid eq-grid">
       ${[
-        {label:T('eq_pnl'),val:(allPnl>0?'+':allPnl<0?'−':'')+`$${Math.abs(allPnl).toFixed(2)}`+prelimMark(trades),col:allPnl>=0?'var(--positive)':'var(--negative)'},
-        {label:T('eq_growth'),val:growthPct!==null?(growthPct>0?'+':growthPct<0?'−':'')+Math.abs(growthPct).toFixed(1)+'%':'—',col:growthPct>=0?'var(--positive)':'var(--negative)'},
-        {label:T('eq_drawdown'),val:maxDD.toFixed(1)+'%',col:maxDD>10?'var(--negative)':'var(--warning)'},
-        {label:T('eq_capital'),val:'$'+computeCapital().toLocaleString('en-US',{minimumFractionDigits:2})+prelimMark(trades),col:'var(--text)'},
+        noPnl ? {label:T('eq_pnl'),val:'—',col:muted,note:unknownNote}
+          : {label:T('eq_pnl'),val:(allPnl>0?'+':allPnl<0?'−':'')+`$${Math.abs(allPnl).toFixed(2)}`+prelimMark(trades),col:allPnl>=0?'var(--positive)':'var(--negative)',note:unknownNote},
+        {label:T('eq_growth'),val:growthPct!==null?(growthPct>0?'+':growthPct<0?'−':'')+Math.abs(growthPct).toFixed(1)+'%':'—',col:growthPct===null?muted:growthPct>=0?'var(--positive)':'var(--negative)'},
+        {label:T('eq_drawdown'),val:maxDD===null?'—':maxDD.toFixed(1)+'%'+prelimMark(trades),col:maxDD===null?muted:maxDD>10?'var(--negative)':'var(--warning)',note:ddNote},
+        // without an initial capital the account's capital is unknown, not the P&L alone
+        !(baseCapital>0) ? {label:T('eq_capital'),val:'—',col:muted,note:T('dd_need_capital')}
+          : noPnl ? {label:T('eq_capital'),val:'—',col:muted,note:unknownNote}
+          : {label:T('eq_capital'),val:'$'+computeCapital().toLocaleString('en-US',{minimumFractionDigits:2})+prelimMark(trades),col:'var(--text)',note:unknownNote},
       ].map(s=>`<div class="kpi">
         <div class="kpi-lbl">${s.label}</div>
         <div class="kpi-val" style="color:${s.col}">${s.val}</div>
+        ${s.note?`<div class="kpi-context show">${escapeHtml(s.note)}</div>`:''}
       </div>`).join('')}
     </div>`;
 }
@@ -7228,27 +7389,31 @@ function renderGrouped(list, limit=10, showAll=false){
 }
 
 // ── Trader Score (0–100) ─────────────────────────────
+// A weighted mean of the parts that have data. A part without data is left out — never scored as
+// 0, as «followed the plan» or as «no mistakes» — and the other weights are scaled up:
+//   win rate     30 % — trades with a known P&L after costs, at least 3; 70 % = full marks
+//   discipline   25 % — calcDiscipline: explicit plan / checklist / impulsive answers only
+//   planned R:R  20 % — trades with an R:R; 1:3 = full marks, 1:0.5 and below = 0
+//   clean        10 % — clean among full-form trades with checklist answers and a rule verdict
+//                       (tradeDiscipline): only there can a trade be clean at all, so a broken rule
+//                       elsewhere does not tip it. A winning trade with a broken rule is not clean,
+//                       a losing trade by the rules is
+// The mistake marks are not a part: a trade without marks is not proof of no mistakes.
+// No score under 3 trades or when the parts with data weigh under half of the whole.
 function calcTraderScore(){
   if(trades.length<3) return null;
-  const {wr,avgRR} = calcStats(trades);
+  const {wr, avgRR, known} = calcStats(trades);
   const disc = calcDiscipline();
-
-  // Components (each 0-100)
-  const wrScore       = Math.min((wr||0)/70*100, 100);             // 70%+ = perfect
-  const discScore     = disc?disc.score:50;
-  const rrScore       = avgRR ? Math.min((avgRR-0.5)/2.5*100,100) : 40; // 3:1 = perfect
-  const mistakeCount  = trades.reduce((s,t)=>s+(t.mistakes?.length||0),0);
-  const mistakeScore  = Math.max(0, 100 - (mistakeCount/trades.length)*40);
-  const cleanTrades   = trades.filter(t=>tradeDiscipline(t)==='clean');   // the same rule as the insights
-  const cleanScore    = (cleanTrades.length/trades.length)*100;
-
-  const score = Math.round(
-    wrScore      * 0.30 +
-    discScore    * 0.25 +
-    rrScore      * 0.20 +
-    mistakeScore * 0.15 +
-    cleanScore   * 0.10
-  );
+  const verdicts = trades.filter(t=>!t.quickTrade && checklistAnswers(t)).map(tradeDiscipline).filter(v=>v!==null);
+  const parts = [
+    ['wr',    0.30, known>=3 ? Math.min(wr/70*100, 100) : null],
+    ['disc',  0.25, disc ? disc.score : null],
+    ['rr',    0.20, avgRR!==null ? Math.max(0, Math.min((avgRR-0.5)/2.5*100, 100)) : null],
+    ['clean', 0.10, verdicts.length ? verdicts.filter(v=>v==='clean').length/verdicts.length*100 : null],
+  ].filter(p=>p[2]!==null);
+  const weight = parts.reduce((s,p)=>s+p[1], 0);
+  if(weight<0.5) return null;
+  const score = Math.round(parts.reduce((s,p)=>s+p[1]*p[2], 0)/weight);
 
   let label, col;
   if(score>=80){ label=lang==='ru'?'Отличный трейдер':'Expert Trader';     col='var(--positive)'; }
@@ -7257,7 +7422,28 @@ function calcTraderScore(){
   else if(score>=35){ label=lang==='ru'?'Требует работы':'Needs Work';      col='var(--warning)';}
   else              { label=lang==='ru'?'Высокий риск':'High Risk';         col='var(--negative)';  }
 
-  return {score, label, col};
+  return {score, label, col, parts:parts.map(p=>p[0])};
+}
+// The score tile on Home; applyLang calls it too, so its label and hint follow the language
+function renderTraderScore(){
+  const tsEl = document.getElementById('traderScoreWrap'); if(!tsEl) return;
+  const ts = calcTraderScore();
+  if(!ts){ tsEl.style.display='none'; return; }
+  tsEl.style.display='flex';
+  document.getElementById('traderScoreNum').textContent=ts.score;
+  document.getElementById('traderScoreNum').style.color=ts.col;
+  document.getElementById('traderScoreLbl').textContent=ts.label;
+  document.getElementById('traderScoreLbl').style.color=ts.col;
+  document.getElementById('traderScoreHint').textContent=traderScoreSource(ts);
+  // Arc progress
+  const arc=document.getElementById('traderScoreArc');
+  if(arc){const c=2*Math.PI*18;arc.style.strokeDasharray=`${ts.score/100*c} ${c}`;arc.style.stroke=ts.col;}
+}
+// What the score was made of, for the tile's hint
+function traderScoreSource(ts){
+  const ru = lang==='ru';
+  const names = {wr:ru?'винрейт':'win rate', disc:ru?'дисциплина':'discipline', rr:'R:R', clean:ru?'чистые сделки':'clean trades'};
+  return (ru?'Из: ':'From: ')+ts.parts.map(p=>names[p]).join(', ');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -7411,6 +7597,7 @@ function openFilterModal(resultType){
 function setTrade(key, val){
   tForm[key]=val;
   if(key==='dir'&&typeof calcPosition==='function')calcPosition();
+  if(key==='dir'&&typeof learningRiskPreview==='function')learningRiskPreview();
   if(key==='dir'){
     document.getElementById('btnBuy').className='tbtn'+(val==='buy'?' sel-buy':'');
     document.getElementById('btnSell').className='tbtn'+(val==='sell'?' sel-sell':'');
@@ -7480,6 +7667,7 @@ function setRRMode(isManual){
     manualInput.value = '';
     setRRDisplay(null);
     tForm.rrCalc = null;
+    rrAskDirection(false);
     manualInput.focus();
   } else {
     autoDisplay.style.display   = 'block';
@@ -7517,13 +7705,14 @@ function toggleRRMode(){ setRRMode(!rrManualMode); }
 
 // Does an edit open the trade's R:R in manual mode? The trade's own rrMode decides. An older trade
 // without one opens in auto only when its levels give the same R:R: an unrelated edit never
-// replaces the R:R the trader wrote.
+// replaces the R:R the trader wrote. Without a direction auto counts nothing, so a saved R:R stays
+// as written, whatever its mode.
 function rrEditManual(t){
   if(!t.rr) return false;
-  if(t.rrMode==='manual') return true;
+  if(t.rrMode==='manual' || !t.dir) return true;
   if(t.rrMode==='auto') return false;
   const e=parseFloat(t.entry), sl=parseFloat(t.sl), tp=parseFloat(t.tp);
-  if(!rrPointsValid(e, sl, tp, t.dir||'buy')) return true;
+  if(!rrPointsValid(e, sl, tp, t.dir)) return true;
   const saved=parseRR(t.rr);
   return saved===null || fmtRR(saved)!==fmtRR(Math.abs(tp-e)/Math.abs(e-sl));
 }
@@ -7538,11 +7727,13 @@ function onRRManualBlur(){
 
 function calcRR(){
   if(rrManualMode){
+    rrAskDirection(false);
     setRRDisplay(tForm.rrCalc||null);return; // Explicit manual input always wins over point calculations.
   }
   const e=parseFloat(document.getElementById('tEntry').value);
   const sl=parseFloat(document.getElementById('tSL').value);
   const tp=parseFloat(document.getElementById('tTP').value);
+  rrAskDirection(!tForm.dir && !isNaN(e) && !isNaN(sl) && !isNaN(tp));
   if(!rrPointsValid(e, sl, tp, tForm.dir)){
     setRRDisplay(null); tForm.rrCalc=null; return;   // the screen and the saved value agree
   }
@@ -7552,12 +7743,23 @@ function calcRR(){
   tForm.rrCalc=rrStr;
 }
 
+// The levels are there and only the direction is missing: the form asks for it
+function rrAskDirection(on){
+  const hint=document.getElementById('rrDirHint');
+  if(!hint) return;
+  hint.hidden=!on;
+  if(on) hint.textContent=T('rr_pick_dir');
+}
+
 // Entry / SL / TP make an R:R only when the stop and the target sit on the right sides for the
 // direction: buy — SL below the entry, TP above; sell — the other way round. A stop at the entry
-// or on the wrong side gives no R:R (and no old R:R is kept for saving).
+// or on the wrong side gives no R:R (and no old R:R is kept for saving). Without a direction there
+// is no right side to check, and the levels do not choose one for the trader.
 function rrPointsValid(e, sl, tp, dir){
   if(isNaN(e)||isNaN(sl)||isNaN(tp) || e===sl) return false;
-  return dir==='sell' ? (sl>e && tp<e) : (sl<e && tp>e);
+  if(dir==='buy') return sl<e && tp>e;
+  if(dir==='sell') return sl>e && tp<e;
+  return false;
 }
 
 // ── Checklist ──────────────────────────────────────────
@@ -7750,7 +7952,7 @@ function syncStateToForm(){
   document.getElementById('tNotes').value  = tForm.notes  ||'';
   renderLearningTrade('t', editingId ? trades.find(t=>t.id===editingId) : null);
   // Toggle buttons
-  setTrade('dir',    tForm.dir    ||'buy');
+  setTrade('dir',    tForm.dir    ||null);   // a trade saved without a direction stays without one
   setTrade('result', tForm.result);
   if(tForm.setup)    setTrade('setup',    tForm.setup);
   if(tForm.byPlan    !==undefined) setTrade('byPlan',    tForm.byPlan);
@@ -9708,7 +9910,7 @@ function openEditTrade(id){
   editingId=id;
   tForm={
     pair:   t.pair||t.asset||'', market: t.market||'forex', session: t.session||'London',
-    dir:    t.dir||'buy',        entry:  t.entry||'',
+    dir:    t.dir||null,         entry:  t.entry||'',
     sl:     t.sl||'',            tp:     t.tp||'',
     pnl:    t.pnl||'',           date:   t.date||journalToday(),
     result: t.result,            setup:  t.setup||null,
@@ -9810,7 +10012,7 @@ function saveTrade(){
   const learning = readLearningTrade('t',previous,link,tForm.date||journalToday());
   let riskSnapshot;
   try{ riskSnapshot=readLearningRisk(previous,link,tForm.date||journalToday()); }
-  catch(e){toastWarn(e.message);return;}
+  catch(e){toastWarn(e.message);if(!tForm.dir)stepNext(0,true);return;}   // Buy and Sell are on the first step
   const tradeData={
     ...(previous?.quickTrade?{quickTrade:true}:{}),
     learning, riskSnapshot, dayPolicy:previous ? (previous.dayPolicy||null) : learningDayPolicy(tForm.date||journalToday()),
@@ -9818,7 +10020,7 @@ function saveTrade(){
     pair, asset:pair,
     market:tForm.market||'forex',
     session:tForm.session||'London',
-    dir:tForm.dir||'buy',
+    dir:tForm.dir||null,
     entry:parseFloat(tForm.entry)||null,
     sl:parseFloat(tForm.sl)||null,
     tp:parseFloat(tForm.tp)||null,
@@ -9882,11 +10084,19 @@ function updateGoalHint(){
 function saveGoal(){
   const type=document.getElementById('goalType').value;
   const target=parseFloat(document.getElementById('goalTarget').value);
-  const days=parseInt(document.getElementById('goalDays').value)||30;
   const name=document.getElementById('goalName').value.trim();
-  if(!target||isNaN(target)){showToast(lang==='ru'?'Укажите целевое значение!':'Enter target value!');return;}
-  goals.push({id:Date.now().toString(), type, target, days, name, createdAt:new Date().toISOString()});
+  if(!target||isNaN(target)){toastWarn(lang==='ru'?'Укажите целевое значение':'Enter the target value');document.getElementById('goalTarget').focus();return;}
+  // a goal is a positive number; a percent of trades or answers (and a drawdown limit) is at most 100
+  const pctGoal=['winrate','discipline','drawdown'].includes(type);
+  if(!(target>0) || (pctGoal && target>100)){
+    toastWarn(lang==='ru'?(pctGoal?'Цель — число больше 0 и не больше 100':'Цель — число больше 0'):(pctGoal?'The target is a number above 0 and at most 100':'The target is a number above 0'));
+    document.getElementById('goalTarget').focus(); return;
+  }
+  // No «days»: nothing ever counted a goal over a period, so the form no longer promises one.
+  // Older goals keep their stored days as they are; they are counted over the whole journal.
+  goals.push({id:Date.now().toString(), type, target, name, createdAt:new Date().toISOString()});
   syncSettings();
+  document.getElementById('goalTarget').value=''; document.getElementById('goalName').value='';   // the next goal starts empty
   closeModal('goalsModal');
   renderHome(); renderProgress();
   showToast(T('toast_goal'));
@@ -9902,11 +10112,23 @@ function deleteGoal(i){
 // ═══════════════════════════════════════════════════════
 //  CAPITAL
 // ═══════════════════════════════════════════════════════
+// The field opens with the capital already set (the grey 10000 was only a hint, and saving the empty
+// field wrote 0). An empty or negative value is not saved; a typed 0 clears the capital on purpose.
+function openCapModal(){
+  document.getElementById('capInput').value = baseCapital>0 ? baseCapital : '';
+  openModal('capModal');
+}
 function saveCap(){
-  baseCapital=parseFloat(document.getElementById('capInput').value)||0;
+  const inp=document.getElementById('capInput'), raw=inp.value.trim(), n=Number(raw);
+  if(raw==='' || !Number.isFinite(n) || n<0){
+    toastWarn(lang==='ru'?'Укажите депозит: число 0 или больше':'Enter the deposit: a number of 0 or more');
+    inp.focus(); return;
+  }
+  baseCapital=n;
   syncSettings();
   closeModal('capModal');
   renderHome();
+  if(document.getElementById('page-progress')?.classList.contains('active')) renderProgress();
   showToast(T('toast_cap'));
 }
 
@@ -10376,9 +10598,15 @@ const STRINGS = {
     progress_title:'Прогресс & Цели',
     streaks_title:'Серии',
     str_journal:'Журнал', str_journal_sub:'дн. подряд',
-    str_discipline:'Дисциплина', str_discipline_sub:'сделок подряд',
+    str_discipline:'Дисциплина', str_discipline_sub:'сделок подряд по плану, не отмеченных импульсивными',
     str_wins:'Победы', str_wins_sub:'побед подряд',
     str_best:'Лучшая', str_current:'Текущая',
+    str_range_note:'Диапазон значит, что точное число неизвестно.',
+    str_range_order:'Журнал не хранит порядок сделок внутри дня.',
+    str_range_pnl:'У некоторых сделок нет P&L.',
+    str_range_plan:'У некоторых сделок нет ответа «по плану».',
+    str_undated_note:'Сделки без даты в серии не входят:',
+    rr_pick_dir:'Выберите Buy или Sell: без направления R:R не считается',
     str_days:'дн.', str_trades_unit:'сд.',
     disc_deep_title:'Дисциплина',
     goals_title_prog:'Цели',
@@ -10386,9 +10614,11 @@ const STRINGS = {
     equity_title:'Эквити',
     eq_pnl:'Общий P&L', eq_growth:'Рост',
     eq_drawdown:'Макс просадка', eq_capital:'Текущий капитал',
+    dd_need_capital:'нужен начальный капитал', dd_by_days:'по итогам дней', dd_unknown:'без P&L: {0}',
+    dd_no_pnl:'нет сделок с известным P&L', dd_exhausted:'остаток дошёл до 0: сверьте начальный капитал',
     // Goals modal
     goals_modal_title:'Новая цель',
-    goal_type:'Тип цели', goal_target:'Цель', goal_days:'Дней', goal_name:'Название',
+    goal_type:'Тип цели', goal_target:'Цель', goal_scope:'Цель считается по всем сделкам журнала, без срока.', goal_name:'Название',
     goal_name_hint:'Например: Апрельский план',
     goal_btn:'Создать цель',
     goal_winrate:'Винрейт (%)', goal_trades:'Количество сделок',
@@ -10562,9 +10792,15 @@ const STRINGS = {
     progress_title:'Progress & Goals',
     streaks_title:'Streaks',
     str_journal:'Journal', str_journal_sub:'days in a row',
-    str_discipline:'Discipline', str_discipline_sub:'trades in a row',
+    str_discipline:'Discipline', str_discipline_sub:'trades in a row by plan, not marked impulsive',
     str_wins:'Wins', str_wins_sub:'wins in a row',
     str_best:'Best', str_current:'Current',
+    str_range_note:'A range means the exact number is not known.',
+    str_range_order:'The journal does not keep the order of trades within a day.',
+    str_range_pnl:'Some trades have no P&L.',
+    str_range_plan:'Some trades have no “by plan” answer.',
+    str_undated_note:'Trades without a date are not in the streaks:',
+    rr_pick_dir:'Pick Buy or Sell: without a direction the R:R is not counted',
     str_days:'d', str_trades_unit:'tr.',
     disc_deep_title:'Discipline',
     goals_title_prog:'Goals',
@@ -10572,9 +10808,11 @@ const STRINGS = {
     equity_title:'Equity',
     eq_pnl:'Total P&L', eq_growth:'Growth',
     eq_drawdown:'Max Drawdown', eq_capital:'Current Capital',
+    dd_need_capital:'needs the initial capital', dd_by_days:'by end-of-day totals', dd_unknown:'no P&L: {0}',
+    dd_no_pnl:'no trades with a known P&L', dd_exhausted:'the balance reached 0: check the initial capital',
     // Goals modal
     goals_modal_title:'New Goal',
-    goal_type:'Goal type', goal_target:'Target', goal_days:'Days', goal_name:'Name',
+    goal_type:'Goal type', goal_target:'Target', goal_scope:'A goal is counted over all trades in the journal, with no deadline.', goal_name:'Name',
     goal_name_hint:'e.g. April plan',
     goal_btn:'Create goal',
     goal_winrate:'Win rate (%)', goal_trades:'Number of trades',
@@ -10701,6 +10939,7 @@ function applyLang(){
   _setT('homePnlTitleText', 'home_pnl_curve');
   _setT('kzTitle',          'kz_title');
   _setT('traderScoreHint',  'score_hint');
+  if(Array.isArray(trades)) renderTraderScore();   // the hint lists what the score was made of
   _setT('chartLegCapital',  'chart_capital');
 
   // Analytics chart title
@@ -10877,7 +11116,7 @@ function applyLang(){
   // Goals form labels
   _setT('goalTypeLabel',   'goal_type');
   _setT('goalTargetLabel', 'goal_target');
-  _setT('goalDaysLabel',   'goal_days');
+  _setT('goalScope',       'goal_scope');
   _setT('goalNameLabel',   'goal_name');
   _setT('goalName',   'goal_name_hint', 'placeholder');
   _setT('goalBtnLabel',    'goal_btn');
@@ -11358,6 +11597,7 @@ function calcPosition(){
   const inp=document.getElementById('pcRiskInput');if(inp&&document.activeElement!==inp)inp.value=risk||'';
   document.querySelectorAll('#posCalc .pc-chip').forEach(b=>{b.classList.toggle('on',parseFloat(b.dataset.r)===risk);b.disabled=maxPct!==null&&parseFloat(b.dataset.r)>maxPct;b.title=b.disabled?L('Выше личного максимума стратегии','Above your strategy maximum'):'';});
   if(!(baseCapital>0)||!risk){out.textContent=L('Укажите начальный капитал и выбранный риск для расчёта; личный максимум настраивается отдельно в стратегии.','Set starting capital and your chosen risk to calculate a size; your personal maximum is configured separately for the strategy.');return;}
+  if(!tForm.dir){out.textContent=L('Выберите Buy или Sell: без направления нельзя проверить сторону стопа и рассчитать объём.','Pick Buy or Sell: without a direction the stop side cannot be checked and no size is calculated.');return;}
   const entry=Number(document.getElementById('tEntry').value),stop=Number(document.getElementById('tSL').value);
   const market=document.getElementById('tMarket').value,{p,base,quote}=pairInfo(document.getElementById('tPair').value);
   let multiplier=null,step=null,minimum=null,label=L('единиц','units');
@@ -11368,7 +11608,7 @@ function calcPosition(){
   const read=id=>{const e=document.getElementById('lr'+id);return e?.value!==''&&e?Number(e.value):null;};
   multiplier=read('Multiplier')??multiplier;step=read('Step')??step;minimum=read('Minimum')??minimum;
   const fi=read('FeeIn'),fo=read('FeeOut'),feeEntry=fi===null?0:fi/100,feeExit=fo===null?0:fo/100;
-  const args={capital:computeCapital(),riskPct:risk,maxPct,entry,stop,dir:tForm.dir||'buy',multiplier,step,minimum,feeEntry,feeExit};
+  const args={capital:computeCapital(),riskPct:risk,maxPct,entry,stop,dir:tForm.dir,multiplier,step,minimum,feeEntry,feeExit};
   const r=MJLearning.position(args);
   if(r.size===null){out.textContent=r.reason==='maximum'?L('Выбранный риск выше личного максимума. Расчёт объёма не выполнен.','Your chosen risk exceeds your personal maximum. No size was calculated.'):L('Для расчёта нужны корректный стоп, известный контракт, шаг и минимальный объём.','A calculation needs a valid stop, known contract, size step and minimum.');return;}
   out.innerHTML='<p>'+escapeHtml(L('Расчётный объём: ','Calculated size: ')+r.size+' '+label)+'</p><p>'+escapeHtml(L('Плановый риск модели: $','Modelled planned risk: $')+r.risk.toFixed(2))+'</p><p class="note">'+escapeHtml(L('Это модель, не фактическое исполнение. Сверьте контракт, шаг и комиссии у брокера; проскальзывание не предсказано.','This is a model, not actual execution. Check the contract, step and fees with your broker; slippage is not predicted.'))+'</p><p class="note">'+escapeHtml(maxPct===null?L('Личный максимум не задан.','Your personal maximum is not set.'):L('Личный максимум: ','Your personal maximum: ')+maxPct+'%')+'</p><p class="note">'+escapeHtml(fi===null||fo===null?L('Комиссии не заполнены: размер предварительный, пока считается без неизвестных комиссий.','Fees are missing: sizing is preliminary and excludes unknown fees.'):'')+'</p>';
@@ -11580,36 +11820,37 @@ function renderPnlCalendar(){
   const el=document.getElementById('pnlCal'); if(!el) return;
   const ru=lang==='ru';
   const byDay={};
-  trades.forEach(t=>{ if(!t.date) return; const d=byDay[t.date]||(byDay[t.date]={pnl:0,n:0}); d.pnl+=tradeNet(t)||0; d.n++; });
+  // k = trades with a known P&L: a day, week or month with none shows «—», not 0
+  trades.forEach(t=>{ if(!t.date) return; const d=byDay[t.date]||(byDay[t.date]={pnl:0,n:0,k:0}); const v=tradeNet(t); if(Number.isFinite(v)){ d.pnl+=v; d.k++; } d.n++; });
   const first=new Date(pnlCal.y,pnlCal.m,1), lead=(first.getDay()+6)%7, days=new Date(pnlCal.y,pnlCal.m+1,0).getDate();
   const today=journalToday(), sel=calState.trades.date;
   const title=first.toLocaleDateString(ru?'ru-RU':'en-GB',{month:'long',year:'numeric'}).replace(' г.','');
   const vals=Object.entries(byDay).filter(([k])=>k.startsWith(pnlCal.y+'-'+String(pnlCal.m+1).padStart(2,'0'))).map(([,v])=>Math.abs(v.pnl));
   const maxAbs=Math.max(1,...vals);
-  let monthPnl=0, monthN=0, cells=[];
+  let monthPnl=0, monthN=0, monthK=0, cells=[];
   for(let i=0;i<lead;i++) cells.push(null);
   for(let d=1;d<=days;d++){
     const ds=pnlCal.y+'-'+String(pnlCal.m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const v=byDay[ds]; if(v){ monthPnl+=v.pnl; monthN+=v.n; }
+    const v=byDay[ds]; if(v){ monthPnl+=v.pnl; monthN+=v.n; monthK+=v.k; }
     cells.push({d,ds,v});
   }
   while(cells.length%7) cells.push(null);
   const short=v=>{ const a=Math.abs(v); return (v>0?'+':v<0?'−':'')+(a>=1000?(a/1000).toFixed(1)+'k':a.toFixed(0)); };
   let rows='';
   for(let i=0;i<cells.length;i+=7){
-    const wk=cells.slice(i,i+7); const wsum=wk.reduce((s,c)=>s+(c&&c.v?c.v.pnl:0),0), wn=wk.reduce((s,c)=>s+(c&&c.v?c.v.n:0),0);
+    const wk=cells.slice(i,i+7); const wsum=wk.reduce((s,c)=>s+(c&&c.v?c.v.pnl:0),0), wn=wk.reduce((s,c)=>s+(c&&c.v?c.v.n:0),0), wk_k=wk.reduce((s,c)=>s+(c&&c.v?c.v.k:0),0);
     rows+=wk.map(c=>{
       if(!c) return '<div class="pc-cell pc-blank"></div>';
       const a=c.v?(.10+Math.abs(c.v.pnl)/maxAbs*.24).toFixed(2):0;   // at most .34: the day's text stays ≥4.5:1
       const bg=c.v?(c.v.pnl>0?`rgba(79,209,165,${a})`:c.v.pnl<0?`rgba(255,107,107,${a})`:'var(--surface-3)'):'';
-      return `<button type="button" class="pc-cell${c.ds===today?' today':''}${c.ds===sel?' sel':''}${c.v?'':' none'}" ${c.v?`onclick="pnlCalPick('${c.ds}')"`:'disabled'} style="${bg?'background:'+bg:''}" aria-label="${new Date(c.ds+'T12:00:00').toLocaleDateString(ru?'ru-RU':'en-GB',{day:'numeric',month:'long'})}${c.v?', '+money(c.v.pnl):''}"><span>${c.d}</span>${c.v?`<b>${short(c.v.pnl)}</b>`:''}</button>`;
-    }).join('') + `<div class="pc-week ${wsum>0?'green':wsum<0?'red':''}">${wn?short(wsum):''}</div>`;
+      return `<button type="button" class="pc-cell${c.ds===today?' today':''}${c.ds===sel?' sel':''}${c.v?'':' none'}" ${c.v?`onclick="pnlCalPick('${c.ds}')"`:'disabled'} style="${bg?'background:'+bg:''}" aria-label="${new Date(c.ds+'T12:00:00').toLocaleDateString(ru?'ru-RU':'en-GB',{day:'numeric',month:'long'})}${c.v?', '+(c.v.k?money(c.v.pnl):(ru?'без P&L':'no P&L')):''}"><span>${c.d}</span>${c.v?`<b>${c.v.k?short(c.v.pnl):'—'}</b>`:''}</button>`;
+    }).join('') + `<div class="pc-week ${wsum>0?'green':wsum<0?'red':''}">${wn?(wk_k?short(wsum):'—'):''}</div>`;
   }
   const wd=ru?['Пн','Вт','Ср','Чт','Пт','Сб','Вс']:['Mo','Tu','We','Th','Fr','Sa','Su'];
   el.innerHTML=`
     <div class="pcal-head">
       <button type="button" class="dp-nav" onclick="pnlCalNav(-1)" aria-label="${ru?'Предыдущий месяц':'Previous month'}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 6l-6 6 6 6"/></svg></button>
-      <div class="pcal-title"><b>${title}</b><span class="${monthPnl>0?'green':monthPnl<0?'red':''}">${monthN?money(monthPnl)+', '+monthN+' '+(ru?plural(monthN,'сделка','сделки','сделок'):(monthN===1?'trade':'trades')):(ru?'нет сделок':'no trades')}</span></div>
+      <div class="pcal-title"><b>${title}</b><span class="${monthPnl>0?'green':monthPnl<0?'red':''}">${monthN?(monthK?money(monthPnl):'—')+', '+monthN+' '+(ru?plural(monthN,'сделка','сделки','сделок'):(monthN===1?'trade':'trades')):(ru?'нет сделок':'no trades')}</span></div>
       <button type="button" class="dp-nav" onclick="pnlCalNav(1)" aria-label="${ru?'Следующий месяц':'Next month'}"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg></button>
     </div>
     <div class="pcal-grid">${wd.map(x=>`<div class="pc-wd">${x}</div>`).join('')}<div class="pc-wd pc-week-h">${ru?'Нед.':'Week'}</div>${rows}</div>
@@ -11676,7 +11917,7 @@ function renderWeekCard(){
     </div>
     ${s.list.length?`
     <div class="wk-card">
-      <div class="wk-hero"><span>P&amp;L${costsPendingIn(s.list)?L(' · предварительно',' · preliminary'):''}</span><b>${money(s.pnl)}</b></div>
+      <div class="wk-hero"><span>P&amp;L${costsPendingIn(s.list)?L(' · предварительно',' · preliminary'):''}</span><b>${s.list.some(t=>tradeOutcome(t)!==null)?money(s.pnl):'—'}</b></div>
       <div class="wk-grid">
         <div><b>${s.list.length}</b><span>${L(plural(s.list.length,'сделка','сделки','сделок'),'trades')}</span></div>
         <div><b>${s.wr!==null?Math.round(s.wr)+'%':'—'}</b><span>${L('винрейт','win rate')}${s.wr!==null&&costsPendingIn(s.list)?L(' · предв.',' · prelim.'):''}</span></div>

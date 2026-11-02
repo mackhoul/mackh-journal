@@ -23,7 +23,7 @@ vm.runInContext([
   cut('function costNum(', '// The account\'s last choice'),
   cut('function computeCapital(', '// Maps internal setup key'),
   cut('function calcStats(list){', '// Expectancy ='),
-  cut('function calcStreaks(){', '// ═══'),
+  cut('// A calendar date', '// ═══'),   // dayIndex, tradeRun, calcStreaks, calcDrawdown
   cut('function stratStats(list){', '// ═══'),
   cut('function getTradesByDate(){', 'function buildCalendar('),
   cut('function tradeR(t){', 'function renderExpectancy('),

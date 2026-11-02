@@ -26,6 +26,15 @@ let day = 0;
 // one trade a day, in order: the windows follow the dates
 const dated = (k, o) => Array.from({ length: k }, () => tr({ date: new Date(Date.UTC(2026, 0, 1 + day++)).toISOString().slice(0, 10), ...o }));
 
+// ── the drawdown card links the trades of the fall, by end-of-day totals ──
+//    (one date's trades have no known order: the journal above is one date, so it has no drawdown)
+{
+  const fall = [...dated(1, { pnl: '200' }), ...dated(1, { pnl: '-150', result: 'loss' }), ...dated(1, { pnl: '-100', result: 'loss' }), ...dated(1, { pnl: '50' })];
+  const r = run(fall, { capital: 1000 });
+  const d = byId(r, 'drawdown');
+  check('drawdown card: 20.8% from the 1200 peak, linked to the two losing days', d && /20.8%/.test(d.text) && d.tradeIds?.length === 2 && d.tradeIds.every(id => fall.slice(1, 3).some(t => t.id === id)), d);
+}
+
 // ── every card: one step, and its trades exist ──
 {
   const list = [
@@ -38,7 +47,7 @@ const dated = (k, o) => Array.from({ length: k }, () => tr({ date: new Date(Date
   const ids = new Set(list.map(t => t.id));
   check('a crowded journal: every card has one step', r.ins.length > 8 && r.ins.every(i => typeof i.act === 'string' && i.act.length > 10), r.ins.filter(i => !i.act).map(i => i.id));
   check('… every listed trade exists', r.ins.every(i => (i.tradeIds || []).every(id => ids.has(id))), r.ins.map(i => [i.id, i.tradeIds]));
-  check('… the cards about groups of trades link to them', ['best_sess_', 'sess_loss_', 'offplan_wr', 'dirty_trades', 'dirty_profit', 'clean_trades', 'plan_losses', 'mistake_', 'drawdown'].every(p => (r.ins.find(i => i.id.startsWith(p)) || {}).tradeIds?.length), r.ins.map(i => [i.id, (i.tradeIds || []).length]));
+  check('… the cards about groups of trades link to them', ['best_sess_', 'sess_loss_', 'offplan_wr', 'dirty_trades', 'dirty_profit', 'clean_trades', 'plan_losses', 'mistake_'].every(p => (r.ins.find(i => i.id.startsWith(p)) || {}).tradeIds?.length), r.ins.map(i => [i.id, (i.tradeIds || []).length]));
   check('… a mistake repeated inside one trade counts once: 4 trades', /в 4 из/.test((r.ins.find(i => i.id.startsWith('mistake_')) || {}).text || ''), r.ins.find(i => i.id.startsWith('mistake_')));
   r.ctx.renderInsights(true);
   const h = r.nodes.get('insightsWrap').innerHTML;

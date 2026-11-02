@@ -80,4 +80,50 @@ test('a trade without any R:R opens in auto, as before',()=>{
  const s=edit(none,()=>{assert.equal(run('rrManualMode'),false);});
  assert.equal(s.rr,null);
 });
+test('a trade saved without a direction is not given «Buy» by an edit (beta B4)',()=>{
+ const quick={id:'q2',pair:'USDJPY',quickTrade:true,dir:null,entry:null,sl:null,tp:null,rr:'1:2',result:'loss',pnl:'-200',date:'2026-10-26'};
+ const s=edit(quick,()=>{assert.equal(el('btnBuy').classList.contains('sel-buy'),false,'Buy is not lit');el('tPnl').value='-150';});
+ assert.equal(s.dir,null);assert.equal(s.pnl,'-150');
+ const sell=edit({...quick,id:'q3',dir:'sell'});assert.equal(sell.dir,'sell','a saved direction stays');
+ run('openAddTrade()');assert.equal(run('tForm.dir'),'buy','a new full trade still starts at Buy');
+});
+// ── Codex review 1 Nov, PG3: without a direction nothing is counted as if it were Buy ──
+test('PG3: the side of the stop is checked only against a chosen direction',()=>{
+ assert.equal(run('rrPointsValid(1.085,1.082,1.091,null)'),false);assert.equal(run('rrPointsValid(1.085,1.091,1.082,undefined)'),false);
+ assert.equal(run('rrPointsValid(1.085,1.082,1.091,"buy")'),true);assert.equal(run('rrPointsValid(1.085,1.091,1.082,"sell")'),true);
+});
+test('PG3: without a direction the levels give no R:R and the form asks; a pick counts it',()=>{
+ const quick={id:'q4',pair:'EURUSD',quickTrade:true,dir:null,entry:null,sl:null,tp:null,rr:null,result:'win',pnl:'40',date:'2026-10-01'};
+ const s=edit(quick,()=>{
+  typeLevels('1.085','1.082','1.091');
+  assert.equal(run('tForm.rrCalc'),null,'no R:R as if it were Buy');assert.equal(el('rrDirHint').hidden,false,'the form asks to pick');
+  run('setTrade("dir","sell");calcRR()');assert.equal(run('tForm.rrCalc'),null,'these levels are wrong for Sell');assert.equal(el('rrDirHint').hidden,true);
+  run('setTrade("dir","buy");calcRR()');assert.equal(run('tForm.rrCalc'),'1:2');assert.equal(el('rrDirHint').hidden,true);
+ });
+ assert.equal(s.dir,'buy');assert.equal(s.rr,'1:2');
+});
+test('PG3: saved without a pick the levels stay, the direction and the R:R stay empty',()=>{
+ const s=edit({id:'q5',pair:'EURUSD',quickTrade:true,dir:null,rr:null,result:'win',pnl:'40',date:'2026-10-01'},()=>{typeLevels('1.085','1.082','1.091');});
+ assert.equal(s.dir,null);assert.equal(s.rr,null);assert.equal(s.entry,1.085);
+});
+test('PG3: an edit of the notes keeps an R:R saved in auto mode without a direction',()=>{
+ const t={id:'q6',pair:'EURUSD',dir:null,entry:1.085,sl:1.082,tp:1.091,rr:'1:2',rrMode:'auto',result:'win',pnl:'40',date:'2026-10-01'};
+ const s=edit(t,()=>{assert.equal(el('rrManualInput').value,'1:2');el('tNotes').value='Only the notes';});
+ assert.equal(s.rr,'1:2');assert.equal(s.dir,null);assert.equal(s.notes,'Only the notes');
+ const again=edit(s);assert.equal(again.rr,'1:2','a second edit keeps it too');
+});
+test('PG3: an older trade without a mode and a direction keeps its R:R',()=>{
+ const t={id:'q7',pair:'EURUSD',dir:null,entry:1.085,sl:1.082,tp:1.091,rr:'1:2',result:'win',pnl:'40',date:'2026-10-01'};
+ assert.equal(edit(t).rr,'1:2');
+ assert.equal(edit({...t,id:'q8',rr:'1:7'}).rr,'1:7');
+});
+test('PG3: a written R:R needs no direction; auto without one asks again',()=>{
+ const t={id:'q9',pair:'EURUSD',dir:null,entry:1.085,sl:1.082,tp:1.091,rr:null,result:'win',pnl:'40',date:'2026-10-01'};
+ const s=edit(t,()=>{
+  run('setRRMode(true)');assert.equal(el('rrDirHint').hidden,true,'manual mode does not ask');
+  el('rrManualInput').value='1:5';run('onRRManualInput()');
+ });
+ assert.equal(s.rr,'1:5');assert.equal(s.dir,null);
+ edit(s,()=>{run('setRRMode(false)');assert.equal(run('tForm.rrCalc'),null);assert.equal(el('rrDirHint').hidden,false);});
+});
 console.log(`R:R edit mode: ${checks}/${checks} passed`);

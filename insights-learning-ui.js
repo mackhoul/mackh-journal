@@ -189,9 +189,10 @@ function readLearningRisk(prev,link,date){
   if(!box||!confirm)return prev?.riskSnapshot||null;
   if(!box.dataset.dirty&&prev?.riskSnapshot)return prev.riskSnapshot;
   if(!confirm.checked)return null;
+  if(!tForm.dir)throw Error(learningText('Выберите Buy или Sell: без направления нельзя подтвердить сторону стопа и риск','Pick Buy or Sell: without a direction the stop side and the risk cannot be confirmed'));
   const get=id=>{const raw=document.getElementById('lr'+id).value;return raw===''?NaN:Number(raw);};
   const s={capital:get('Capital'),size:get('Size'),multiplier:get('Multiplier'),step:get('Step'),minimum:get('Minimum'),feeEntry:get('FeeIn')/100,feeExit:get('FeeOut')/100,
-    entry:Number(document.getElementById('tEntry').value),stop:Number(document.getElementById('tSL').value),dir:tForm.dir||'buy'};
+    entry:Number(document.getElementById('tEntry').value),stop:Number(document.getElementById('tSL').value),dir:tForm.dir};
   if(![s.capital,s.size,s.multiplier,s.step,s.minimum,s.entry,s.stop].every(x=>Number.isFinite(x)&&x>0)||![s.feeEntry,s.feeExit].every(x=>Number.isFinite(x)&&x>=0))throw Error(learningText('Заполните известные параметры риска и комиссии (0 — без комиссии)','Fill in the known risk parameters and fees (0 means no fee)'));
   const p=MJLearning.position({...s,riskPct:100,maxPct:null});
   if(!p.unit||s.size<s.minimum||Math.abs(s.size/s.step-Math.round(s.size/s.step))>1e-7)throw Error(learningText('Проверьте сторону стопа, шаг и минимальный объём','Check the stop side, size step and minimum size'));

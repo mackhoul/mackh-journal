@@ -21,6 +21,7 @@ const code = [
   cut('function costNum(', '// The account\'s last choice'),
   cut('function parseRR(rr){', 'function fmt('),
   cut('function calcStats(list){', '// Honest period-over-period'),
+  cut('// Max drawdown of the account by end-of-day totals', '// ═══'),   // calcDrawdown: the drawdown insight uses it
   cut('const MISTAKES_LABELS =', 'function escapeHtmlNl('),
   cut('function plural(n, one, few, many){', '\n}\n') + '\n}\n',
   cut('function getDismissedInsights(){', 'function renderHome(){'),

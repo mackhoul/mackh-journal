@@ -111,7 +111,7 @@ const broken = r => /undefined|null%|NaN/.test(all(r));
   ctx.__set('lang', 'ru');
   ctx.__set('trades', many(3, { pnl: '' }));
   const u = ctx.getGoalProgress(g);
-  check('win-rate goal, only trades without P&L: «—», not 0%', /Сейчас — \/ цель 60%/.test(u.label) && u.pct === 0, u);
+  check('win-rate goal, only trades without P&L: «—», not 0%', /Сейчас — \/ цель 60%/.test(u.label) && u.pct === null && u.state === 'unknown', u);
   ctx.__set('trades', many(3, { pnl: '-5' }));
   const z = ctx.getGoalProgress(g);
   check('win-rate goal, three known losses: a real 0.0%', /Сейчас 0\.0% \/ цель 60%/.test(z.label) && z.pct === 0, z);

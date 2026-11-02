@@ -82,6 +82,26 @@ test('a strategy change in a later form re-renders with that form’s trade, not
  strat.fire('change');
  assert.equal(byId.get('tLearnError').value,'no');
 });
+// Codex review 1 Nov, PG3: a confirmed snapshot never holds a direction the trader did not choose
+const noDir=()=>{ctx.tForm={dir:null};vm.runInContext('tForm=this.tForm',ctx);};
+test('PG3: a size cannot be confirmed without a direction; a pick confirms it',()=>{
+ noDir();ctx.renderLearningTrade('t',null);typeRisk();
+ assert.throws(()=>ctx.readLearningRisk(null,link,today),/Выберите Buy или Sell/);
+ ctx.learningRiskPreview();assert.match(byId.get('lrPreview').textContent,/Выберите Buy или Sell/);
+ ctx.tForm={dir:'sell'};vm.runInContext('tForm=this.tForm',ctx);byId.get('tSL').value='1.0880';
+ const r=ctx.readLearningRisk(null,link,today);assert.equal(r.dir,'sell');assert.ok(r.confirmed);
+ byId.get('tSL').value='1.0820';
+});
+test('PG3: without confirming, no direction is no obstacle and no risk is kept',()=>{
+ noDir();ctx.renderLearningTrade('t',null);assert.equal(ctx.readLearningRisk(null,link,today),null);
+});
+test('PG3: an untouched old snapshot stays as it was, not rewritten and not dropped',()=>{
+ const old={id:'e3',riskSnapshot:{confirmed:true,dir:'buy',capital:10000,size:.16,riskUsd:48}};
+ noDir();ctx.renderLearningTrade('t',old);
+ assert.equal(ctx.readLearningRisk(old,link,today),old.riskSnapshot);assert.equal(old.riskSnapshot.dir,'buy');
+ byId.get('tLearningRisk').dataset.dirty='1';
+ assert.throws(()=>ctx.readLearningRisk(old,link,today),/Выберите Buy или Sell/,'a changed size asks for a direction');
+});
 // The trade-limit card declines the record count: «3 записи», «5 записей», «21 запись»
 {
  const source=fs.readFileSync(path.join(__dirname,'insights-quality.test.cjs'),'utf8'),prefix=source.slice(0,source.indexOf('// ── 1. B/E')).replace('Math, Number, String, Date,','MJLearning, learningPrefs, Math, Number, String, Date,');

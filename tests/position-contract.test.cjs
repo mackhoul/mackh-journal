@@ -11,4 +11,9 @@ ctx.risk=1.2;ctx.calcPosition();assert.match(out.textContent,/exceeds your perso
 ctx.max=.5;ctx.risk=1;ctx.calcPosition();assert.equal(chips[1].disabled,true);assert.match(out.textContent,/exceeds/);
 ctx.risk=.5;ctx.baseCapital=0;ctx.calcPosition();assert.match(out.textContent,/Set starting capital/);
 ctx.baseCapital=10000;ctx.max=1;get('tSL').value='1.2';ctx.calcPosition();assert.match(out.textContent,/valid stop/);
+// Codex review 1 Nov, PG3: the calculator asks for a direction, it does not count the stop as Buy
+ctx.risk=1;get('tSL').value='1.09';ctx.tForm={dir:null};ctx.calcPosition();assert.match(out.textContent,/Pick Buy or Sell/);assert.equal(out.children.length,0,'nothing to copy');
+ctx.tForm={};ctx.calcPosition();assert.match(out.textContent,/Pick Buy or Sell/);
+ctx.tForm={dir:'sell'};ctx.calcPosition();assert.match(out.textContent,/valid stop/,'a chosen Sell with the stop below is a wrong side');
+get('tSL').value='1.11';ctx.calcPosition();assert(out.innerHTML.includes('0.1 lots'));assert.equal(out.children.length,1);
 console.log('Position-calculator contract, maximum, copying and unknown-capital checks passed');
