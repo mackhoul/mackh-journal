@@ -792,13 +792,6 @@ body::before{display:none}
 .page{animation:v3In .24s var(--ease)}
 @keyframes v3In{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
-/* ── Session strip: 24h on top of every screen ── */
-.sstrip{position:sticky;top:0;z-index:150;height:4px;background:var(--surface-2);overflow:visible}
-.ss-seg{position:absolute;top:0;bottom:0;opacity:.85}
-.ss-seg.kz-overlap{opacity:1}
-.ss-now{position:absolute;top:-2px;width:2px;height:10px;margin-left:-1px;background:var(--text);border-radius:1px}
-.ss-now::after{content:'';position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:var(--text);opacity:.35;animation:ssPulse 2.4s var(--ease) infinite}
-@keyframes ssPulse{0%{transform:scale(.4);opacity:.5}100%{transform:scale(2.2);opacity:0}}
 
 /* ── Page header ── */
 .phdr{padding:20px 16px 14px;align-items:flex-start;gap:12px}
@@ -1039,7 +1032,6 @@ body.light .mtab.active{background:var(--text);color:var(--surface)}
 }
 @media(min-width:1024px){
   #app,body.light #app{max-width:none;padding-left:248px}
-  .sstrip{position:fixed;left:248px;right:0}
   .nav{position:fixed;left:0;right:auto;top:0;bottom:0;width:248px;transform:none;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:2px;padding:28px 16px;border-radius:0;border:none;border-right:1px solid var(--border);background:var(--bg);box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
   .nb{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:12px;padding:11px 14px;border-radius:12px;font-size:14px;font-weight:500}
   .nb.active{background:var(--surface-2);color:var(--text);box-shadow:none}
@@ -1369,7 +1361,6 @@ body.light .now-tile.limit-hit{background:#FF6B6B;color:#1A0606}
 /* not yet delivered to the server */
 .tc-sync{display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:var(--warning)}
 .tc-sync.local{color:var(--text-muted)}
-@media(prefers-reduced-motion:reduce){.ss-now::after{animation:none;opacity:0}}
 
 /* ═══════════════════════════════════════════════════════════════
    v4 «Ночная карта дня» — see DESIGN.md. Sits last; the older layers
@@ -1907,7 +1898,6 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
 <canvas class="v4-sky" id="v4Sky" aria-hidden="true"></canvas>
 <div class="v4-grain" aria-hidden="true"></div>
 <div id="app">
-<div class="sstrip" id="sStrip" aria-hidden="true"></div>
 
 <!-- ═══════════ DASHBOARD ═══════════ -->
 <div id="page-home" class="page active">
@@ -4461,11 +4451,6 @@ function renderKillzones(){
     if(tile) tile.dataset.session = info.closed ? 'closed' : activeName;
   }
 
-  // Thin 24h strip on top of every screen — same timezone as the tile
-  const strip = document.getElementById('sStrip');
-  if(strip){
-    strip.innerHTML = segHTML.replace(/class="kz-seg/g,'class="ss-seg') + `<i class="ss-now" style="left:${hFloat/24*100}%"></i>`;
-  }
   renderPhrase(info);
   renderDayMap();
 }
