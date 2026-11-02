@@ -32,7 +32,7 @@ let checks=0;const test=(name,fn)=>{fn();checks++;console.log('PASS '+name);};
 
 let manual;
 test('a new full trade saves the R:R typed by hand, not the one of the levels',()=>{
- run('openAddTrade()');el('tPair').value='EURUSD';el('tMarket').value='forex';run('setTrade("result","loss")');el('tPnl').value='-20';
+ run('openAddTrade()');el('tPair').value='EURUSD';el('tMarket').value='forex';run('setTrade("result","loss")');el('tPnl').value='-20';run('setTrade("dir","buy")');
  typeLevels('1.085','1.082','1.091');assert.equal(run('tForm.rrCalc'),'1:2');
  run('setRRMode(true)');el('rrManualInput').value='1:3';run('onRRManualInput()');
  throughSteps();run('saveTrade()');manual=ctx.sent;
@@ -85,7 +85,20 @@ test('a trade saved without a direction is not given «Buy» by an edit (beta B4
  const s=edit(quick,()=>{assert.equal(el('btnBuy').classList.contains('sel-buy'),false,'Buy is not lit');el('tPnl').value='-150';});
  assert.equal(s.dir,null);assert.equal(s.pnl,'-150');
  const sell=edit({...quick,id:'q3',dir:'sell'});assert.equal(sell.dir,'sell','a saved direction stays');
- run('openAddTrade()');assert.equal(run('tForm.dir'),'buy','a new full trade still starts at Buy');
+});
+// ── Andrey's decision 2 Nov: a new full trade opens with neither Buy nor Sell chosen ──
+const fresh=fn=>{run('openAddTrade()');el('tPair').value='EURUSD';el('tMarket').value='forex';run('setTrade("result","win")');el('tPnl').value='40';fn&&fn();throughSteps();run('saveTrade()');return ctx.sent;};
+test('a new full trade opens with no direction, nothing lit',()=>{
+ run('openAddTrade()');
+ assert.equal(run('tForm.dir'),null);assert.equal(el('btnBuy').classList.contains('sel-buy'),false);assert.equal(el('btnSell').classList.contains('sel-sell'),false);
+});
+test('a new full trade can be saved without a direction; its levels stay, no R:R is counted and the form asks',()=>{
+ const s=fresh(()=>{typeLevels('1.085','1.082','1.091');assert.equal(run('tForm.rrCalc'),null);assert.equal(el('rrDirHint').hidden,false);});
+ assert.equal(s.dir,null);assert.equal(s.rr,null);assert.equal(s.entry,1.085);
+});
+test('a picked direction is saved and counts the R:R, Sell as well as Buy',()=>{
+ const b=fresh(()=>{run('setTrade("dir","buy")');typeLevels('1.085','1.082','1.091');});assert.equal(b.dir,'buy');assert.equal(b.rr,'1:2');
+ const s=fresh(()=>{run('setTrade("dir","sell")');typeLevels('1.085','1.088','1.079');});assert.equal(s.dir,'sell');assert.equal(s.rr,'1:2');
 });
 // ── Codex review 1 Nov, PG3: without a direction nothing is counted as if it were Buy ──
 test('PG3: the side of the stop is checked only against a chosen direction',()=>{

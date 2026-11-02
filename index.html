@@ -878,9 +878,9 @@ body.light .now-tile{background:var(--accent);color:var(--on-accent)}
 .score-ring-bg{stroke:var(--surface-3)}
 .score-ring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:18px;font-weight:600}
 .score-text{min-width:0}
-.score-name{font-size:12px;color:var(--text-muted)}
 .score-lbl{font-family:var(--serif);font-size:17px;font-weight:600;margin-top:1px}
 .score-hint{font-size:12px;color:var(--text-muted);margin-top:2px}
+.score-few{font-size:12px;color:var(--warning);margin-top:2px}
 
 /* ── Chart tile ── */
 .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 16px 12px}
@@ -1993,21 +1993,21 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     </div>
   </div>
 
-  <!-- Trader Score -->
+  <!-- Journal Index -->
   <div id="traderScoreWrap" class="score-tile" style="display:none">
     <div class="score-ring">
       <svg width="56" height="56" viewBox="0 0 52 52" aria-hidden="true">
         <circle class="score-ring-bg" cx="26" cy="26" r="18" fill="none" stroke-width="4"/>
-        <circle id="traderScoreArc" cx="26" cy="26" r="18" fill="none" stroke="var(--positive)" stroke-width="4"
+        <circle id="traderScoreArc" cx="26" cy="26" r="18" fill="none" stroke="var(--text-secondary)" stroke-width="4"
           stroke-linecap="round" stroke-dasharray="0 113" transform="rotate(-90 26 26)"
-          style="transition:stroke-dasharray .8s var(--ease),stroke .4s"/>
+          style="transition:stroke-dasharray .8s var(--ease)"/>
       </svg>
       <span id="traderScoreNum">—</span>
     </div>
     <div class="score-text">
-      <div class="score-name" id="traderScoreName">Trader Score</div>
-      <div class="score-lbl" id="traderScoreLbl">—</div>
+      <div class="score-lbl" id="traderScoreLbl">Индекс записей</div>
       <div class="score-hint" id="traderScoreHint">Винрейт, дисциплина, R:R и ошибки</div>
+      <div class="score-few" id="traderScoreFew" hidden></div>
     </div>
   </div>
 
@@ -2292,9 +2292,10 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
     <div id="weekCard" class="week-wrap"></div>
   </div>
 
-  <!-- Streaks -->
+  <!-- Streaks. The note says what they and the goals count: the quick-trades switch changes only the analytics -->
   <div class="an-section">
     <div class="shdr"><div class="stitle" id="streaksTitle">Серии</div></div>
+    <p class="insights-scope" id="progScope">Серии и цели считаются по всем сделкам, включая быстрые.</p>
     <div id="streaksWrap"></div>
   </div>
 
@@ -2403,7 +2404,7 @@ body.light #authGate{background:radial-gradient(70% 45% at 8% 0%,color-mix(in sr
       <div class="fgroup">
           <label class="flabel" id="lbl_type_el">Тип</label>
           <div class="toggle-group cols2">
-            <button class="tbtn sel-buy" id="btnBuy" onclick="setTrade('dir','buy');calcRR()">▲ Buy</button>
+            <button class="tbtn" id="btnBuy" onclick="setTrade('dir','buy');calcRR()">▲ Buy</button>
             <button class="tbtn" id="btnSell" onclick="setTrade('dir','sell');calcRR()">▼ Sell</button>
           </div>
       </div>
@@ -7388,8 +7389,9 @@ function renderGrouped(list, limit=10, showAll=false){
   return `<div class="trade-grid">${html}${showMore}</div>`;
 }
 
-// ── Trader Score (0–100) ─────────────────────────────
-// A weighted mean of the parts that have data. A part without data is left out — never scored as
+// ── Journal Index (0–100) ────────────────────────────
+// It describes the records of the journal, it cannot prove a trader's skill: a number and what it is
+// made of, with no title and no colour of judgement. A weighted mean of the parts that have data. A part without data is left out — never scored as
 // 0, as «followed the plan» or as «no mistakes» — and the other weights are scaled up:
 //   win rate     30 % — trades with a known P&L after costs, at least 3; 70 % = full marks
 //   discipline   25 % — calcDiscipline: explicit plan / checklist / impulsive answers only
@@ -7415,29 +7417,28 @@ function calcTraderScore(){
   if(weight<0.5) return null;
   const score = Math.round(parts.reduce((s,p)=>s+p[1]*p[2], 0)/weight);
 
-  let label, col;
-  if(score>=80){ label=lang==='ru'?'Отличный трейдер':'Expert Trader';     col='var(--positive)'; }
-  else if(score>=65){ label=lang==='ru'?'Хороший прогресс':'Good Progress'; col='var(--positive)'; }
-  else if(score>=50){ label=lang==='ru'?'Средний уровень':'Developing';     col='var(--warning)';}
-  else if(score>=35){ label=lang==='ru'?'Требует работы':'Needs Work';      col='var(--warning)';}
-  else              { label=lang==='ru'?'Высокий риск':'High Risk';         col='var(--negative)';  }
-
-  return {score, label, col, parts:parts.map(p=>p[0])};
+  return {score, parts:parts.map(p=>p[0]), count:trades.length};
 }
-// The score tile on Home; applyLang calls it too, so its label and hint follow the language
+// A small sample is said in words. 30 is also where the planned E model of the insights starts.
+function journalIndexFew(ts){
+  const enough = 30;
+  if(ts.count>=enough) return '';
+  return lang==='ru' ? `Мало данных: ${ts.count} из ${enough} сделок` : `Little data: ${ts.count} of ${enough} trades`;
+}
+// The index tile on Home; applyLang calls it too, so its name and hint follow the language
 function renderTraderScore(){
   const tsEl = document.getElementById('traderScoreWrap'); if(!tsEl) return;
   const ts = calcTraderScore();
   if(!ts){ tsEl.style.display='none'; return; }
   tsEl.style.display='flex';
   document.getElementById('traderScoreNum').textContent=ts.score;
-  document.getElementById('traderScoreNum').style.color=ts.col;
-  document.getElementById('traderScoreLbl').textContent=ts.label;
-  document.getElementById('traderScoreLbl').style.color=ts.col;
+  document.getElementById('traderScoreLbl').textContent=T('score_name');
   document.getElementById('traderScoreHint').textContent=traderScoreSource(ts);
+  const few=journalIndexFew(ts), fewEl=document.getElementById('traderScoreFew');
+  fewEl.textContent=few; fewEl.hidden=!few;
   // Arc progress
   const arc=document.getElementById('traderScoreArc');
-  if(arc){const c=2*Math.PI*18;arc.style.strokeDasharray=`${ts.score/100*c} ${c}`;arc.style.stroke=ts.col;}
+  if(arc){const c=2*Math.PI*18;arc.style.strokeDasharray=`${ts.score/100*c} ${c}`;}
 }
 // What the score was made of, for the tile's hint
 function traderScoreSource(ts){
@@ -8164,6 +8165,8 @@ function saveQuickTrade(){
   try{ lsSet('pnl_mode_v1', qMode); }catch(e){}
   closeModal('quickModal');
   renderHome(); renderTrades();
+  if(document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+  if(document.getElementById('page-progress').classList.contains('active')) renderProgress();
   showToast(T('toast_saved'));
 }
 
@@ -9892,7 +9895,7 @@ function renderIdeas(){
 
 function openAddTrade(){
   editingId=null;
-  tForm={dir:'buy',date:journalToday(), pnlMode:defaultPnlMode(), commission:'', swap:'', strategyId:''};   // no result until the trader picks one
+  tForm={dir:null,date:journalToday(), pnlMode:defaultPnlMode(), commission:'', swap:'', strategyId:''};   // no direction and no result until the trader picks them
   resultError('tResultErr', false);
   currentTags=[]; currentImg=null; currentMistakes=[]; checklistState={};
   currentStep=0; rrManualMode=false;
@@ -10374,7 +10377,6 @@ function goPage(id, btn){
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(btn) btn.classList.add('active');
-  document.getElementById('fabBtn').style.display=id==='analytics'||id==='progress'?'none':'flex';
   if(id==='home') renderHome();
   if(id==='trades') renderTrades();
   if(id==='analytics') renderAnalytics();
@@ -10569,7 +10571,7 @@ const STRINGS = {
     an_avgrr:'Средний R:R', an_discipline:'Дисциплина',
     an_pnl_curve:'Кривая P&L',
     home_pnl_curve:'Кривая P&L',
-    score_hint:'Винрейт, дисциплина, R:R и ошибки',now_closed:'Выходные',now_opens_in:'Азия откроется через {t}',now_ends_in:'До конца {t}, дальше {next}',kz_title:'Сейчас',
+    score_name:'Индекс записей',score_hint:'Винрейт, дисциплина, R:R и ошибки',now_closed:'Выходные',now_opens_in:'Азия откроется через {t}',now_ends_in:'До конца {t}, дальше {next}',kz_title:'Сейчас',
     kz_today_trades:'Сделок сегодня',
     img_unavailable:'Скрин недоступен', img_chart_alt:'Скриншот графика',
     a11y_close:'Закрыть', a11y_settings:'Настройки', a11y_theme:'Сменить тему',
@@ -10596,7 +10598,7 @@ const STRINGS = {
     no_mistake_data:'Ошибки не отмечены',
     // Progress page
     progress_title:'Прогресс & Цели',
-    streaks_title:'Серии',
+    streaks_title:'Серии', prog_scope:'Серии и цели считаются по всем сделкам, включая быстрые.',
     str_journal:'Журнал', str_journal_sub:'дн. подряд',
     str_discipline:'Дисциплина', str_discipline_sub:'сделок подряд по плану, не отмеченных импульсивными',
     str_wins:'Победы', str_wins_sub:'побед подряд',
@@ -10763,7 +10765,7 @@ const STRINGS = {
     an_avgrr:'Avg R:R', an_discipline:'Discipline',
     an_pnl_curve:'P&L Curve',
     home_pnl_curve:'P&L Curve',
-    score_hint:'Win rate, discipline, R:R and mistakes',now_closed:'Weekend',now_opens_in:'Asia opens in {t}',now_ends_in:'Ends in {t}, then {next}',kz_title:'Right now',
+    score_name:'Journal Index',score_hint:'Win rate, discipline, R:R and mistakes',now_closed:'Weekend',now_opens_in:'Asia opens in {t}',now_ends_in:'Ends in {t}, then {next}',kz_title:'Right now',
     kz_today_trades:'Trades today',
     img_unavailable:'Screenshot unavailable', img_chart_alt:'Chart screenshot',
     a11y_close:'Close', a11y_settings:'Settings', a11y_theme:'Toggle theme',
@@ -10790,7 +10792,7 @@ const STRINGS = {
     no_mistake_data:'No mistakes recorded',
     // Progress page
     progress_title:'Progress & Goals',
-    streaks_title:'Streaks',
+    streaks_title:'Streaks', prog_scope:'Streaks and goals count all trades, quick ones included.',
     str_journal:'Journal', str_journal_sub:'days in a row',
     str_discipline:'Discipline', str_discipline_sub:'trades in a row by plan, not marked impulsive',
     str_wins:'Wins', str_wins_sub:'wins in a row',
@@ -11000,6 +11002,7 @@ function applyLang(){
 
   // Progress page titles
   _setT('streaksTitle',    'streaks_title');
+  _setT('progScope',       'prog_scope');
   _setT('discDeepTitle',   'disc_deep_title');
   _setT('goalsTitleProg',  'goals_title_prog');
   _setT('equityTitle',     'equity_title');

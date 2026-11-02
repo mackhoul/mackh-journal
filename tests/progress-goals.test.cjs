@@ -14,7 +14,7 @@ const ctx={document:{getElementById:el},goals:[],syncSettings(){},closeModal(){}
 vm.createContext(ctx);
 vm.runInContext([cut('function parseRR(rr){','function fmt('),cut('function calcStats(list){','function calcPeriodDelta('),
  cut('function calcDiscipline(){','function getDismissedInsights('),cut('function costNum(v){','const RES_TEXT'),
- cut('function goalHTML(g){','//  HOME CHART'),cut('// ── Trader Score','//  DETAIL MODAL'),cut('function saveGoal(){','function deleteGoal('),
+ cut('function goalHTML(g){','//  HOME CHART'),cut('function calcTraderScore(){','//  DETAIL MODAL'),cut('function saveGoal(){','function deleteGoal('),
  tryCut('// The field opens with the capital already set','// ═══')].join('\n'),ctx);
 const set=(list,capital=0)=>{ctx.trades=list;ctx.baseCapital=capital;vm.runInContext('trades=this.trades;baseCapital=this.baseCapital',ctx);};
 let n=0;const T=(id,fn)=>{fn();n++;console.log('PASS '+id);};
